@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { BotonConfirmar } from '../components/Confirmar'
 import { useDatos } from '../data/store'
 import { salud } from '../data/publico'
 import type { Combatiente, TipoCombatiente } from '../data/types'
@@ -47,11 +48,6 @@ export function Combate() {
       }),
     )
 
-  const terminar = () => {
-    const vaciar = window.confirm('¿Quitar también a todos los combatientes de la lista?\n\nAceptar: vaciar la lista. Cancelar: conservarla.')
-    terminarCombate(vaciar)
-  }
-
   return (
     <div className="combate">
       <header className="combate-cabecera">
@@ -67,9 +63,15 @@ export function Combate() {
             <button type="button" className="boton boton-principal" onClick={siguienteTurno}>
               Siguiente turno
             </button>
-            <button type="button" className="boton boton-claro-peligro" onClick={terminar}>
-              Terminar combate
-            </button>
+            <BotonConfirmar
+              className="boton boton-claro-peligro"
+              etiqueta="Terminar combate"
+              pregunta="¿Qué hacemos con la lista de combatientes?"
+              opciones={[
+                { etiqueta: 'Terminar y vaciar la lista', accion: () => terminarCombate(true), peligro: true },
+                { etiqueta: 'Terminar y conservarla', accion: () => terminarCombate(false) },
+              ]}
+            />
           </div>
         ) : (
           <div className="combate-controles">

@@ -28,8 +28,25 @@ export const useUI = create<UI>()(
   ),
 )
 
+// Recuerda si el atributo lo puso la app, para no borrar el que ponga un visor externo.
+let puestoPorLaApp = false
+
 export function aplicarTema(t: Tema) {
   const raiz = document.documentElement
-  if (t === 'auto') raiz.removeAttribute('data-theme')
-  else raiz.setAttribute('data-theme', t === 'claro' ? 'light' : 'dark')
+  if (t === 'auto') {
+    if (puestoPorLaApp) raiz.removeAttribute('data-theme')
+    puestoPorLaApp = false
+    return
+  }
+  raiz.setAttribute('data-theme', t === 'claro' ? 'light' : 'dark')
+  puestoPorLaApp = true
 }
+
+/** true si la app se muestra dentro de otra página (p. ej. un visor). */
+export const enMarco = (() => {
+  try {
+    return window.self !== window.top
+  } catch {
+    return true
+  }
+})()

@@ -107,6 +107,8 @@ textarea::placeholder {
 }
 
 textarea {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   resize: vertical;
   line-height: 1.55;
   min-height: 6.5rem;
@@ -217,6 +219,9 @@ input[aria-invalid='true'] {
 /* Control segmentado */
 .segmentado {
   display: inline-flex;
+  justify-self: start;
+  max-width: 100%;
+  overflow-x: auto;
   border: 1px solid var(--linea);
   border-radius: var(--r-s);
   overflow: hidden;
@@ -251,4 +256,40 @@ input[aria-invalid='true'] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+.boton-peligro-lleno {
+  background: var(--peligro);
+  border-color: var(--peligro);
+  color: var(--superficie-alta);
+}
+
+.boton-peligro-lleno:hover {
+  border-color: var(--tinta);
+}
+
+.boton-sutil {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Confirmación en línea */
+.confirmar {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--peligro);
+  border-radius: var(--r-m);
+  background: var(--superficie-alta);
+  max-width: 34rem;
+}
+
+.confirmar p {
+  font-size: var(--t-s);
+}
+
+.confirmar-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }

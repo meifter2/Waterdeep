@@ -3,8 +3,11 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { COLECCIONES, ORDEN_COLECCIONES } from '../data/entities'
 import { useDatos } from '../data/store'
 import { almacenamientoDisponible } from '../data/storage'
-import { useUI } from '../data/ui'
+import { enMarco, useUI } from '../data/ui'
 import { Sello } from './Sello'
+
+// En una pestaña nueva cuando es posible (segunda pantalla); dentro de un visor, en la misma.
+const enlaceJugadores = enMarco ? {} : { target: '_blank', rel: 'noopener' }
 
 export function Layout() {
   const campana = useDatos((s) => s.campana)
@@ -52,7 +55,7 @@ export function Layout() {
             </NavLink>
           ))}
           <NavLink to="/ajustes">Ajustes</NavLink>
-          <a className="solo-movil" href="#/jugadores" target="_blank" rel="noopener">
+          <a className="solo-movil" href="#/jugadores" {...enlaceJugadores}>
             Vista de jugadores
           </a>
         </nav>
@@ -68,7 +71,7 @@ export function Layout() {
             <Sello tamano={16} />
             {ocultar ? 'Secretos ocultos' : 'Ocultar secretos'}
           </button>
-          <a className="boton boton-claro" href="#/jugadores" target="_blank" rel="noopener">
+          <a className="boton boton-claro" href="#/jugadores" {...enlaceJugadores}>
             Abrir vista de jugadores
           </a>
         </div>

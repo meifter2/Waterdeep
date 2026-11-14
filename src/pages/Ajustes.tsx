@@ -1,53 +1,68 @@
 import { useRef, useState, type ChangeEvent } from 'react'
+import { BotonConfirmar } from '../components/Confirmar'
 import { datosDemo } from '../data/demo'
 import { datosVacios, extraerDatos, useDatos, validarImportacion } from '../data/store'
 import { almacenamientoDisponible } from '../data/storage'
-import { useUI, type Tema } from '../data/ui'
+import { enMarco, useUI, type Tema } from '../data/ui'
+import type { Datos } from '../data/types'
+
+type Mensaje = { tipo: 'ok' | 'error'; texto: string } | null
 
 export function Ajustes() {
   const reemplazarTodo = useDatos((s) => s.reemplazarTodo)
   const tema = useUI((s) => s.tema)
   const cambiarTema = useUI((s) => s.cambiarTema)
-  const [mensaje, setMensaje] = useState<{ tipo: 'ok' | 'error'; texto: string } | null>(null)
+  const [mensaje, setMensaje] = useState<Mensaje>(null)
+  const [pendiente, setPendiente] = useState<Datos | null>(null)
+  const [pegado, setPegado] = useState('')
   const archivo = useRef<HTMLInputElement>(null)
 
-  const exportar = () => {
+  const copiaJson = () => JSON.stringify(extraerDatos(useDatos.getState()), null, 2)
+
+  const descargar = () => {
     const datos = extraerDatos(useDatos.getState())
-    const blob = new Blob([JSON.stringify(datos, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
+    const url = URL.createObjectURL(new Blob([copiaJson()], { type: 'application/json' }))
     const a = document.createElement('a')
     const fecha = new Date().toISOString().slice(0, 10)
     a.href = url
     a.download = `mesa-${(datos.campana.nombre || 'campana').toLowerCase().replace(/[^a-z0-9áéíóúñü]+/gi, '-')}-${fecha}.json`
     a.click()
     URL.revokeObjectURL(url)
-    setMensaje({ tipo: 'ok', texto: 'Copia exportada. Guárdala en un lugar seguro: contiene tus secretos.' })
+    setMensaje({ tipo: 'ok', texto: 'Copia descargada. Guárdala en un lugar seguro: contiene tus secretos.' })
   }
 
-  const importar = async (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]
-    e.target.value = ''
-    if (!f) return
-    const resultado = validarImportacion(await f.text())
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(copiaJson())
+      setMensaje({ tipo: 'ok', texto: 'Copia copiada al portapapeles. Pégala en un archivo de texto y guárdalo.' })
+    } catch {
+      setMensaje({ tipo: 'error', texto: 'El navegador no deja copiar al portapapeles. Usa «Descargar copia».' })
+    }
+  }
+
+  const preparar = (texto: string) => {
+    const resultado = validarImportacion(texto)
     if (typeof resultado === 'string') {
       setMensaje({ tipo: 'error', texto: resultado })
+      setPendiente(null)
       return
     }
-    if (!window.confirm('La copia sustituirá todos los datos actuales. ¿Continuar?')) return
-    reemplazarTodo(resultado)
+    setMensaje(null)
+    setPendiente(resultado)
+  }
+
+  const leerArchivo = async (e: ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (f) preparar(await f.text())
+  }
+
+  const aplicar = () => {
+    if (!pendiente) return
+    reemplazarTodo(pendiente)
+    setPendiente(null)
+    setPegado('')
     setMensaje({ tipo: 'ok', texto: 'Copia importada.' })
-  }
-
-  const cargarDemo = () => {
-    if (!window.confirm('La campaña de ejemplo sustituirá todos los datos actuales. ¿Continuar?')) return
-    reemplazarTodo(datosDemo())
-    setMensaje({ tipo: 'ok', texto: 'Campaña de ejemplo cargada.' })
-  }
-
-  const borrarTodo = () => {
-    if (!window.confirm('Se borrarán todos los datos de la campaña en este navegador. No se puede deshacer. ¿Continuar?')) return
-    reemplazarTodo(datosVacios())
-    setMensaje({ tipo: 'ok', texto: 'Datos borrados.' })
   }
 
   return (
@@ -81,18 +96,54 @@ export function Ajustes() {
         <h2 id="a-copias">Copias de seguridad</h2>
         <p>
           {almacenamientoDisponible
-            ? 'Tus datos se guardan solo en este navegador. Exporta una copia de vez en cuando o antes de cambiar de dispositivo.'
-            : 'Este navegador no permite guardar datos: exporta una copia antes de cerrar la pestaña.'}
+            ? 'Tus datos se guardan solo en este navegador. Haz una copia de vez en cuando o antes de cambiar de dispositivo.'
+            : 'Este navegador no permite guardar datos: haz una copia antes de cerrar la pestaña.'}
         </p>
         <div className="acciones">
-          <button type="button" className="boton boton-principal" onClick={exportar}>
-            Exportar copia
+          {!enMarco && (
+            <button type="button" className="boton boton-principal" onClick={descargar}>
+              Descargar copia
+            </button>
+          )}
+          <button type="button" className={enMarco ? 'boton boton-principal' : 'boton'} onClick={copiar}>
+            Copiar copia al portapapeles
           </button>
-          <button type="button" className="boton" onClick={() => archivo.current?.click()}>
-            Importar copia
-          </button>
-          <input ref={archivo} type="file" accept="application/json,.json" hidden onChange={importar} />
         </div>
+
+        <h3 className="subtitulo">Recuperar una copia</h3>
+        <div className="acciones">
+          <button type="button" className="boton" onClick={() => archivo.current?.click()}>
+            Elegir archivo
+          </button>
+          <input ref={archivo} type="file" accept="application/json,.json" hidden onChange={leerArchivo} />
+        </div>
+        <div className="campo">
+          <label htmlFor="pegar-copia">O pega aquí el texto de una copia</label>
+          <textarea id="pegar-copia" rows={3} value={pegado} onChange={(e) => setPegado(e.target.value)} />
+        </div>
+        {pegado.trim() && !pendiente && (
+          <div className="acciones">
+            <button type="button" className="boton" onClick={() => preparar(pegado)}>
+              Comprobar copia
+            </button>
+          </div>
+        )}
+        {pendiente && (
+          <div className="confirmar" role="alertdialog" aria-label="Confirmar importación">
+            <p>
+              Copia válida de «{pendiente.campana.nombre}»: {pendiente.pnj.length} PNJ, {pendiente.pistas.length} pistas,{' '}
+              {pendiente.sesiones.length} sesiones. Sustituirá todos los datos actuales.
+            </p>
+            <div className="confirmar-botones">
+              <button type="button" className="boton boton-peligro-lleno" onClick={aplicar}>
+                Sustituir datos
+              </button>
+              <button type="button" className="boton boton-sutil" onClick={() => setPendiente(null)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="panel" aria-labelledby="a-privacidad">
@@ -107,15 +158,38 @@ export function Ajustes() {
         </p>
       </section>
 
-      <section className="panel panel-peligro" aria-labelledby="a-datos">
+      <section className="panel" aria-labelledby="a-datos">
         <h2 id="a-datos">Datos de la campaña</h2>
         <div className="acciones">
-          <button type="button" className="boton" onClick={cargarDemo}>
-            Cargar campaña de ejemplo
-          </button>
-          <button type="button" className="boton boton-peligro" onClick={borrarTodo}>
-            Borrar todos los datos
-          </button>
+          <BotonConfirmar
+            etiqueta="Cargar campaña de ejemplo"
+            pregunta="La campaña de ejemplo sustituirá todos los datos actuales."
+            opciones={[
+              {
+                etiqueta: 'Cargar ejemplo',
+                peligro: true,
+                accion: () => {
+                  reemplazarTodo(datosDemo())
+                  setMensaje({ tipo: 'ok', texto: 'Campaña de ejemplo cargada.' })
+                },
+              },
+            ]}
+          />
+          <BotonConfirmar
+            className="boton boton-peligro"
+            etiqueta="Borrar todos los datos"
+            pregunta="Se borrará toda la campaña de este navegador. No se puede deshacer."
+            opciones={[
+              {
+                etiqueta: 'Borrar todo',
+                peligro: true,
+                accion: () => {
+                  reemplazarTodo(datosVacios())
+                  setMensaje({ tipo: 'ok', texto: 'Datos borrados.' })
+                },
+              },
+            ]}
+          />
         </div>
       </section>
     </div>

@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { COLECCIONES, type Campo, type ConfigColeccion } from '../data/entities'
 import { useDatos } from '../data/store'
 import type { Coleccion, Entidad } from '../data/types'
+import { BotonConfirmar } from './Confirmar'
 import { BloqueSellado } from './Sello'
 
 /** Formulario de una ficha. Guarda automáticamente con cada cambio. */
@@ -16,11 +17,8 @@ export function Ficha({ config, entidad }: { config: ConfigColeccion; entidad: E
   const secretos = config.campos.filter((c) => c.secreto)
 
   const borrar = () => {
-    const nombre = entidad.nombre || minuscula(config.singular)
-    if (window.confirm(`¿Eliminar «${nombre}»? No se puede deshacer.`)) {
-      eliminar(config.clave, entidad.id)
-      navegar(config.ruta)
-    }
+    eliminar(config.clave, entidad.id)
+    navegar(config.ruta)
   }
 
   return (
@@ -75,9 +73,12 @@ export function Ficha({ config, entidad }: { config: ConfigColeccion; entidad: E
 
       <footer className="ficha-pie">
         <span className="guardado">Los cambios se guardan solos.</span>
-        <button type="button" className="boton boton-peligro" onClick={borrar}>
-          Eliminar {minuscula(config.singular)}
-        </button>
+        <BotonConfirmar
+          className="boton boton-peligro"
+          etiqueta={`Eliminar ${minuscula(config.singular)}`}
+          pregunta={`¿Eliminar «${entidad.nombre || minuscula(config.singular)}»? No se puede deshacer.`}
+          opciones={[{ etiqueta: 'Eliminar', accion: borrar, peligro: true }]}
+        />
       </footer>
     </article>
   )
