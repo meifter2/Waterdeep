@@ -1,0 +1,80 @@
+/* Ventanas: editor de personaje y copias de seguridad. */
+
+.dialogo {
+  width: min(36rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-m);
+  background: var(--superficie-alta);
+  color: var(--tinta);
+  box-shadow: var(--sombra);
+}
+
+.dialogo::backdrop {
+  background: rgba(12, 22, 24, 0.6);
+}
+
+.editor,
+.copias {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+
+.copias h3 {
+  font-family: var(--f-texto);
+  font-size: var(--t-m);
+  font-weight: 700;
+}
+
+.editor-fila {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.editor-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--linea);
+}
+
+.editor-eliminar {
+  margin-left: auto;
+}
+
+.deteccion {
+  color: var(--verdin);
+  font-size: var(--t-s);
+  font-weight: 500;
+  margin-top: 0.4rem;
+}
+
+.campo .ayuda,
+.campo .error {
+  margin-top: 0.4rem;
+  margin-bottom: 0;
+}
+
+.ayuda-normal {
+  color: var(--tinta-suave);
+}
+
+#pegar-copia {
+  field-sizing: fixed;
+  max-height: 10rem;
+  font-size: var(--t-xs);
+}
+
+@media (max-width: 520px) {
+  .editor-fila {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-eliminar {
+    margin-left: 0;
+  }
+}

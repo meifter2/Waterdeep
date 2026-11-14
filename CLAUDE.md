@@ -1,59 +1,64 @@
-# CLAUDE.md — Mesa del Máster («Waterdeep: Dragon Heist»)
+# CLAUDE.md — Banda sonora («Waterdeep: Dragon Heist»)
 
 > Contexto para Claude Code. Breve (≤100 líneas). Actualizar al cerrar cada fase.
 > No repetir lo que ya está en el código: solo lo necesario para orientarse.
 
 ## Resumen
-App web para que el máster dirija la campaña: fichas (PNJ, facciones, lugares, pistas,
-personajes, sesiones) con **secretos sellados**, combate, dados y una **vista de jugadores**
-sin secretos. Beta local: todo vive en el navegador (localStorage).
+App web del máster centrada SOLO en la música: cada personaje tiene una canción (enlace de
+Spotify o YouTube). Pulsar el personaje → suena en el reproductor integrado. Nada más por ahora
+(sin dados, fichas, combate…: retirados a petición del usuario; están en el historial de git).
+Datos en el navegador (localStorage). El usuario tiene Spotify Premium.
 
 ## Usuario y forma de trabajar
 - Responder **siempre en español**, explicando cada paso. Usuario: experto en producto/UX/frontend, no programador puro.
-- Plan antes de código en cambios grandes; preguntar decisiones importantes no cubiertas aquí.
-- **Prioridad: ahorrar tokens.** Empezar SIEMPRE por este archivo; leer solo los archivos necesarios
-  (con offset/grep si son largos); no releer lo ya leído; respuestas concisas. Mantener este archivo al día.
-- **Tamaño de archivo: máximo ~1000 líneas** (límite duro 1500). Si un archivo se acerca, dividirlo por responsabilidad.
+  Suele dictar por voz: interpretar con cuidado y preguntar si algo es ambiguo.
+- Plan antes de cambios grandes; preguntar decisiones importantes no cubiertas aquí.
+- **Prioridad: ahorrar tokens.** Empezar SIEMPRE por este archivo; leer solo lo necesario
+  (grep/offset en archivos largos); no releer lo ya leído; respuestas concisas.
+- **Tamaño de archivo: máximo ~1000 líneas** (límite duro 1500). Dividir por responsabilidad.
 
 ## Reglas clave
-- **Secretos del máster protegidos**: la vista de jugadores lee SOLO `proyeccionPublica()` (lista blanca).
-  Un campo nuevo es privado salvo que se marque `publico: true` en `entities.ts`. Lo secreto lleva `secreto: true`.
-- **Nada de contenido del libro**: ni textos, ni mapas, ni nombres/tramas propios de la aventura. Datos demo inventados.
-- **Interfaz en español** (sentence case, sin mayúsculas sostenidas en etiquetas).
+- **Nada de contenido del libro** en el código (textos, mapas, tramas). El máster mete su material.
+- **Interfaz en español** (sentence case, sin mayúsculas sostenidas).
 - **Frontend → skill `frontend-design` obligatoria.**
-- Color lacre (`--lacre`) reservado a lo secreto. Nunca subir secretos ni `.env`.
+- Nunca subir secretos ni `.env`.
 
 ## Stack
-React 19 + TypeScript + Vite · React Router (HashRouter) · Zustand (persist → localStorage) · CSS plano con tokens.
-Fuentes: Alegreya (títulos) + Alegreya Sans (interfaz), vía Google Fonts.
+React 19 + TypeScript + Vite · Zustand (persist → localStorage) · CSS plano con tokens.
+Reproducción: Spotify iFrame API + YouTube IFrame Player API (scripts oficiales cargados en ejecución).
+Fuentes: Alegreya (títulos) + Alegreya Sans (interfaz).
 
 ## Estructura
 ```
 src/
-  data/types.ts       modelo de datos (Datos, Entidad, Combate…)
-  data/entities.ts    config declarativa de cada colección (campos, secreto/público, textos)
-  data/store.ts       store Zustand + persistencia + import/validación + sync entre pestañas
-  data/publico.ts     proyección pública (lo único que ve el jugador)
-  data/demo.ts        campaña de ejemplo inventada
-  data/ui.ts          tema y modo «ocultar secretos»
-  data/storage.ts     localStorage tolerante a fallos
-  components/         Layout (riel), Ficha (formulario genérico), Sello/BloqueSellado, Dados
-  pages/              Mesa, Combate, Coleccion (lista+ficha genérica), VistaJugadores, Ajustes
-  styles/             tokens (paleta claro/oscuro), base, una hoja por zona
-                      (layout, sellado, fichas, mesa, combate, ajustes, jugadores); responsive al final
+  App.tsx                     pantalla única: cabecera, buscador, grupos de tarjetas
+  data/types.ts               Personaje { nombre, enlace, grupo, nota }
+  data/store.ts               personajes + persistencia + validación de copias
+  data/reproduccion.ts        estado del reproductor (qué suena, pausa, repetir)
+  lib/enlaces.ts              interpreta enlaces Spotify/YouTube (todos los formatos)
+  lib/apis.ts                 carga de las APIs oficiales (con límite de 10 s)
+  components/reproductor/     Reproductor (barra inferior) + motorSpotify + motorYoutube
+  components/                 Tarjeta, Editor (dialog), Copias (dialog), Confirmar
+  styles/                     tokens, base, app, reproductor, dialogos
+pruebas/                      enlaces.test.ts (formatos) · musica.cjs (flujo con APIs simuladas)
 ```
-Añadir un campo a una ficha = añadirlo en `entities.ts` (se pinta solo).
+
+## Comportamiento del reproductor (no romper)
+- Un único reproductor por servicio, reutilizado (Spotify `loadUri`, YouTube `loadVideoById`).
+- Pulsar el personaje que suena = pausa/reanuda. Cambiar de servicio pausa/detiene el otro.
+- «Repetir» (por defecto sí) reinicia al terminar. Spotify con duración ≤30 s ⇒ aviso de sesión no iniciada.
+- YouTube errores 101/150 ⇒ «no permite reproducirlo fuera de YouTube». Vídeo visible ≥200 px (normas de YouTube).
+- Si la API no carga ⇒ iframe básico de respaldo y aviso «Pulsa ▶».
+- La música NO suena dentro del visor de artifacts de claude.ai (bloquea iframes externos).
 
 ## Comandos
-- `npm install` · `npm run dev` (desarrollo) · `npm run build` (typecheck + build a `dist/`)
-- `npm run preview` (sirve `dist/`) · `npm run typecheck`
-- Migraciones/despliegue: no aplica aún (sin backend).
+- `npm install` · `npm run dev` · `npm run build` (typecheck + build) · `npm run preview`
+- `npm run test:enlaces` · `npm run test:musica` (requiere `npm run preview` en :4173 y Playwright)
+- Despliegue: pendiente de decidir con el usuario.
 
 ## Convenciones
-- Código y nombres en español. Componentes funcionales, sin librería de UI.
-- Clases CSS en español; anidar selectores genéricos (`.ficha-campos .campo`) para evitar choques.
-- Accesibilidad: labels en todos los campos, foco visible, `prefers-reduced-motion`.
-- Auditoría de fugas: prueba Playwright que carga demo y verifica que ningún texto secreto aparece en `#/jugadores`.
+- Código y nombres en español. Componentes funcionales; sin librería de UI ni router.
+- Selectores CSS anidados para evitar choques. Accesibilidad: labels, foco visible, reduced-motion.
 
 ## Git
 Rama: `ccr-4e49e839-kg8cvn`. Commits pequeños en español.
@@ -61,6 +66,6 @@ Rama: `ccr-4e49e839-kg8cvn`. Commits pequeños en español.
 ## Estado de fases
 | Fase | Descripción | Estado |
 |------|-------------|--------|
-| 0 | CLAUDE.md y contexto | Hecho |
-| 1 | Beta local: fichas, secretos, mesa, combate, dados, vista jugadores, copias JSON | Hecho, pendiente de prueba manual del usuario |
-| 2 | Backend (p. ej. Supabase + RLS) para que cada jugador use su móvil con secretos protegidos en servidor | Por decidir |
+| 1 | Beta amplia (fichas, combate, dados…) | Retirada por el usuario |
+| 2 | Banda sonora: personaje → canción Spotify/YouTube | Hecha; falta prueba real del usuario |
+| 3 | Publicación (hosting) para probar con sonido real | Pendiente de decisión |

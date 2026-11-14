@@ -1,0 +1,229 @@
+/* Cabecera, biblioteca de personajes y tarjetas. */
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+
+/* ───── Cabecera ───── */
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  padding: clamp(1.25rem, 3vw, 2.25rem) clamp(1rem, 4vw, 3rem) 1rem;
+}
+
+.cabecera-marca h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 700;
+}
+
+.cabecera-marca p {
+  font-family: var(--f-titulo);
+  font-style: italic;
+  color: var(--tinta-suave);
+}
+
+.cabecera-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.buscador input {
+  width: 15rem;
+  max-width: 100%;
+}
+
+/* ───── Biblioteca ───── */
+.biblioteca {
+  flex: 1;
+  display: grid;
+  align-content: start;
+  gap: 2rem;
+  padding: 1rem clamp(1rem, 4vw, 3rem) 3rem;
+}
+
+.grupo h2 {
+  font-size: var(--t-l);
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--linea);
+}
+
+.tarjetas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13.5rem), 1fr));
+  gap: 0.75rem;
+}
+
+/* ───── Tarjeta ───── */
+.tarjeta {
+  position: relative;
+}
+
+.tarjeta-tocar {
+  width: 100%;
+  min-height: 6.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  text-align: left;
+  font: inherit;
+  color: var(--tinta);
+  background: var(--superficie-alta);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-m);
+  padding: 0.85rem 4rem 0.8rem 1rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.tarjeta-tocar:hover {
+  border-color: var(--verdin);
+}
+
+.tarjeta-tocar:active {
+  transform: translateY(1px);
+}
+
+.tarjeta-nombre {
+  font-family: var(--f-titulo);
+  font-size: var(--t-l);
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.tarjeta-nota {
+  font-size: var(--t-s);
+  color: var(--tinta-suave);
+}
+
+.tarjeta-fuente {
+  margin-top: auto;
+  padding-top: 0.4rem;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--verdin);
+}
+
+.tarjeta-editar {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  font: inherit;
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-s);
+  padding: 0.2rem 0.45rem;
+  cursor: pointer;
+}
+
+.tarjeta-editar:hover {
+  border-color: var(--linea);
+  color: var(--tinta);
+}
+
+/* Personaje que suena: placa oscura con filo de oro. */
+.tarjeta[data-actual] .tarjeta-tocar {
+  background: var(--muelle);
+  color: var(--muelle-tinta);
+  border-color: var(--oro-sobre-oscuro);
+  box-shadow: inset 4px 0 0 var(--oro-sobre-oscuro);
+}
+
+.tarjeta[data-actual] .tarjeta-nota {
+  color: var(--muelle-tinta-suave);
+}
+
+.tarjeta[data-actual] .tarjeta-fuente {
+  color: var(--oro-sobre-oscuro);
+}
+
+.tarjeta[data-actual] .tarjeta-editar {
+  color: var(--muelle-tinta-suave);
+}
+
+.tarjeta[data-actual] .tarjeta-editar:hover {
+  color: var(--muelle-tinta);
+  border-color: var(--muelle-activo);
+}
+
+.tarjeta[data-sin-cancion] .tarjeta-tocar {
+  border-style: dashed;
+  background: transparent;
+}
+
+.tarjeta[data-sin-cancion] .tarjeta-fuente {
+  color: var(--tinta-suave);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* ───── Estados vacíos y avisos ───── */
+.vacio {
+  max-width: 34rem;
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  padding-top: 8vh;
+}
+
+.vacio h2 {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+}
+
+.vacio p {
+  font-size: var(--t-l);
+  font-family: var(--f-titulo);
+  line-height: 1.45;
+}
+
+.vacio-corto {
+  color: var(--tinta-suave);
+}
+
+.aviso {
+  background: color-mix(in srgb, var(--peligro) 12%, var(--superficie-alta));
+  border-left: 3px solid var(--peligro);
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--r-s);
+  max-width: 70ch;
+}
+
+.aviso-ok {
+  background: var(--verdin-suave);
+  border-left-color: var(--verdin);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .cabecera {
+    align-items: start;
+  }
+  .cabecera-acciones,
+  .buscador,
+  .buscador input {
+    width: 100%;
+  }
+  .cabecera-acciones .boton {
+    flex: 1;
+  }
+}

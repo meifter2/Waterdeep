@@ -2,180 +2,56 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { almacenamientoSeguro } from './storage'
 import { nuevoId } from '../lib/id'
-import type { Campana, Coleccion, Combatiente, Datos, Entidad, Tirada } from './types'
+import type { Datos, Personaje } from './types'
 
-export const CLAVE_DATOS = 'waterdeep-mesa:datos'
+export const CLAVE_DATOS = 'banda-sonora:datos'
 
-export function datosVacios(): Datos {
-  return {
-    version: 1,
-    campana: { nombre: 'Mi campaña', diaJuego: '', notasRapidas: '' },
-    pj: [],
-    pnj: [],
-    facciones: [],
-    lugares: [],
-    pistas: [],
-    sesiones: [],
-    combate: { activo: false, ronda: 1, turno: 0, combatientes: [] },
-    tiradas: [],
-  }
-}
+type Cambios = Partial<Pick<Personaje, 'nombre' | 'enlace' | 'grupo' | 'nota'>>
 
-interface Acciones {
-  actualizarCampana: (cambios: Partial<Campana>) => void
-  crear: (col: Coleccion, inicial?: Partial<Entidad>) => string
-  actualizar: (col: Coleccion, id: string, cambios: Partial<Entidad>) => void
-  eliminar: (col: Coleccion, id: string) => void
-
-  // Combate
-  anadirCombatiente: (c: Omit<Combatiente, 'id'>) => void
-  actualizarCombatiente: (id: string, cambios: Partial<Combatiente>) => void
-  quitarCombatiente: (id: string) => void
-  ordenarIniciativa: () => void
-  siguienteTurno: () => void
-  turnoAnterior: () => void
-  iniciarCombate: () => void
-  terminarCombate: (vaciar: boolean) => void
-
-  registrarTirada: (t: Omit<Tirada, 'id' | 'momento'>) => void
-  borrarTiradas: () => void
-
+interface Estado extends Datos {
+  crear: (p: Cambios) => string
+  actualizar: (id: string, cambios: Cambios) => void
+  eliminar: (id: string) => void
   reemplazarTodo: (d: Datos) => void
 }
-
-export type Estado = Datos & Acciones
-
-const ordenar = (lista: Combatiente[]) =>
-  [...lista].sort((a, b) => b.iniciativa - a.iniciativa || a.nombre.localeCompare(b.nombre, 'es'))
 
 export const useDatos = create<Estado>()(
   persist(
     (set) => ({
-      ...datosVacios(),
+      version: 2,
+      personajes: [],
 
-      actualizarCampana: (cambios) => set((s) => ({ campana: { ...s.campana, ...cambios } })),
-
-      crear: (col, inicial = {}) => {
+      crear: (p) => {
         const ahora = Date.now()
         const id = nuevoId()
-        const entidad: Entidad = {
-          nombre: '',
-          visible: col === 'pj',
-          ...inicial,
-          id,
-          creado: ahora,
-          actualizado: ahora,
-        }
-        set((s) => ({ [col]: [entidad, ...s[col]] }) as Partial<Estado>)
+        const nuevo: Personaje = { nombre: '', enlace: '', grupo: '', nota: '', ...p, id, creado: ahora, actualizado: ahora }
+        set((s) => ({ personajes: [...s.personajes, nuevo] }))
         return id
       },
 
-      actualizar: (col, id, cambios) =>
+      actualizar: (id, cambios) =>
         set((s) => ({
-          [col]: s[col].map((e) => (e.id === id ? { ...e, ...cambios, actualizado: Date.now() } : e)),
-        }) as Partial<Estado>),
-
-      eliminar: (col, id) => set((s) => ({ [col]: s[col].filter((e) => e.id !== id) }) as Partial<Estado>),
-
-      anadirCombatiente: (c) =>
-        set((s) => {
-          const lista = [...s.combate.combatientes, { ...c, id: nuevoId() }]
-          return { combate: { ...s.combate, combatientes: s.combate.activo ? lista : ordenar(lista) } }
-        }),
-
-      actualizarCombatiente: (id, cambios) =>
-        set((s) => ({
-          combate: {
-            ...s.combate,
-            combatientes: s.combate.combatientes.map((c) => (c.id === id ? { ...c, ...cambios } : c)),
-          },
+          personajes: s.personajes.map((p) => (p.id === id ? { ...p, ...cambios, actualizado: Date.now() } : p)),
         })),
 
-      quitarCombatiente: (id) =>
-        set((s) => {
-          const idx = s.combate.combatientes.findIndex((c) => c.id === id)
-          const combatientes = s.combate.combatientes.filter((c) => c.id !== id)
-          let turno = s.combate.turno
-          if (idx !== -1 && idx < turno) turno -= 1
-          if (turno >= combatientes.length) turno = 0
-          return { combate: { ...s.combate, combatientes, turno } }
-        }),
+      eliminar: (id) => set((s) => ({ personajes: s.personajes.filter((p) => p.id !== id) })),
 
-      ordenarIniciativa: () =>
-        set((s) => {
-          const actual = s.combate.combatientes[s.combate.turno]
-          const combatientes = ordenar(s.combate.combatientes)
-          const turno = actual ? Math.max(0, combatientes.findIndex((c) => c.id === actual.id)) : 0
-          return { combate: { ...s.combate, combatientes, turno } }
-        }),
-
-      siguienteTurno: () =>
-        set((s) => {
-          const n = s.combate.combatientes.length
-          if (n === 0) return {}
-          const siguiente = s.combate.turno + 1
-          return siguiente >= n
-            ? { combate: { ...s.combate, turno: 0, ronda: s.combate.ronda + 1 } }
-            : { combate: { ...s.combate, turno: siguiente } }
-        }),
-
-      turnoAnterior: () =>
-        set((s) => {
-          const n = s.combate.combatientes.length
-          if (n === 0) return {}
-          if (s.combate.turno > 0) return { combate: { ...s.combate, turno: s.combate.turno - 1 } }
-          if (s.combate.ronda > 1) return { combate: { ...s.combate, turno: n - 1, ronda: s.combate.ronda - 1 } }
-          return {}
-        }),
-
-      iniciarCombate: () =>
-        set((s) => ({
-          combate: { ...s.combate, activo: true, ronda: 1, turno: 0, combatientes: ordenar(s.combate.combatientes) },
-        })),
-
-      terminarCombate: (vaciar) =>
-        set((s) => ({
-          combate: {
-            activo: false,
-            ronda: 1,
-            turno: 0,
-            combatientes: vaciar ? [] : s.combate.combatientes,
-          },
-        })),
-
-      registrarTirada: (t) =>
-        set((s) => ({ tiradas: [{ ...t, id: nuevoId(), momento: Date.now() }, ...s.tiradas].slice(0, 30) })),
-
-      borrarTiradas: () => set({ tiradas: [] }),
-
-      reemplazarTodo: (d) => set({ ...datosVacios(), ...d }),
+      reemplazarTodo: (d) => set({ version: 2, personajes: d.personajes }),
     }),
     {
       name: CLAVE_DATOS,
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => almacenamientoSeguro),
-      // Solo se guardan los datos, no las funciones.
       partialize: (s) => extraerDatos(s),
     },
   ),
 )
 
-export function extraerDatos(s: Estado | Datos): Datos {
-  return {
-    version: 1,
-    campana: s.campana,
-    pj: s.pj,
-    pnj: s.pnj,
-    facciones: s.facciones,
-    lugares: s.lugares,
-    pistas: s.pistas,
-    sesiones: s.sesiones,
-    combate: s.combate,
-    tiradas: s.tiradas,
-  }
+export function extraerDatos(s: Datos): Datos {
+  return { version: 2, personajes: s.personajes }
 }
 
-/** Sincroniza pestañas: si la vista de jugadores está abierta en otra ventana, se actualiza sola. */
+/** Si la app está abierta en dos pestañas, ambas ven los mismos personajes. */
 export function escucharOtrasPestanas() {
   const alCambiar = (e: StorageEvent) => {
     if (e.key === CLAVE_DATOS) void useDatos.persist.rehydrate()
@@ -184,20 +60,33 @@ export function escucharOtrasPestanas() {
   return () => window.removeEventListener('storage', alCambiar)
 }
 
-/** Valida un JSON importado. Devuelve los datos o un mensaje de error. */
+/** Valida una copia importada. Devuelve los datos o un mensaje de error. */
 export function validarImportacion(texto: string): Datos | string {
   let bruto: unknown
   try {
     bruto = JSON.parse(texto)
   } catch {
-    return 'El archivo no es un JSON válido. Usa una copia exportada desde Ajustes.'
+    return 'El texto no es una copia válida. Usa una copia hecha desde «Copias de seguridad».'
   }
-  if (!bruto || typeof bruto !== 'object') return 'El archivo está vacío o no tiene el formato esperado.'
   const d = bruto as Partial<Datos>
-  if (d.version !== 1) return 'Esta copia es de una versión desconocida de la app.'
-  const colecciones: Coleccion[] = ['pj', 'pnj', 'facciones', 'lugares', 'pistas', 'sesiones']
-  for (const c of colecciones) {
-    if (!Array.isArray(d[c])) return `A la copia le falta la lista «${c}».`
+  if (!d || d.version !== 2 || !Array.isArray(d.personajes)) {
+    return 'Esta copia no es de la banda sonora o es de una versión antigua.'
   }
-  return { ...datosVacios(), ...d } as Datos
+  const personajes = d.personajes
+    .filter((p): p is Personaje => !!p && typeof p === 'object' && typeof p.nombre === 'string')
+    .map((p) => ({
+      id: typeof p.id === 'string' ? p.id : nuevoId(),
+      nombre: p.nombre,
+      enlace: String(p.enlace ?? ''),
+      grupo: String(p.grupo ?? ''),
+      nota: String(p.nota ?? ''),
+      creado: Number(p.creado) || Date.now(),
+      actualizado: Number(p.actualizado) || Date.now(),
+    }))
+  return { version: 2, personajes }
+}
+
+/** Grupos existentes, para sugerirlos al editar. */
+export function gruposExistentes(personajes: Personaje[]): string[] {
+  return [...new Set(personajes.map((p) => p.grupo.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'))
 }

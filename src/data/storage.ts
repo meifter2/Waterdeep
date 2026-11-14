@@ -45,6 +45,3 @@ export const almacenamientoSeguro = {
   },
 }
 
-export function leerPreferencia(clave: string, porDefecto: string): string {
-  return almacenamientoSeguro.getItem(clave) ?? porDefecto
-}
