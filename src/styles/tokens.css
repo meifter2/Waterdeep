@@ -1,0 +1,93 @@
+/* Tokens de diseño. Paleta: piedra de muelle, tinta, verdín, lacre y oro de dragón.
+   El lacre se reserva EXCLUSIVAMENTE para lo secreto: si algo es rojo vino, es solo para el máster. */
+
+:root {
+  --piedra: #e3e7e0;
+  --superficie: #f3f5f0;
+  --superficie-alta: #ffffff;
+  --tinta: #1b2a2e;
+  --tinta-suave: #52625f;
+  --linea: #c3cbc2;
+  --verdin: #2a7263;
+  --verdin-tinta: #ffffff;
+  --verdin-suave: #d2e4dc;
+  --lacre: #8a2342;
+  --lacre-fondo: #f2dee3;
+  --lacre-linea: #d9a7b5;
+  --oro: #9c6f17;
+  --muelle: #1d3438;
+  --muelle-tinta: #d6e0da;
+  --muelle-tinta-suave: #8ea5a0;
+  --muelle-activo: #2b4a4f;
+  --peligro: #a3341f;
+  --foco: #2a7263;
+  --sombra: 0 1px 0 rgba(27, 42, 46, 0.06), 0 6px 18px -10px rgba(27, 42, 46, 0.35);
+
+  --f-titulo: 'Alegreya', 'Iowan Old Style', Georgia, serif;
+  --f-texto: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+
+  /* Escala tipográfica 1.25 sobre 16px */
+  --t-xs: 0.8rem;
+  --t-s: 0.9rem;
+  --t-m: 1rem;
+  --t-l: 1.25rem;
+  --t-xl: 1.5625rem;
+  --t-xxl: 1.953rem;
+  --t-xxxl: 2.441rem;
+
+  --r-s: 4px;
+  --r-m: 8px;
+  --espacio: 1rem;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --piedra: #111d1f;
+    --superficie: #182a2d;
+    --superficie-alta: #1f3336;
+    --tinta: #e1e7e1;
+    --tinta-suave: #9aaba6;
+    --linea: #2f4548;
+    --verdin: #63b6a1;
+    --verdin-tinta: #0d1a1b;
+    --verdin-suave: #1e3c37;
+    --lacre: #e48aa4;
+    --lacre-fondo: #351b24;
+    --lacre-linea: #6c3346;
+    --oro: #d8ae52;
+    --muelle: #0c1618;
+    --muelle-tinta: #d6e0da;
+    --muelle-tinta-suave: #7f9692;
+    --muelle-activo: #1e3236;
+    --peligro: #ef8a6f;
+    --foco: #63b6a1;
+    --sombra: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 22px -12px rgba(0, 0, 0, 0.7);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --piedra: #111d1f;
+  --superficie: #182a2d;
+  --superficie-alta: #1f3336;
+  --tinta: #e1e7e1;
+  --tinta-suave: #9aaba6;
+  --linea: #2f4548;
+  --verdin: #63b6a1;
+  --verdin-tinta: #0d1a1b;
+  --verdin-suave: #1e3c37;
+  --lacre: #e48aa4;
+  --lacre-fondo: #351b24;
+  --lacre-linea: #6c3346;
+  --oro: #d8ae52;
+  --muelle: #0c1618;
+  --muelle-tinta: #d6e0da;
+  --muelle-tinta-suave: #7f9692;
+  --muelle-activo: #1e3236;
+  --peligro: #ef8a6f;
+  --foco: #63b6a1;
+  --sombra: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 22px -12px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}

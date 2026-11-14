@@ -1,0 +1,254 @@
+/* Base: reset ligero, tipografía, controles de formulario y botones. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--piedra);
+  color: var(--tinta);
+  font-family: var(--f-texto);
+  font-size: var(--t-m);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--f-titulo);
+  font-weight: 600;
+  line-height: 1.15;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--t-xxxl);
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: var(--t-l);
+}
+
+h3 {
+  font-size: var(--t-l);
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: var(--verdin);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Controles */
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  min-width: 0;
+  background: var(--superficie-alta);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-s);
+  padding: 0.45rem 0.6rem;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--tinta-suave);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--foco);
+  outline-offset: 0;
+  border-color: var(--foco);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--tinta-suave);
+  opacity: 0.75;
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.55;
+  min-height: 6.5rem;
+  field-sizing: content;
+}
+
+label {
+  display: block;
+  font-size: var(--t-s);
+  font-weight: 500;
+  color: var(--tinta-suave);
+  margin-bottom: 0.3rem;
+}
+
+input[aria-invalid='true'] {
+  border-color: var(--peligro);
+}
+
+.error {
+  color: var(--peligro);
+  font-size: var(--t-s);
+  margin-top: 0.4rem;
+}
+
+.ayuda {
+  color: var(--tinta-suave);
+  font-size: var(--t-s);
+  font-style: italic;
+  margin-bottom: 0.35rem;
+}
+
+/* Botones */
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font: inherit;
+  font-weight: 500;
+  font-size: var(--t-s);
+  line-height: 1.2;
+  padding: 0.55rem 0.95rem;
+  border-radius: var(--r-s);
+  border: 1px solid var(--linea);
+  background: var(--superficie-alta);
+  color: var(--tinta);
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.boton:hover {
+  border-color: var(--tinta-suave);
+  text-decoration: none;
+}
+
+.boton:active {
+  transform: translateY(1px);
+}
+
+.boton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.boton-principal {
+  background: var(--verdin);
+  border-color: var(--verdin);
+  color: var(--verdin-tinta);
+}
+
+.boton-principal:hover {
+  border-color: var(--tinta);
+}
+
+.boton-peligro {
+  color: var(--peligro);
+  border-color: color-mix(in srgb, var(--peligro) 45%, transparent);
+  background: transparent;
+}
+
+.boton-peligro:hover {
+  border-color: var(--peligro);
+}
+
+.boton-claro-peligro {
+  color: var(--peligro);
+}
+
+.boton-pequeno {
+  padding: 0.3rem 0.6rem;
+  font-size: var(--t-xs);
+}
+
+.enlace {
+  font: inherit;
+  font-size: var(--t-s);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--verdin);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+/* Control segmentado */
+.segmentado {
+  display: inline-flex;
+  border: 1px solid var(--linea);
+  border-radius: var(--r-s);
+  overflow: hidden;
+  background: var(--superficie-alta);
+}
+
+.segmentado button {
+  font: inherit;
+  font-size: var(--t-s);
+  border: 0;
+  background: transparent;
+  color: var(--tinta-suave);
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+}
+
+.segmentado button + button {
+  border-left: 1px solid var(--linea);
+}
+
+.segmentado button[aria-pressed='true'] {
+  background: var(--verdin-suave);
+  color: var(--tinta);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
