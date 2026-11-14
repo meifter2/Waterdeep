@@ -1,0 +1,179 @@
+/* Adaptación a tablet y móvil (se importa al final). */
+
+/* ───── Responsive ───── */
+.solo-movil {
+  display: none !important;
+}
+
+@media (max-width: 1100px) {
+  .panel-grupo {
+    grid-column: span 12;
+  }
+  .panel-dados {
+    grid-column: span 6;
+    grid-row: auto;
+  }
+  .panel-pistas,
+  .panel-sesion,
+  .panel-facciones,
+  .panel-notas {
+    grid-column: span 6;
+  }
+  .combatiente {
+    grid-template-columns: 4.25rem minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  }
+  .combatiente-condiciones {
+    grid-column: 2 / -1;
+  }
+  .nuevo-campos {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .nuevo-campos .campo-ancho {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 820px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .riel {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    height: auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'campana pie'
+      'nav nav';
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    padding: 0.75rem 1rem 0.5rem;
+    overflow: visible;
+  }
+
+  .riel-campana {
+    grid-area: campana;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .riel-nombre {
+    font-size: var(--t-l);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .riel-dia {
+    display: none;
+  }
+
+  .riel-nav {
+    grid-area: nav;
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -1rem;
+    padding: 0 1rem;
+  }
+
+  .riel-nav a {
+    white-space: nowrap;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .riel-nav a.active {
+    box-shadow: inset 0 -2px 0 var(--oro);
+  }
+
+  .riel-pie {
+    grid-area: pie;
+    margin: 0;
+    padding: 0;
+    flex-direction: row;
+  }
+
+  .riel-pie .boton-claro {
+    display: none;
+  }
+
+  .riel-nav .solo-movil {
+    display: flex !important;
+  }
+
+  .interruptor-secretos {
+    padding: 0.4rem 0.5rem;
+  }
+
+  .contenido {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .coleccion {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .coleccion-lista {
+    position: static;
+    max-height: none;
+  }
+
+  .coleccion.con-detalle .coleccion-lista,
+  .coleccion:not(.con-detalle) .coleccion-detalle {
+    display: none;
+  }
+
+  .volver {
+    display: inline-block;
+  }
+
+  .ficha-nombre {
+    font-size: var(--t-xxl);
+  }
+
+  .ficha-campos {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mesa-rejilla > .panel {
+    grid-column: 1 / -1;
+  }
+
+  .combatiente {
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    gap: 0.6rem 0.75rem;
+  }
+
+  .combatiente-pg,
+  .combatiente-condiciones {
+    grid-column: 1 / -1;
+  }
+
+  .quitar {
+    grid-row: 1;
+    grid-column: 3;
+  }
+
+  .nuevo-campos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .interruptor-secretos {
+    font-size: 0;
+    gap: 0;
+  }
+  .interruptor-secretos .sello {
+    width: 20px;
+    height: 20px;
+  }
+  .coleccion-cabecera h1 {
+    font-size: var(--t-xl);
+  }
+}

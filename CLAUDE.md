@@ -11,7 +11,9 @@ sin secretos. Beta local: todo vive en el navegador (localStorage).
 ## Usuario y forma de trabajar
 - Responder **siempre en español**, explicando cada paso. Usuario: experto en producto/UX/frontend, no programador puro.
 - Plan antes de código en cambios grandes; preguntar decisiones importantes no cubiertas aquí.
-- Leer solo los archivos necesarios para cada tarea.
+- **Prioridad: ahorrar tokens.** Empezar SIEMPRE por este archivo; leer solo los archivos necesarios
+  (con offset/grep si son largos); no releer lo ya leído; respuestas concisas. Mantener este archivo al día.
+- **Tamaño de archivo: máximo ~1000 líneas** (límite duro 1500). Si un archivo se acerca, dividirlo por responsabilidad.
 
 ## Reglas clave
 - **Secretos del máster protegidos**: la vista de jugadores lee SOLO `proyeccionPublica()` (lista blanca).
@@ -37,7 +39,8 @@ src/
   data/storage.ts     localStorage tolerante a fallos
   components/         Layout (riel), Ficha (formulario genérico), Sello/BloqueSellado, Dados
   pages/              Mesa, Combate, Coleccion (lista+ficha genérica), VistaJugadores, Ajustes
-  styles/             tokens.css (paleta claro/oscuro), base.css, app.css
+  styles/             tokens (paleta claro/oscuro), base, una hoja por zona
+                      (layout, sellado, fichas, mesa, combate, ajustes, jugadores); responsive al final
 ```
 Añadir un campo a una ficha = añadirlo en `entities.ts` (se pinta solo).
 
