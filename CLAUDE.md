@@ -54,18 +54,18 @@ pruebas/                      enlaces.test.ts (formatos) · musica.cjs (flujo co
 ## Comandos
 - `npm install` · `npm run dev` · `npm run build` (typecheck + build) · `npm run preview`
 - `npm run test:enlaces` · `npm run test:musica` (requiere `npm run preview` en :4173 y Playwright)
-- Despliegue: pendiente de decidir con el usuario.
+- Despliegue: Vercel (plan Hobby) publica automáticamente cada push a `main`.
 
 ## Convenciones
 - Código y nombres en español. Componentes funcionales; sin librería de UI ni router.
 - Selectores CSS anidados para evitar choques. Accesibilidad: labels, foco visible, reduced-motion.
 
 ## Git
-Rama: `ccr-4e49e839-kg8cvn`. Commits pequeños en español.
+Trabajo en `ccr-4e49e839-kg8cvn`; el usuario autorizó llevarlo a `main` (despliegue). Commits pequeños en español.
 
 ## Estado de fases
 | Fase | Descripción | Estado |
 |------|-------------|--------|
 | 1 | Beta amplia (fichas, combate, dados…) | Retirada por el usuario |
 | 2 | Banda sonora: personaje → canción Spotify/YouTube | Hecha; falta prueba real del usuario |
-| 3 | Publicación (hosting) para probar con sonido real | Pendiente de decisión |
+| 3 | Publicación en Vercel desde `main` | Hecha; falta prueba real del usuario |
