@@ -9,9 +9,13 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test:enlaces": "node pruebas/enlaces.test.ts",
-    "test:musica": "node pruebas/musica.cjs"
+    "test:musica": "node pruebas/musica.cjs",
+    "build:prueba": "VITE_SUPABASE_URL=https://prueba.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_prueba vite build --outDir dist-prueba",
+    "preview:prueba": "vite preview --outDir dist-prueba --port 4174 --strictPort",
+    "test:supabase": "node pruebas/supabase.cjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.119.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zustand": "^5.1.0"

@@ -1,22 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useReproduccion } from '../data/reproduccion'
-import { gruposExistentes, useDatos } from '../data/store'
-import type { Personaje } from '../data/types'
+import { useDatos } from '../data/store'
+import { CARPETAS, carpeta, type Cancion, type Tipo } from '../data/types'
 import { AYUDA_ENLACE, describirEnlace, interpretarEnlace } from '../lib/enlaces'
 import { BotonConfirmar } from './Confirmar'
 
-/** Ventana para añadir o editar un personaje. `personaje` vacío = nuevo. */
-export function Editor({ personaje, alCerrar }: { personaje: Personaje | null; alCerrar: () => void }) {
+/** Ventana para añadir o editar una canción. `cancion` null = nueva en la carpeta `tipoInicial`. */
+export function Editor({ cancion, tipoInicial, alCerrar }: { cancion: Cancion | null; tipoInicial: Tipo; alCerrar: () => void }) {
   const crear = useDatos((s) => s.crear)
   const actualizar = useDatos((s) => s.actualizar)
   const eliminar = useDatos((s) => s.eliminar)
-  const grupos = gruposExistentes(useDatos((s) => s.personajes))
-  const { personajeId, detener, reproducir } = useReproduccion()
+  const { cancionId, detener, reproducir } = useReproduccion()
 
-  const [nombre, setNombre] = useState(personaje?.nombre ?? '')
-  const [enlace, setEnlace] = useState(personaje?.enlace ?? '')
-  const [grupo, setGrupo] = useState(personaje?.grupo ?? '')
-  const [nota, setNota] = useState(personaje?.nota ?? '')
+  const [tipo, setTipo] = useState<Tipo>(cancion?.tipo ?? tipoInicial)
+  const [nombre, setNombre] = useState(cancion?.nombre ?? '')
+  const [enlace, setEnlace] = useState(cancion?.enlace ?? '')
+  const [nota, setNota] = useState(cancion?.nota ?? '')
   const [intentado, setIntentado] = useState(false)
   const dialogo = useRef<HTMLDialogElement>(null)
 
@@ -27,49 +26,62 @@ export function Editor({ personaje, alCerrar }: { personaje: Personaje | null; a
 
   const interpretado = enlace.trim() ? interpretarEnlace(enlace) : null
   const errorEnlace = typeof interpretado === 'string' ? interpretado : ''
-  const errorNombre = intentado && !nombre.trim() ? 'Escribe el nombre del personaje.' : ''
+  const errorNombre = intentado && !nombre.trim() ? 'Escribe un nombre.' : ''
   const deteccion = interpretado && typeof interpretado !== 'string' ? `Enlace correcto: ${describirEnlace(interpretado)}.` : ''
 
-  const guardar = (e: FormEvent, escuchar = false) => {
+  const guardar = async (e: FormEvent, escuchar = false) => {
     e.preventDefault()
     setIntentado(true)
     if (!nombre.trim() || errorEnlace) return
-    const datos = { nombre: nombre.trim(), enlace: enlace.trim(), grupo: grupo.trim(), nota: nota.trim() }
-    let id = personaje?.id
-    if (id) actualizar(id, datos)
-    else id = crear(datos)
-    if (escuchar && datos.enlace) reproducir(id)
+    const datos = { tipo, nombre: nombre.trim(), enlace: enlace.trim(), nota: nota.trim() }
     alCerrar()
+    let id: string | null | undefined = cancion?.id
+    if (id) await actualizar(id, datos)
+    else id = await crear(datos)
+    if (escuchar && id && datos.enlace) reproducir(id)
   }
 
   const borrar = () => {
-    if (!personaje) return
-    if (personajeId === personaje.id) detener()
-    eliminar(personaje.id)
+    if (!cancion) return
+    if (cancionId === cancion.id) detener()
     alCerrar()
+    void eliminar(cancion.id)
   }
 
   return (
     <dialog ref={dialogo} className="dialogo" onClose={alCerrar} aria-labelledby="editor-titulo">
       <form className="editor" onSubmit={guardar} noValidate>
-        <h2 id="editor-titulo">{personaje ? 'Editar personaje' : 'Añadir personaje'}</h2>
+        <h2 id="editor-titulo">{cancion ? 'Editar canción' : carpeta(tipo).nuevo}</h2>
 
-        <div className="campo">
-          <label htmlFor="ed-nombre">Nombre</label>
-          <input
-            id="ed-nombre"
-            value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            autoFocus={!personaje}
-            autoComplete="off"
-            aria-invalid={errorNombre ? true : undefined}
-            aria-describedby={errorNombre ? 'ed-nombre-error' : undefined}
-          />
-          {errorNombre && (
-            <p className="error" id="ed-nombre-error">
-              {errorNombre}
-            </p>
-          )}
+        <div className="editor-fila">
+          <div className="campo">
+            <label htmlFor="ed-nombre">Nombre</label>
+            <input
+              id="ed-nombre"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              autoFocus={!cancion}
+              autoComplete="off"
+              maxLength={120}
+              aria-invalid={errorNombre ? true : undefined}
+              aria-describedby={errorNombre ? 'ed-nombre-error' : undefined}
+            />
+            {errorNombre && (
+              <p className="error" id="ed-nombre-error">
+                {errorNombre}
+              </p>
+            )}
+          </div>
+          <div className="campo">
+            <label htmlFor="ed-tipo">Carpeta</label>
+            <select id="ed-tipo" value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)}>
+              {CARPETAS.map((c) => (
+                <option key={c.tipo} value={c.tipo}>
+                  {c.titulo}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="campo">
@@ -79,6 +91,7 @@ export function Editor({ personaje, alCerrar }: { personaje: Personaje | null; a
             value={enlace}
             inputMode="url"
             autoComplete="off"
+            maxLength={500}
             placeholder="https://open.spotify.com/track/…"
             onChange={(e) => setEnlace(e.target.value)}
             aria-invalid={errorEnlace ? true : undefined}
@@ -89,20 +102,9 @@ export function Editor({ personaje, alCerrar }: { personaje: Personaje | null; a
           </p>
         </div>
 
-        <div className="editor-fila">
-          <div className="campo">
-            <label htmlFor="ed-grupo">Grupo (opcional)</label>
-            <input id="ed-grupo" list="ed-grupos" value={grupo} placeholder="Taberna, Facción…" onChange={(e) => setGrupo(e.target.value)} />
-            <datalist id="ed-grupos">
-              {grupos.map((g) => (
-                <option key={g} value={g} />
-              ))}
-            </datalist>
-          </div>
-          <div className="campo">
-            <label htmlFor="ed-nota">Nota (opcional)</label>
-            <input id="ed-nota" value={nota} placeholder="Cuándo suena" onChange={(e) => setNota(e.target.value)} />
-          </div>
+        <div className="campo">
+          <label htmlFor="ed-nota">Nota (opcional)</label>
+          <input id="ed-nota" value={nota} maxLength={300} placeholder="Cuándo suena" onChange={(e) => setNota(e.target.value)} />
         </div>
 
         <div className="editor-acciones">
@@ -117,12 +119,12 @@ export function Editor({ personaje, alCerrar }: { personaje: Personaje | null; a
           <button type="button" className="boton boton-sutil" onClick={alCerrar}>
             Cancelar
           </button>
-          {personaje && (
+          {cancion && (
             <span className="editor-eliminar">
               <BotonConfirmar
                 className="boton boton-peligro"
                 etiqueta="Eliminar"
-                pregunta={`¿Eliminar a «${personaje.nombre}»?`}
+                pregunta={`¿Eliminar «${cancion.nombre}»?`}
                 opciones={[{ etiqueta: 'Eliminar', accion: borrar, peligro: true }]}
               />
             </span>

@@ -6,6 +6,7 @@ import './styles/base.css'
 import './styles/app.css'
 import './styles/reproductor.css'
 import './styles/dialogos.css'
+import './styles/entrada.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

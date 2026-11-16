@@ -11,11 +11,11 @@ async function preparar(ctx, { bloquear = false } = {}) {
   await ctx.route(/open\.spotify\.com\/embed\/(track|playlist|album)|youtube\.com\/embed/, r => r.fulfill({ contentType: 'text/html', body: '<body style="margin:0;background:#444;color:#fff;font:14px sans-serif;display:grid;place-items:center;height:100vh">Reproductor básico (respaldo)</body>' }));
 }
 
-async function anadir(p, nombre, enlace, grupo = '', nota = '') {
-  await p.getByRole('button', { name: /Añadir (el primer )?personaje/ }).first().click();
+async function anadir(p, nombre, enlace, tipo = 'personaje', nota = '') {
+  await p.getByRole('button', { name: /^Añadir personaje/ }).first().click();
   await p.getByLabel('Nombre').fill(nombre);
   await p.getByLabel('Enlace de la canción').fill(enlace);
-  if (grupo) await p.getByLabel('Grupo (opcional)').fill(grupo);
+  await p.getByLabel('Carpeta').selectOption(tipo);
   if (nota) await p.getByLabel('Nota (opcional)').fill(nota);
   await p.getByRole('button', { name: 'Guardar', exact: true }).click();
 }
@@ -32,23 +32,22 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await p.screenshot({ path: OUT + '01-vacio.png' });
 
   // Editor: validación
-  await p.getByRole('button', { name: 'Añadir el primer personaje' }).click();
+  await p.getByRole('button', { name: /^Añadir personaje/ }).click();
   await p.getByLabel('Enlace de la canción').fill('https://soundcloud.com/x');
   comprobar('editor rechaza SoundCloud', (await p.locator('#ed-enlace-ayuda').innerText()).includes('Solo se admiten'));
   await p.getByLabel('Enlace de la canción').fill('https://open.spotify.com/intl-es/track/4cOdK2wGLETKBW3PvgPWqT?si=1');
   comprobar('editor reconoce Spotify', (await p.locator('#ed-enlace-ayuda').innerText()).includes('canción de Spotify'));
   await p.getByRole('button', { name: 'Guardar', exact: true }).click();
-  comprobar('editor exige nombre', await p.getByText('Escribe el nombre del personaje.').isVisible());
+  comprobar('editor exige nombre', await p.getByText('Escribe un nombre.').isVisible());
   await p.getByLabel('Nombre').fill('Maela Brezo');
-  await p.getByLabel('Grupo (opcional)').fill('Taberna');
   await p.getByLabel('Nota (opcional)').fill('Tabernera');
   await p.screenshot({ path: OUT + '02-editor.png' });
   await p.getByRole('button', { name: 'Guardar', exact: true }).click();
 
-  await anadir(p, 'Capitana Idris Mor', 'https://youtu.be/dQw4w9WgXcQ', 'Vigías del Puente', 'Entra con la guardia');
-  await anadir(p, 'Osric Velo', '', 'Taberna');
-  await anadir(p, 'Vídeo protegido', 'https://www.youtube.com/watch?v=bloqueado01', 'Pruebas');
-  await anadir(p, 'Canción sin sesión', 'https://open.spotify.com/track/previewPreviewPreview1', 'Pruebas');
+  await anadir(p, 'Capitana Idris Mor', 'https://youtu.be/dQw4w9WgXcQ', 'personaje', 'Entra con la guardia');
+  await anadir(p, 'Osric Velo', '', 'personaje');
+  await anadir(p, 'Vídeo protegido', 'https://www.youtube.com/watch?v=bloqueado01', 'momento');
+  await anadir(p, 'Canción sin sesión', 'https://open.spotify.com/track/previewPreviewPreview1', 'opening');
 
   // 1) Pulsar Spotify
   await p.getByRole('button', { name: 'Reproducir la canción de Maela Brezo' }).click();
@@ -101,7 +100,7 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
 
   // 7) Sin canción → abre editor
   await p.getByRole('button', { name: 'Añadir canción a Osric Velo' }).click();
-  comprobar('Sin enlace: pulsar abre el editor', await p.getByRole('heading', { name: 'Editar personaje' }).isVisible());
+  comprobar('Sin enlace: pulsar abre el editor', await p.getByRole('heading', { name: 'Editar canción' }).isVisible());
   await p.getByRole('button', { name: 'Cancelar' }).click();
 
   // 8) Vídeo que no se puede insertar
@@ -126,30 +125,35 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
 
   // 11) Persistencia tras recargar
   await p.reload();
-  comprobar('Los personajes se conservan al recargar', await p.locator('.tarjeta').count() === 5);
-  comprobar('Grupos ordenados (Sin grupo al final)', (await p.locator('.grupo h2').allInnerTexts()).join(',') === 'Pruebas,Taberna,Vigías del Puente');
+  comprobar('Las canciones se conservan al recargar', await p.locator('.tarjeta').count() === 5);
+  comprobar('Cada canción en su carpeta', await p.locator('.seccion-opening .tarjeta').count() === 1 && await p.locator('.seccion-personaje .tarjeta').count() === 3 && await p.locator('.seccion-momento .tarjeta').count() === 1);
+  comprobar('Carpetas vacías invitan a añadir', await p.getByRole('button', { name: /^Añadir lugar/ }).isVisible());
 
   // 12) Copias: exportar y recuperar
   await p.getByRole('button', { name: 'Copias' }).click();
-  const json = await p.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem('banda-sonora:datos')).state));
-  await p.getByLabel('Pega aquí el texto de una copia').fill(json);
+  const json = await p.evaluate(() => localStorage.getItem('banda-sonora:canciones'));
+  const copia = JSON.stringify({ version: 3, canciones: [{ tipo: 'lugar', nombre: 'El Ancla Torcida', enlace: 'https://youtu.be/dQw4w9WgXcQ', nota: '' }] });
+  await p.getByLabel('Pega aquí el texto de una copia').fill(copia);
   await p.getByRole('button', { name: 'Comprobar texto' }).click();
-  comprobar('Copias: valida y pide confirmación', (await p.locator('.confirmar').innerText()).includes('5 personajes'));
-  await p.getByRole('button', { name: 'Sustituir personajes' }).click();
+  comprobar('Copias: valida y pide confirmación', (await p.locator('.confirmar').innerText()).includes('1 canciones'));
+  await p.getByRole('button', { name: 'Añadir canciones' }).click();
+  await p.waitForTimeout(200);
   await p.getByRole('button', { name: 'Cerrar' }).click();
+  comprobar('Copias: añade a la carpeta correcta', await p.locator('.seccion-lugar .tarjeta').count() === 1);
 
   // 13) Eliminar
   await p.getByRole('button', { name: 'Editar Vídeo protegido' }).click();
   await p.getByRole('button', { name: 'Eliminar' }).click();
   await p.locator('.confirmar').getByRole('button', { name: 'Eliminar' }).click();
-  comprobar('Eliminar personaje', await p.locator('.tarjeta').count() === 4);
+  await p.waitForTimeout(200);
+  comprobar('Eliminar canción', await p.locator('.tarjeta').count() === 5);
 
   // 14) Móvil
   const m = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
   await preparar(m);
   const mp = await m.newPage();
   await mp.goto(URL);
-  await mp.evaluate((d) => localStorage.setItem('banda-sonora:datos', JSON.stringify({ state: JSON.parse(d), version: 2 })), json);
+  await mp.evaluate((d) => localStorage.setItem('banda-sonora:canciones', d), json);
   await mp.reload();
   await mp.getByRole('button', { name: 'Reproducir la canción de Capitana Idris Mor' }).click();
   await mp.waitForTimeout(300);
@@ -161,7 +165,7 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await preparar(f, { bloquear: true });
   const fp = await f.newPage();
   await fp.goto(URL);
-  await fp.evaluate((d) => localStorage.setItem('banda-sonora:datos', JSON.stringify({ state: JSON.parse(d), version: 2 })), json);
+  await fp.evaluate((d) => localStorage.setItem('banda-sonora:canciones', d), json);
   await fp.reload();
   await fp.getByRole('button', { name: 'Reproducir la canción de Maela Brezo' }).click();
   await fp.waitForSelector('.marco-respaldo', { timeout: 15000 });
@@ -173,7 +177,7 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await preparar(o);
   const op = await o.newPage();
   await op.goto(URL);
-  await op.evaluate((d) => localStorage.setItem('banda-sonora:datos', JSON.stringify({ state: JSON.parse(d), version: 2 })), json);
+  await op.evaluate((d) => localStorage.setItem('banda-sonora:canciones', d), json);
   await op.reload();
   await op.getByRole('button', { name: 'Reproducir la canción de Maela Brezo' }).click();
   await op.waitForTimeout(300);

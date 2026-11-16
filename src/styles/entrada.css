@@ -1,0 +1,49 @@
+/* Pantalla de entrada (Google) y carga inicial. */
+
+.comprobando {
+  padding: 3rem clamp(1rem, 4vw, 3rem);
+  color: var(--tinta-suave);
+  font-style: italic;
+}
+
+.entrada {
+  min-height: 100dvh;
+  display: grid;
+  align-items: center;
+  padding: 2rem clamp(1rem, 8vw, 7rem);
+  background:
+    linear-gradient(to right, var(--muelle) 0 6px, transparent 6px),
+    var(--piedra);
+}
+
+.entrada-texto {
+  max-width: 34rem;
+  display: grid;
+  gap: 1.25rem;
+  justify-items: start;
+}
+
+.entrada h1 {
+  font-size: clamp(2.8rem, 8vw, 4.6rem);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.entrada-texto > p:first-of-type {
+  font-family: var(--f-titulo);
+  font-size: var(--t-l);
+  line-height: 1.45;
+}
+
+.boton-google {
+  gap: 0.65rem;
+  font-size: var(--t-m);
+  padding: 0.7rem 1.2rem;
+  background: var(--superficie-alta);
+  border-color: var(--linea);
+  box-shadow: var(--sombra);
+}
+
+.boton-google:hover {
+  border-color: var(--tinta);
+}

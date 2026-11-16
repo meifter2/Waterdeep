@@ -8,8 +8,8 @@ const CLAVE_REPETIR = 'banda-sonora:repetir'
 export type EstadoReproduccion = 'parado' | 'cargando' | 'sonando' | 'pausa' | 'error'
 
 interface Reproduccion {
-  /** Personaje cuya canción está cargada. */
-  personajeId: string | null
+  /** Canción cargada. */
+  cancionId: string | null
   estado: EstadoReproduccion
   /** Mensaje para el máster cuando algo falla o hay que avisar. */
   aviso: string
@@ -20,7 +20,7 @@ interface Reproduccion {
   /** Al terminar la canción, vuelve a empezar (preferencia guardada). */
   repetir: boolean
 
-  reproducir: (personajeId: string) => void
+  reproducir: (cancionId: string) => void
   alternar: () => void
   detener: () => void
   informar: (estado: EstadoReproduccion, aviso?: string) => void
@@ -29,17 +29,17 @@ interface Reproduccion {
 }
 
 export const useReproduccion = create<Reproduccion>()((set) => ({
-  personajeId: null,
+  cancionId: null,
   estado: 'parado',
   aviso: '',
   peticion: 0,
   orden: null,
   repetir: almacenamientoSeguro.getItem(CLAVE_REPETIR) !== 'no',
 
-  reproducir: (personajeId) => set((s) => ({ personajeId, estado: 'cargando', aviso: '', peticion: s.peticion + 1 })),
+  reproducir: (cancionId) => set((s) => ({ cancionId, estado: 'cargando', aviso: '', peticion: s.peticion + 1 })),
   alternar: () => set((s) => ({ orden: { tipo: 'alternar', n: (s.orden?.n ?? 0) + 1 } })),
   detener: () =>
-    set((s) => ({ orden: { tipo: 'detener', n: (s.orden?.n ?? 0) + 1 }, personajeId: null, estado: 'parado', aviso: '' })),
+    set((s) => ({ orden: { tipo: 'detener', n: (s.orden?.n ?? 0) + 1 }, cancionId: null, estado: 'parado', aviso: '' })),
   informar: (estado, aviso) => set((s) => ({ estado, aviso: aviso ?? s.aviso })),
   avisar: (aviso) => set({ aviso }),
   alternarRepetir: () =>

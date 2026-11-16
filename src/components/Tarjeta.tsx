@@ -1,10 +1,10 @@
 import { useReproduccion } from '../data/reproduccion'
-import type { Personaje } from '../data/types'
+import type { Cancion } from '../data/types'
 import { describirEnlace, interpretarEnlace } from '../lib/enlaces'
 
-/** Placa de un personaje: pulsarla hace sonar su canción (o la pausa si ya suena). */
-export function Tarjeta({ personaje, alEditar }: { personaje: Personaje; alEditar: () => void }) {
-  const esActual = useReproduccion((s) => s.personajeId === personaje.id)
+/** Placa de una canción: pulsarla la hace sonar (o la pausa si ya suena). */
+export function Tarjeta({ cancion: personaje, alEditar }: { cancion: Cancion; alEditar: () => void }) {
+  const esActual = useReproduccion((s) => s.cancionId === personaje.id)
   const estado = useReproduccion((s) => s.estado)
   const reproducir = useReproduccion((s) => s.reproducir)
   const alternar = useReproduccion((s) => s.alternar)

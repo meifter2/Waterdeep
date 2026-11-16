@@ -49,11 +49,112 @@
   padding: 1rem clamp(1rem, 4vw, 3rem) 3rem;
 }
 
-.grupo h2 {
-  font-size: var(--t-l);
+/* ───── Carpetas ───── */
+.bordes-sesion {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.seccion-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
   padding-bottom: 0.4rem;
   margin-bottom: 0.75rem;
   border-bottom: 1px solid var(--linea);
+}
+
+.seccion-cabecera h2 {
+  font-size: var(--t-xl);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.seccion-cuenta {
+  font-family: var(--f-texto);
+  font-size: var(--t-s);
+  font-weight: 400;
+  color: var(--tinta-suave);
+}
+
+.seccion-vacia {
+  width: 100%;
+  display: grid;
+  gap: 0.2rem;
+  justify-items: start;
+  text-align: left;
+  font: inherit;
+  color: var(--tinta);
+  background: transparent;
+  border: 1px dashed var(--linea);
+  border-radius: var(--r-m);
+  padding: 0.9rem 1rem;
+  cursor: pointer;
+}
+
+.seccion-vacia:hover {
+  border-color: var(--verdin);
+}
+
+.seccion-vacia-accion {
+  font-weight: 700;
+  color: var(--verdin);
+}
+
+.seccion-vacia-texto {
+  font-size: var(--t-s);
+  color: var(--tinta-suave);
+}
+
+.bordes-sesion .tarjetas {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+}
+
+.aviso-suave,
+.cargando {
+  color: var(--tinta-suave);
+  font-size: var(--t-s);
+  font-style: italic;
+}
+
+.migracion,
+.aviso[role='alert'] {
+  display: grid;
+  gap: 0.6rem;
+  justify-items: start;
+}
+
+/* ───── Cuenta ───── */
+.cuenta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 1px solid var(--linea);
+}
+
+.cuenta-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  object-fit: cover;
+  background: var(--verdin-suave);
+  color: var(--tinta);
+  font-weight: 700;
+  flex: none;
+}
+
+.cuenta-nombre {
+  font-size: var(--t-s);
+  max-width: 10rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tarjetas {
@@ -214,7 +315,20 @@
   gap: 0.5rem;
 }
 
+@media (max-width: 760px) {
+  .bordes-sesion {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 640px) {
+  .cuenta {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .cuenta-nombre {
+    display: none;
+  }
   .cabecera {
     align-items: start;
   }

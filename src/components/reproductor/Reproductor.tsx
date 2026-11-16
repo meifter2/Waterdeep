@@ -15,9 +15,9 @@ const TEXTO_ESTADO: Record<EstadoReproduccion, string> = {
 }
 
 export function Reproductor() {
-  const { personajeId, estado, aviso, peticion, orden, repetir, informar, alternar, detener, alternarRepetir } =
+  const { cancionId, estado, aviso, peticion, orden, repetir, informar, alternar, detener, alternarRepetir } =
     useReproduccion()
-  const personaje = useDatos((s) => s.personajes.find((p) => p.id === personajeId))
+  const personaje = useDatos((s) => s.canciones.find((p) => p.id === cancionId))
 
   const hostSpotify = useRef<HTMLDivElement>(null)
   const hostYoutube = useRef<HTMLDivElement>(null)
@@ -43,7 +43,7 @@ export function Reproductor() {
   // Cada pulsación en un personaje.
   useEffect(() => {
     if (!peticion) return
-    const p = useDatos.getState().personajes.find((x) => x.id === useReproduccion.getState().personajeId)
+    const p = useDatos.getState().canciones.find((x) => x.id === useReproduccion.getState().cancionId)
     if (!p) return
     const e = interpretarEnlace(p.enlace)
     if (typeof e === 'string') {
@@ -79,7 +79,7 @@ export function Reproductor() {
     }
   }, [orden, activo])
 
-  const visible = personajeId !== null
+  const visible = cancionId !== null
   const detalle = enlace ? describirEnlace(enlace) : ''
 
   return (
@@ -87,9 +87,9 @@ export function Reproductor() {
       <div className="reproductor-info">
         <Ecualizador activo={estado === 'sonando'} />
         <div className="reproductor-textos">
-          <p className="reproductor-titulo">{personaje?.nombre ?? 'Elige un personaje'}</p>
+          <p className="reproductor-titulo">{personaje?.nombre ?? 'Elige una canción'}</p>
           <p className="reproductor-estado" aria-live="polite">
-            {visible ? `${TEXTO_ESTADO[estado]}${detalle && estado !== 'error' ? `, ${detalle}` : ''}` : 'Pulsa un personaje y sonará su canción.'}
+            {visible ? `${TEXTO_ESTADO[estado]}${detalle && estado !== 'error' ? `, ${detalle}` : ''}` : 'Pulsa una tarjeta y sonará su canción.'}
           </p>
         </div>
       </div>
