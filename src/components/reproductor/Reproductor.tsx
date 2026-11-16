@@ -4,6 +4,9 @@ import { useDatos } from '../../data/store'
 import { describirEnlace, interpretarEnlace, nombreServicio, type EnlaceMusical, type Servicio } from '../../lib/enlaces'
 import { urlRespaldo } from './motor'
 import { MotorSpotify } from './motorSpotify'
+import { MotorSpotifyConnect } from './motorSpotifyConnect'
+import { useSpotify } from '../../lib/spotifyAuth'
+import { ErrorSpotify } from '../../lib/spotifyApi'
 import { MotorYoutube } from './motorYoutube'
 
 const TEXTO_ESTADO: Record<EstadoReproduccion, string> = {
@@ -21,8 +24,9 @@ export function Reproductor() {
 
   const hostSpotify = useRef<HTMLDivElement>(null)
   const hostYoutube = useRef<HTMLDivElement>(null)
-  const motores = useRef<{ spotify?: MotorSpotify; youtube?: MotorYoutube }>({})
-  const [activo, setActivo] = useState<Servicio | null>(null)
+  const motores = useRef<{ spotify?: MotorSpotify; youtube?: MotorYoutube; connect?: MotorSpotifyConnect }>({})
+  const [activo, setActivo] = useState<Servicio | 'connect' | null>(null)
+  const [dispositivo, setDispositivo] = useState('')
   const [enlace, setEnlace] = useState<EnlaceMusical | null>(null)
   const [respaldo, setRespaldo] = useState<string | null>(null)
 
@@ -32,12 +36,14 @@ export function Reproductor() {
       motores.current.spotify = new MotorSpotify(hostSpotify.current, (e, a) => informar(e, a))
     if (hostYoutube.current && !motores.current.youtube)
       motores.current.youtube = new MotorYoutube(hostYoutube.current, (e, a) => informar(e, a))
+    if (!motores.current.connect) motores.current.connect = new MotorSpotifyConnect((e, a) => informar(e, a), setDispositivo)
   }, [informar])
 
   useEffect(() => {
     const { spotify, youtube } = motores.current
     if (spotify) spotify.repetir = repetir
     if (youtube) youtube.repetir = repetir
+    motores.current.connect?.fijarRepetir(repetir)
   }, [repetir])
 
   // Cada pulsación en un personaje.
@@ -53,12 +59,27 @@ export function Reproductor() {
     setEnlace(e)
     setActivo(e.servicio)
     setRespaldo(null)
-    const { spotify, youtube } = motores.current
-    if (e.servicio === 'spotify') {
+    const { spotify, youtube, connect } = motores.current
+    if (e.servicio === 'spotify' && useSpotify.getState().conectado) {
+      // Spotify conectado: suena completa en la app de Spotify del usuario.
       youtube?.detener()
+      spotify?.detener()
+      setActivo('connect')
+      connect?.reproducir(e).catch((err: unknown) => {
+        if (err instanceof ErrorSpotify && err.codigo === 'desconectado') {
+          // Sin conexión válida: se usa el reproductor integrado de siempre.
+          setActivo('spotify')
+          spotify?.reproducir(e).catch(() => usarRespaldo(e))
+          informar('cargando', err.message)
+        } else informar('error', err instanceof ErrorSpotify ? err.message : 'Spotify no ha respondido.')
+      })
+    } else if (e.servicio === 'spotify') {
+      youtube?.detener()
+      connect?.detener()
       spotify?.reproducir(e).catch(() => usarRespaldo(e))
     } else {
       spotify?.detener()
+      connect?.detener()
       youtube?.reproducir(e).catch(() => usarRespaldo(e))
     }
 
@@ -80,7 +101,7 @@ export function Reproductor() {
   }, [orden, activo])
 
   const visible = cancionId !== null
-  const detalle = enlace ? describirEnlace(enlace) : ''
+  const detalle = enlace ? describirEnlace(enlace) + (activo === 'connect' && dispositivo ? ` en ${dispositivo}` : '') : ''
 
   return (
     <section className="reproductor" data-estado={estado} data-visible={visible || undefined} aria-label="Reproductor">

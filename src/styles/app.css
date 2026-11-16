@@ -353,3 +353,22 @@
   width: max-content;
   max-width: calc(100vw - 2rem);
 }
+
+/* Conexión con Spotify */
+.boton-spotify {
+  background: #1db954;
+  border-color: #1db954;
+  color: #0b1f12;
+}
+
+.boton-spotify:hover {
+  border-color: var(--tinta);
+}
+
+.boton-spotify-conectado::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1db954;
+}

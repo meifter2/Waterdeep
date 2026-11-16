@@ -1,4 +1,5 @@
 import { cargarSpotify, type SpotifyController } from '../../lib/apis'
+import { spotifyConfigurado } from '../../lib/spotifyAuth'
 import type { EnlaceSpotify } from '../../lib/enlaces'
 import type { Informe } from './motor'
 
@@ -8,9 +9,16 @@ import type { Informe } from './motor'
 // Spotify da 30 s cuando el reproductor no recibe la sesión: o no se ha iniciado sesión,
 // o el navegador bloquea las cookies de terceros (Brave y Safari lo hacen por defecto).
 const esBrave = typeof navigator !== 'undefined' && 'brave' in navigator
-const AVISO_PREVIEW = esBrave
-  ? 'Spotify solo da 30 segundos porque Brave le bloquea tu sesión. Pulsa el león de Brave en la barra de direcciones, permite todas las cookies en esta página y recárgala. O usa Chrome o Edge con la sesión de Spotify iniciada.'
-  : 'Spotify solo da 30 segundos porque no recibe tu sesión. Inicia sesión en open.spotify.com en este navegador y, si ya lo estás, permite las cookies de terceros para esta página (Safari y algunos navegadores las bloquean) y recárgala.'
+const esMovil = typeof navigator !== 'undefined' && /Android|iPhone|iPad/i.test(navigator.userAgent)
+const AVISO_PREVIEW = esMovil
+  ? spotifyConfigurado
+    ? 'En el móvil, Spotify solo da 30 segundos dentro de otras páginas. Pulsa «Conectar Spotify» arriba y sonará completa en tu app de Spotify.'
+    : 'En el móvil, Spotify solo da 30 segundos dentro de otras páginas. Pulsa «Abrir en Spotify» para oírla completa.'
+  : esBrave
+    ? 'Spotify solo da 30 segundos porque Brave le bloquea tu sesión. Pulsa el león de Brave, permite todas las cookies en esta página y recárgala, o usa Chrome o Edge.'
+    : spotifyConfigurado
+      ? 'Spotify solo da 30 segundos porque no recibe tu sesión. Pulsa «Conectar Spotify» arriba para oírla completa en tu app de Spotify.'
+      : 'Spotify solo da 30 segundos porque no recibe tu sesión. Inicia sesión en open.spotify.com en este navegador, permite las cookies de terceros para esta página y recárgala.'
 const AVISO_BLOQUEO = 'El navegador no ha dejado empezar la música. Pulsa ▶ en el reproductor de Spotify.'
 
 export class MotorSpotify {

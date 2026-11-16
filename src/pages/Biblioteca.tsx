@@ -3,6 +3,8 @@ import { Copias } from '../components/Copias'
 import { Cuenta } from '../components/Cuenta'
 import { Editor, ultimaCarpeta, type Inicial } from '../components/Editor'
 import { Instalar } from '../components/Instalar'
+import { ConexionSpotify } from '../components/ConexionSpotify'
+import { useSpotify } from '../lib/spotifyAuth'
 import { Migracion } from '../components/Migracion'
 import { Reproductor } from '../components/reproductor/Reproductor'
 import { Seccion } from '../components/Seccion'
@@ -24,6 +26,7 @@ export function Biblioteca() {
   const [edicion, setEdicion] = useState<Edicion>(null)
   const [copias, setCopias] = useState(false)
   const [hecho, setHecho] = useState('')
+  const errorSpotify = useSpotify((s) => s.error)
   const buscador = useRef<HTMLInputElement>(null)
 
   // Canción compartida desde otra app: se abre el editor con el enlace ya puesto.
@@ -112,6 +115,7 @@ export function Biblioteca() {
             </div>
           )}
           <Instalar />
+          <ConexionSpotify />
           <button type="button" className="boton" onClick={() => setCopias(true)}>
             Copias
           </button>
@@ -128,6 +132,14 @@ export function Biblioteca() {
                 Cerrar aviso
               </button>
             )}
+          </div>
+        )}
+        {errorSpotify && (
+          <div className="aviso" role="alert">
+            <p>{errorSpotify}</p>
+            <button type="button" className="enlace" onClick={() => useSpotify.setState({ error: '' })}>
+              Cerrar aviso
+            </button>
           </div>
         )}
         {hecho && (
