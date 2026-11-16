@@ -46,7 +46,8 @@ pruebas/                      enlaces.test.ts (formatos) · musica.cjs (flujo co
 ## Comportamiento del reproductor (no romper)
 - Un único reproductor por servicio, reutilizado (Spotify `loadUri`, YouTube `loadVideoById`).
 - Pulsar el personaje que suena = pausa/reanuda. Cambiar de servicio pausa/detiene el otro.
-- «Repetir» (por defecto sí) reinicia al terminar. Spotify con duración ≤30 s ⇒ aviso de sesión no iniciada.
+- «Repetir» (por defecto sí) reinicia al terminar. Spotify ≤30 s ⇒ sesión no llega al iframe: cookies de terceros
+  bloqueadas (Brave/Safari). Solución probada: permitir cookies en la página o usar Chrome/Edge.
 - YouTube errores 101/150 ⇒ «no permite reproducirlo fuera de YouTube». Vídeo visible ≥200 px (normas de YouTube).
 - Si la API no carga ⇒ iframe básico de respaldo y aviso «Pulsa ▶».
 - La música NO suena dentro del visor de artifacts de claude.ai (bloquea iframes externos).
@@ -67,5 +68,5 @@ Trabajo en `ccr-4e49e839-kg8cvn`; el usuario autorizó llevarlo a `main` (despli
 | Fase | Descripción | Estado |
 |------|-------------|--------|
 | 1 | Beta amplia (fichas, combate, dados…) | Retirada por el usuario |
-| 2 | Banda sonora: personaje → canción Spotify/YouTube | Hecha; falta prueba real del usuario |
-| 3 | Publicación en Vercel desde `main` | Hecha; falta prueba real del usuario |
+| 2 | Banda sonora: personaje → canción Spotify/YouTube | Hecha y probada por el usuario (suena completa) |
+| 3 | Publicación en Vercel desde `main` (master-waterdeep.vercel.app) | Hecha y funcionando |
