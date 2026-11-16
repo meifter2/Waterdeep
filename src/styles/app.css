@@ -341,3 +341,15 @@
     flex: 1;
   }
 }
+
+/* Confirmación breve tras guardar (desaparece sola). */
+.aviso-flotante {
+  position: fixed;
+  left: 50%;
+  top: max(1rem, env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 10;
+  box-shadow: var(--sombra);
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+}

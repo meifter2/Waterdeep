@@ -78,3 +78,74 @@
     margin-left: 0;
   }
 }
+
+/* Elección de carpeta: botones grandes, cómodos en el móvil. */
+.carpetas-opciones {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.carpetas-opciones legend {
+  font-size: var(--t-s);
+  font-weight: 500;
+  color: var(--tinta-suave);
+  margin-bottom: 0.4rem;
+  padding: 0;
+}
+
+.chips-carpeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip-carpeta {
+  margin: 0;
+  position: relative;
+}
+
+.chip-carpeta input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.chip-carpeta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  border: 1px solid var(--linea);
+  border-radius: 999px;
+  font-size: var(--t-m);
+  font-weight: 500;
+  color: var(--tinta);
+  background: var(--superficie);
+}
+
+.chip-carpeta input:checked + span {
+  background: var(--muelle);
+  border-color: var(--muelle);
+  color: var(--muelle-tinta);
+  box-shadow: inset 0 -3px 0 var(--oro-sobre-oscuro);
+}
+
+.chip-carpeta input:focus-visible + span {
+  outline: 2px solid var(--foco);
+  outline-offset: 2px;
+}
+
+@media (max-width: 520px) {
+  .dialogo {
+    width: calc(100vw - 1rem);
+    max-height: calc(100dvh - 1rem);
+  }
+  .editor,
+  .copias {
+    padding: 1.1rem;
+  }
+}

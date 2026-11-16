@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Copias } from '../components/Copias'
 import { Cuenta } from '../components/Cuenta'
-import { Editor } from '../components/Editor'
+import { Editor, ultimaCarpeta, type Inicial } from '../components/Editor'
+import { Instalar } from '../components/Instalar'
 import { Migracion } from '../components/Migracion'
 import { Reproductor } from '../components/reproductor/Reproductor'
 import { Seccion } from '../components/Seccion'
@@ -9,10 +10,11 @@ import { useReproduccion } from '../data/reproduccion'
 import { almacenamientoDisponible } from '../data/storage'
 import { useDatos } from '../data/store'
 import { CARPETAS, type Cancion, type Tipo } from '../data/types'
+import { tomarCompartido } from '../lib/compartir'
 import { interpretarEnlace } from '../lib/enlaces'
 import { modoLocal } from '../lib/supabase'
 
-type Edicion = { cancion: Cancion | null; tipo: Tipo } | null
+type Edicion = { cancion: Cancion | null; tipo: Tipo; inicial?: Inicial } | null
 
 /** Pantalla principal: carpetas con sus tarjetas y el reproductor abajo. */
 export function Biblioteca() {
@@ -21,7 +23,21 @@ export function Biblioteca() {
   const [busqueda, setBusqueda] = useState('')
   const [edicion, setEdicion] = useState<Edicion>(null)
   const [copias, setCopias] = useState(false)
+  const [hecho, setHecho] = useState('')
   const buscador = useRef<HTMLInputElement>(null)
+
+  // Canción compartida desde otra app: se abre el editor con el enlace ya puesto.
+  useEffect(() => {
+    if (carga !== 'lista') return
+    const c = tomarCompartido()
+    if (c) setEdicion({ cancion: null, tipo: ultimaCarpeta(), inicial: { enlace: c.enlace, nota: c.texto, compartida: true } })
+  }, [carga])
+
+  useEffect(() => {
+    if (!hecho) return
+    const t = setTimeout(() => setHecho(''), 4000)
+    return () => clearTimeout(t)
+  }, [hecho])
 
   // «/» enfoca el buscador desde cualquier parte.
   useEffect(() => {
@@ -95,6 +111,7 @@ export function Biblioteca() {
               </span>
             </div>
           )}
+          <Instalar />
           <button type="button" className="boton" onClick={() => setCopias(true)}>
             Copias
           </button>
@@ -112,6 +129,11 @@ export function Biblioteca() {
               </button>
             )}
           </div>
+        )}
+        {hecho && (
+          <p className="aviso aviso-ok aviso-flotante" role="status">
+            {hecho}
+          </p>
         )}
         {modoLocal && almacenamientoDisponible && (
           <p className="aviso-suave">Modo local: las canciones se guardan solo en este navegador.</p>
@@ -137,7 +159,15 @@ export function Biblioteca() {
 
       <Reproductor />
 
-      {edicion && <Editor cancion={edicion.cancion} tipoInicial={edicion.tipo} alCerrar={() => setEdicion(null)} />}
+      {edicion && (
+        <Editor
+          cancion={edicion.cancion}
+          tipoInicial={edicion.tipo}
+          inicial={edicion.inicial}
+          alCerrar={() => setEdicion(null)}
+          alGuardar={setHecho}
+        />
+      )}
       {copias && <Copias alCerrar={() => setCopias(false)} />}
     </div>
   )

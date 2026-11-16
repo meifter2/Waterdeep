@@ -7,6 +7,7 @@
 App web del máster centrada SOLO en la música. Canciones (enlace Spotify/YouTube) en 5 carpetas:
 Opening, Ending, Personajes, Lugares, Momentos. Pulsar una tarjeta → suena en el reproductor integrado.
 Multiusuario: entrar con Google (Supabase Auth); cada usuario solo ve lo suyo (RLS).
+PWA instalable (Android) con «share target»: compartir desde Spotify/YouTube abre el editor con el enlace.
 Sin variables de Supabase la app funciona en «modo local» (navegador, sin cuentas).
 El usuario tiene Spotify Premium.
 
@@ -29,6 +30,7 @@ Variables (Vercel y `.env.local`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHAB
 
 ## Estructura
 ```
+public/                      manifest.webmanifest (share_target GET → /?title&text&url), sw.js, iconos/
 bd/esquema.sql               tabla `canciones` + RLS + grants + trigger (se pega en el SQL Editor; idempotente)
 src/
   App.tsx                    puerta: comprobando / Entrada (Google) / Biblioteca
@@ -39,9 +41,12 @@ src/
   data/sesion.ts             sesión Google (onAuthStateChange)
   data/reproduccion.ts       qué suena, pausa, repetir
   lib/supabase.ts            cliente (null ⇒ modo local) · lib/enlaces.ts · lib/apis.ts
-  components/                Seccion, Tarjeta, Editor, Copias, Cuenta, Migracion, Confirmar, reproductor/
+  lib/compartir.ts           captura lo compartido al arrancar (sobrevive al login) · lib/titulo.ts (oEmbed)
+  lib/pwa.ts                 registro del SW (solo PROD) + botón «Instalar app»
+  components/                Seccion, Tarjeta, Editor (chips de carpeta, recuerda la última), Copias, Cuenta,
+                             Migracion, Instalar, Confirmar, reproductor/
   styles/                    tokens, base, app, reproductor, dialogos, entrada
-pruebas/                     enlaces.test.ts · musica.cjs (modo local) · supabase.cjs (Supabase simulado)
+pruebas/                     enlaces.test.ts · musica.cjs · compartir.cjs (PWA) · supabase.cjs (simulado)
 ```
 
 ## Comportamiento del reproductor (no romper)
@@ -60,9 +65,10 @@ pruebas/                     enlaces.test.ts · musica.cjs (modo local) · supab
 
 ## Comandos
 - `npm run dev` · `npm run build` · `npm run preview` (4173)
-- `npm run test:enlaces` · `npm run test:musica` (con preview en 4173)
+- `npm run test:enlaces` · `npm run test:musica` · `npm run test:compartir` (con preview en 4173)
 - `npm run build:prueba && npm run preview:prueba` (4174) y `npm run test:supabase`
-- Despliegue: Vercel publica cada push a `main` (master-waterdeep.vercel.app).
+- Despliegue: Vercel publica cada push a `main` (master-waterdeep.vercel.app). `base: '/'` (PWA).
+- SW: red primero para páginas; cachea /assets e /iconos; no toca otros dominios. Cambiar `CACHE` si cambia la estrategia.
 
 ## Git
 Trabajo en `ccr-4e49e839-kg8cvn`; el usuario autorizó llevarlo a `main` (despliegue). Commits pequeños en español.
@@ -73,3 +79,4 @@ Trabajo en `ccr-4e49e839-kg8cvn`; el usuario autorizó llevarlo a `main` (despli
 | 2 | Banda sonora: tarjeta → canción Spotify/YouTube | Hecha y probada por el usuario |
 | 3 | Publicación en Vercel desde `main` | Hecha y funcionando |
 | 4 | Supabase: Google, carpetas, RLS por usuario | Código hecho y probado con simulador; falta configurar proyecto (SQL, Google, variables en Vercel) |
+| 5 | PWA + compartir desde Android | Hecha y probada con simulador; falta prueba en el móvil |

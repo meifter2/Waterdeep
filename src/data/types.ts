@@ -20,6 +20,8 @@ export type DatosCancion = Pick<Cancion, 'tipo' | 'nombre' | 'enlace' | 'nota'>
 export interface Carpeta {
   tipo: Tipo
   titulo: string
+  /** Nombre de una sola canción de la carpeta (para elegir carpeta). */
+  singular: string
   /** Texto del botón de añadir, con su género. */
   nuevo: string
   vacio: string
@@ -27,11 +29,11 @@ export interface Carpeta {
 
 /** Orden en pantalla. Opening y Ending van juntos arriba. */
 export const CARPETAS: Carpeta[] = [
-  { tipo: 'opening', titulo: 'Opening', nuevo: 'Añadir opening', vacio: 'La música con la que empiezas la sesión.' },
-  { tipo: 'ending', titulo: 'Ending', nuevo: 'Añadir ending', vacio: 'La música con la que cierras la sesión.' },
-  { tipo: 'personaje', titulo: 'Personajes', nuevo: 'Añadir personaje', vacio: 'El tema de cada personaje, para cuando entre en escena.' },
-  { tipo: 'lugar', titulo: 'Lugares', nuevo: 'Añadir lugar', vacio: 'La música de tabernas, calles y escondites.' },
-  { tipo: 'momento', titulo: 'Momentos', nuevo: 'Añadir momento', vacio: 'Combate, persecución, misterio, despedida…' },
+  { tipo: 'opening', titulo: 'Opening', singular: 'Opening', nuevo: 'Añadir opening', vacio: 'La música con la que empiezas la sesión.' },
+  { tipo: 'ending', titulo: 'Ending', singular: 'Ending', nuevo: 'Añadir ending', vacio: 'La música con la que cierras la sesión.' },
+  { tipo: 'personaje', titulo: 'Personajes', singular: 'Personaje', nuevo: 'Añadir personaje', vacio: 'El tema de cada personaje, para cuando entre en escena.' },
+  { tipo: 'lugar', titulo: 'Lugares', singular: 'Lugar', nuevo: 'Añadir lugar', vacio: 'La música de tabernas, calles y escondites.' },
+  { tipo: 'momento', titulo: 'Momentos', singular: 'Momento', nuevo: 'Añadir momento', vacio: 'Combate, persecución, misterio, despedida…' },
 ]
 
 export const TIPOS = CARPETAS.map((c) => c.tipo)

@@ -13,9 +13,9 @@ async function preparar(ctx, { bloquear = false } = {}) {
 
 async function anadir(p, nombre, enlace, tipo = 'personaje', nota = '') {
   await p.getByRole('button', { name: /^Añadir personaje/ }).first().click();
-  await p.getByLabel('Nombre').fill(nombre);
+  await p.getByLabel(/^Nombre/).fill(nombre);
   await p.getByLabel('Enlace de la canción').fill(enlace);
-  await p.getByLabel('Carpeta').selectOption(tipo);
+  await p.getByRole('radio', { name: { opening: 'Opening', ending: 'Ending', personaje: 'Personaje', lugar: 'Lugar', momento: 'Momento' }[tipo], exact: true }).check();
   if (nota) await p.getByLabel('Nota (opcional)').fill(nota);
   await p.getByRole('button', { name: 'Guardar', exact: true }).click();
 }
@@ -39,7 +39,7 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   comprobar('editor reconoce Spotify', (await p.locator('#ed-enlace-ayuda').innerText()).includes('canción de Spotify'));
   await p.getByRole('button', { name: 'Guardar', exact: true }).click();
   comprobar('editor exige nombre', await p.getByText('Escribe un nombre.').isVisible());
-  await p.getByLabel('Nombre').fill('Maela Brezo');
+  await p.getByLabel(/^Nombre/).fill('Maela Brezo');
   await p.getByLabel('Nota (opcional)').fill('Tabernera');
   await p.screenshot({ path: OUT + '02-editor.png' });
   await p.getByRole('button', { name: 'Guardar', exact: true }).click();

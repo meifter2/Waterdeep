@@ -2,11 +2,39 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useReproduccion } from '../data/reproduccion'
 import { useDatos } from '../data/store'
 import { CARPETAS, carpeta, type Cancion, type Tipo } from '../data/types'
+import { almacenamientoSeguro } from '../data/storage'
 import { AYUDA_ENLACE, describirEnlace, interpretarEnlace } from '../lib/enlaces'
+import { tituloDe } from '../lib/titulo'
 import { BotonConfirmar } from './Confirmar'
 
+const CLAVE_ULTIMA = 'banda-sonora:ultima-carpeta'
+
+/** Última carpeta usada al guardar (para proponerla al compartir). */
+export function ultimaCarpeta(): Tipo {
+  const t = almacenamientoSeguro.getItem(CLAVE_ULTIMA) as Tipo | null
+  return t && CARPETAS.some((c) => c.tipo === t) ? t : 'personaje'
+}
+
+export interface Inicial {
+  enlace?: string
+  nota?: string
+  compartida?: boolean
+}
+
 /** Ventana para añadir o editar una canción. `cancion` null = nueva en la carpeta `tipoInicial`. */
-export function Editor({ cancion, tipoInicial, alCerrar }: { cancion: Cancion | null; tipoInicial: Tipo; alCerrar: () => void }) {
+export function Editor({
+  cancion,
+  tipoInicial,
+  inicial,
+  alCerrar,
+  alGuardar,
+}: {
+  cancion: Cancion | null
+  tipoInicial: Tipo
+  inicial?: Inicial
+  alCerrar: () => void
+  alGuardar?: (mensaje: string) => void
+}) {
   const crear = useDatos((s) => s.crear)
   const actualizar = useDatos((s) => s.actualizar)
   const eliminar = useDatos((s) => s.eliminar)
@@ -14,8 +42,9 @@ export function Editor({ cancion, tipoInicial, alCerrar }: { cancion: Cancion | 
 
   const [tipo, setTipo] = useState<Tipo>(cancion?.tipo ?? tipoInicial)
   const [nombre, setNombre] = useState(cancion?.nombre ?? '')
-  const [enlace, setEnlace] = useState(cancion?.enlace ?? '')
-  const [nota, setNota] = useState(cancion?.nota ?? '')
+  const [enlace, setEnlace] = useState(cancion?.enlace ?? inicial?.enlace ?? '')
+  const [nota, setNota] = useState(cancion?.nota ?? inicial?.nota ?? '')
+  const notaTocada = useRef(false)
   const [intentado, setIntentado] = useState(false)
   const dialogo = useRef<HTMLDialogElement>(null)
 
@@ -29,15 +58,32 @@ export function Editor({ cancion, tipoInicial, alCerrar }: { cancion: Cancion | 
   const errorNombre = intentado && !nombre.trim() ? 'Escribe un nombre.' : ''
   const deteccion = interpretado && typeof interpretado !== 'string' ? `Enlace correcto: ${describirEnlace(interpretado)}.` : ''
 
+  // Canción nueva con enlace válido y sin nota: se propone el título real de la canción.
+  const webValida = interpretado && typeof interpretado !== 'string' ? interpretado.web : ''
+  useEffect(() => {
+    if (cancion || !webValida || notaTocada.current) return
+    const e = interpretarEnlace(webValida)
+    if (typeof e === 'string') return
+    let vigente = true
+    void tituloDe(e).then((t) => {
+      if (vigente && t && !notaTocada.current) setNota((n) => n || t)
+    })
+    return () => {
+      vigente = false
+    }
+  }, [webValida, cancion])
+
   const guardar = async (e: FormEvent, escuchar = false) => {
     e.preventDefault()
     setIntentado(true)
     if (!nombre.trim() || errorEnlace) return
     const datos = { tipo, nombre: nombre.trim(), enlace: enlace.trim(), nota: nota.trim() }
     alCerrar()
+    almacenamientoSeguro.setItem(CLAVE_ULTIMA, tipo)
     let id: string | null | undefined = cancion?.id
     if (id) await actualizar(id, datos)
     else id = await crear(datos)
+    if (id) alGuardar?.(`«${datos.nombre}» guardada en ${carpeta(tipo).titulo}.`)
     if (escuchar && id && datos.enlace) reproducir(id)
   }
 
@@ -51,16 +97,28 @@ export function Editor({ cancion, tipoInicial, alCerrar }: { cancion: Cancion | 
   return (
     <dialog ref={dialogo} className="dialogo" onClose={alCerrar} aria-labelledby="editor-titulo">
       <form className="editor" onSubmit={guardar} noValidate>
-        <h2 id="editor-titulo">{cancion ? 'Editar canción' : carpeta(tipo).nuevo}</h2>
+        <h2 id="editor-titulo">{cancion ? 'Editar canción' : inicial?.compartida ? 'Guardar canción compartida' : carpeta(tipo).nuevo}</h2>
 
-        <div className="editor-fila">
-          <div className="campo">
-            <label htmlFor="ed-nombre">Nombre</label>
+        <fieldset className="carpetas-opciones">
+          <legend>Carpeta</legend>
+          <div className="chips-carpeta">
+            {CARPETAS.map((c) => (
+              <label key={c.tipo} className="chip-carpeta">
+                <input type="radio" name="ed-tipo" value={c.tipo} checked={tipo === c.tipo} onChange={() => setTipo(c.tipo)} />
+                <span>{c.singular}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div className="campo">
+            <label htmlFor="ed-nombre">{tipo === 'personaje' ? 'Nombre del personaje' : tipo === 'lugar' ? 'Nombre del lugar' : 'Nombre'}</label>
             <input
               id="ed-nombre"
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               autoFocus={!cancion}
+              placeholder={tipo === 'personaje' ? 'Capitana Idris' : tipo === 'lugar' ? 'Taberna del Ancla' : tipo === 'momento' ? 'Persecución por los tejados' : 'Sesión 1'}
               autoComplete="off"
               maxLength={120}
               aria-invalid={errorNombre ? true : undefined}
@@ -71,17 +129,6 @@ export function Editor({ cancion, tipoInicial, alCerrar }: { cancion: Cancion | 
                 {errorNombre}
               </p>
             )}
-          </div>
-          <div className="campo">
-            <label htmlFor="ed-tipo">Carpeta</label>
-            <select id="ed-tipo" value={tipo} onChange={(e) => setTipo(e.target.value as Tipo)}>
-              {CARPETAS.map((c) => (
-                <option key={c.tipo} value={c.tipo}>
-                  {c.titulo}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
 
         <div className="campo">
@@ -104,7 +151,10 @@ export function Editor({ cancion, tipoInicial, alCerrar }: { cancion: Cancion | 
 
         <div className="campo">
           <label htmlFor="ed-nota">Nota (opcional)</label>
-          <input id="ed-nota" value={nota} maxLength={300} placeholder="Cuándo suena" onChange={(e) => setNota(e.target.value)} />
+          <input id="ed-nota" value={nota} maxLength={300} placeholder="Cuándo suena" onChange={(e) => {
+              notaTocada.current = true
+              setNota(e.target.value)
+            }} />
         </div>
 
         <div className="editor-acciones">
