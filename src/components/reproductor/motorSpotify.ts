@@ -5,8 +5,12 @@ import type { Informe } from './motor'
 // Controla el reproductor oficial de Spotify (iFrame API).
 // Un único reproductor se reutiliza: cambiar de personaje solo cambia la canción (loadUri).
 
-const AVISO_PREVIEW =
-  'Spotify solo reproduce 30 segundos porque no hay sesión iniciada en este navegador. Entra en open.spotify.com con tu cuenta Premium y vuelve a pulsar el personaje.'
+// Spotify da 30 s cuando el reproductor no recibe la sesión: o no se ha iniciado sesión,
+// o el navegador bloquea las cookies de terceros (Brave y Safari lo hacen por defecto).
+const esBrave = typeof navigator !== 'undefined' && 'brave' in navigator
+const AVISO_PREVIEW = esBrave
+  ? 'Spotify solo da 30 segundos porque Brave le bloquea tu sesión. Pulsa el león de Brave en la barra de direcciones, permite todas las cookies en esta página y recárgala. O usa Chrome o Edge con la sesión de Spotify iniciada.'
+  : 'Spotify solo da 30 segundos porque no recibe tu sesión. Inicia sesión en open.spotify.com en este navegador y, si ya lo estás, permite las cookies de terceros para esta página (Safari y algunos navegadores las bloquean) y recárgala.'
 const AVISO_BLOQUEO = 'El navegador no ha dejado empezar la música. Pulsa ▶ en el reproductor de Spotify.'
 
 export class MotorSpotify {
