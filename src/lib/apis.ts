@@ -34,6 +34,9 @@ export interface YTPlayer {
   pauseVideo(): void
   stopVideo(): void
   getPlayerState(): number
+  setVolume(v: number): void
+  mute(): void
+  unMute(): void
   destroy(): void
 }
 

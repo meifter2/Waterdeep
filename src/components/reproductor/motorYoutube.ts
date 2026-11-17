@@ -21,6 +21,8 @@ export class MotorYoutube {
   private player: YTPlayer | null = null
   private actual: EnlaceYoutube | null = null
   private seg: Segmento = { inicio: null, fin: null }
+  private volumen = { valor: 70, silenciado: false }
+  private generacion = 0
   private estado = ESTADO.SIN_EMPEZAR
   private temporizador = 0
 
@@ -29,8 +31,29 @@ export class MotorYoutube {
     private informar: Informe,
   ) {}
 
-  async reproducir(e: EnlaceYoutube, seg: Segmento) {
+  /** Volumen 0–100 y silencio (API oficial). Se guarda y se aplica en cuanto el reproductor está listo. */
+  fijarVolumen(valor: number, silenciado: boolean) {
+    this.volumen = { valor, silenciado }
+    this.aplicarVolumen()
+  }
+
+  private aplicarVolumen() {
+    const p = this.player
+    if (!p || typeof p.setVolume !== 'function') return
+    p.setVolume(this.volumen.valor)
+    if (this.volumen.silenciado) p.mute()
+    else p.unMute()
+  }
+
+  async reproducir(e: EnlaceYoutube, seg: Segmento, misma = false) {
+    const g = ++this.generacion
+    // Misma pista ya cargada: si suena, se deja; si está en pausa, se reanuda.
+    if (misma && this.player && this.actual?.web === e.web) {
+      if (this.estado === ESTADO.SONANDO) return this.informar('sonando', '')
+      if (this.estado === ESTADO.PAUSA) return this.player.playVideo()
+    }
     const YT = await cargarYoutube()
+    if (g !== this.generacion) return
     this.actual = e
     // El tramo de la pista manda; si no hay, se respeta el ?t= del enlace.
     this.seg = { inicio: seg.inicio ?? (e.inicio ? e.inicio * 1000 : null), fin: seg.fin }
@@ -51,6 +74,7 @@ export class MotorYoutube {
           playerVars: vars,
           events: {
             onReady: (ev) => {
+              this.aplicarVolumen()
               ev.target.playVideo()
               resolver()
             },
@@ -62,6 +86,7 @@ export class MotorYoutube {
     } else {
       this.cargar(e)
     }
+    this.aplicarVolumen()
 
     this.temporizador = window.setTimeout(() => {
       if (this.estado !== ESTADO.SONANDO) this.informar('pausa', AVISO_BLOQUEO)
@@ -75,6 +100,7 @@ export class MotorYoutube {
   }
 
   detener() {
+    this.generacion++
     window.clearTimeout(this.temporizador)
     this.player?.stopVideo()
   }

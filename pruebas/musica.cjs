@@ -66,12 +66,12 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await p.screenshot({ path: OUT + '04-sonando-youtube.png' });
 
   // 3) Pulsar el mismo = pausa; otra vez = reanuda
-  await p.getByRole('button', { name: 'Pausar Capitana Idris Mor' }).click();
+  await p.getByRole('button', { name: 'Pausar', exact: true }).click();
   await p.waitForTimeout(100);
-  comprobar('Pulsar el que suena lo pausa', (await estado(p)).startsWith('En pausa'), await estado(p));
+  comprobar('Pausar desde la barra', (await estado(p)).startsWith('En pausa'), await estado(p));
   await p.getByRole('button', { name: 'Reproducir Capitana Idris Mor' }).click();
   await p.waitForTimeout(100);
-  comprobar('Pulsar de nuevo lo reanuda', (await estado(p)).startsWith('Sonando'));
+  comprobar('Pulsar la tarjeta en pausa la recupera (no la reinicia)', (await estado(p)).startsWith('Sonando'));
 
   // 4) Repetir al terminar (YouTube)
   const antes = (await log(p)).length;

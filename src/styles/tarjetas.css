@@ -13,20 +13,45 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  align-items: stretch;
   background: var(--superficie-alta);
   border: 1px solid var(--linea);
   border-radius: var(--r-m);
   overflow: hidden;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.tarjeta[data-retrato] {
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  transition: border-color 0.15s ease;
 }
 
 .tarjeta:hover {
   border-color: var(--verdin);
+}
+
+/* Toda la superficie (retrato + textos) es un único botón. */
+.tarjeta-tocar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  width: 100%;
+  min-height: 4.5rem;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.tarjeta[data-retrato] .tarjeta-tocar {
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+}
+
+.tarjeta-tocar:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: -3px;
+  border-radius: var(--r-m);
+}
+
+.tarjeta-tocar:active {
+  background: color-mix(in srgb, var(--verdin) 8%, transparent);
 }
 
 .tarjeta-retrato {
@@ -41,26 +66,12 @@
   display: block;
 }
 
-.tarjeta-cuerpo {
+.tarjeta-textos {
   min-width: 0;
   display: grid;
-  align-content: start;
-  gap: 0.35rem;
-  padding: 0.65rem 0.8rem 0.7rem;
-}
-
-.tarjeta-tocar {
-  display: grid;
+  align-content: center;
   gap: 0.1rem;
-  justify-items: start;
-  text-align: left;
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: 0;
-  padding: 0 3.2rem 0 0;
-  cursor: pointer;
-  min-width: 0;
+  padding: 0.65rem 3.4rem 0.65rem 0.8rem;
 }
 
 .tarjeta-nombre {
@@ -71,19 +82,12 @@
   overflow-wrap: anywhere;
 }
 
-.tarjeta-tocar:hover .tarjeta-nombre {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.18em;
-}
-
 .tarjeta-nota {
   font-size: var(--t-s);
   color: var(--tinta-suave);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
 }
 
 .tarjeta-fuente {
@@ -92,14 +96,20 @@
   font-style: italic;
 }
 
+.tarjeta[data-sonando] .tarjeta-fuente {
+  font-style: normal;
+  font-weight: 700;
+}
+
 .tarjeta-editar {
   position: absolute;
+  z-index: 1;
   top: 0.45rem;
   right: 0.45rem;
   font: inherit;
   font-size: var(--t-xs);
   color: var(--tinta-suave);
-  background: transparent;
+  background: var(--superficie-alta);
   border: 1px solid transparent;
   border-radius: var(--r-s);
   padding: 0.2rem 0.45rem;
@@ -109,6 +119,20 @@
 .tarjeta-editar:hover {
   border-color: var(--linea);
   color: var(--tinta);
+}
+
+.tarjeta[data-actual] .tarjeta-editar {
+  background: var(--muelle);
+}
+
+/* Varias pistas: botones debajo, alineados con el texto. */
+.tarjeta-pistas {
+  padding: 0 0.8rem 0.7rem;
+}
+
+.tarjeta[data-retrato] .tarjeta-pistas {
+  padding-left: calc(4.5rem + 0.8rem);
+  margin-top: -0.25rem;
 }
 
 /* Botones de pista: pequeños para que quepan muchos. */
@@ -169,9 +193,12 @@
 }
 
 .tarjeta[data-actual] .tarjeta-nota,
-.tarjeta[data-actual] .tarjeta-fuente,
 .tarjeta[data-actual] .tarjeta-editar {
   color: var(--muelle-tinta-suave);
+}
+
+.tarjeta[data-actual] .tarjeta-fuente {
+  color: var(--oro-sobre-oscuro);
 }
 
 .tarjeta[data-actual] .pista-chip {

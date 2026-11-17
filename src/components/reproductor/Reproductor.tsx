@@ -10,12 +10,15 @@ import { MotorArchivo } from './motorArchivo'
 import { MotorSpotify } from './motorSpotify'
 import { MotorSpotifyConnect } from './motorSpotifyConnect'
 import { MotorYoutube } from './motorYoutube'
+import { ControlVolumen } from './ControlVolumen'
+import { useVolumen } from '../../data/volumen'
 
 const TEXTO_ESTADO: Record<EstadoReproduccion, string> = {
   parado: 'En silencio',
   cargando: 'Cargando',
   sonando: 'Sonando',
   pausa: 'En pausa',
+  otra: 'Spotify está con otra canción',
   error: 'No se puede reproducir',
 }
 
@@ -41,6 +44,8 @@ export function Reproductor() {
   const [enlace, setEnlace] = useState<EnlaceMusical | null>(null)
   const [respaldo, setRespaldo] = useState<string | null>(null)
   const [dispositivo, setDispositivo] = useState('')
+  // Última pista pedida (para saber si se vuelve a pulsar la misma).
+  const ultima = useRef<{ pistaId: string; activo: Activo } | null>(null)
 
   // Crea los motores una sola vez.
   useEffect(() => {
@@ -48,12 +53,26 @@ export function Reproductor() {
     const inf = (e: EstadoReproduccion, a?: string) => informar(e, a)
     if (hostSpotify.current && !m.spotify) m.spotify = new MotorSpotify(hostSpotify.current, inf)
     if (hostYoutube.current && !m.youtube) m.youtube = new MotorYoutube(hostYoutube.current, inf)
-    m.connect ??= new MotorSpotifyConnect(inf, setDispositivo)
+    m.connect ??= new MotorSpotifyConnect(inf, setDispositivo, (v) => useVolumen.getState().informarSpotify(v))
     if (!m.archivo) {
       m.archivo = new MotorArchivo(inf)
       ;(window as unknown as { __audioBandaSonora?: HTMLAudioElement }).__audioBandaSonora = m.archivo.elemento
     }
   }, [informar])
+
+  // Volumen de DFY (archivos y YouTube): se aplica al instante y se mantiene al cambiar de pista o fuente.
+  const volLocal = useVolumen((s) => s.local)
+  const silenciado = useVolumen((s) => s.silenciado)
+  useEffect(() => {
+    motores.current.archivo?.fijarVolumen(volLocal / 100, silenciado)
+    motores.current.youtube?.fijarVolumen(volLocal, silenciado)
+  }, [volLocal, silenciado])
+
+  // Volumen del dispositivo de Spotify conectado.
+  const pedidoSpotify = useVolumen((s) => s.pedidoSpotify)
+  useEffect(() => {
+    if (pedidoSpotify) motores.current.connect?.fijarVolumen(pedidoSpotify.valor)
+  }, [pedidoSpotify])
 
   useEffect(() => {
     const { spotify, youtube, connect, archivo } = motores.current
@@ -71,6 +90,9 @@ export function Reproductor() {
     const r = p && datos.recursos.find((x) => x.id === p.recurso_id)
     if (!p || !r) return
     const seg: Segmento = { inicio: p.inicio_ms, fin: p.fin_ms }
+    const n = peticion
+    const vigente = () => useReproduccion.getState().peticion === n
+    const previa = ultima.current
     const { spotify, youtube, connect, archivo } = motores.current
     const repetirAhora = useReproduccion.getState().repetir
     for (const m of [spotify, youtube, archivo]) if (m) m.repetir = repetirAhora
@@ -83,13 +105,21 @@ export function Reproductor() {
     }
     setRespaldo(null)
 
+    const misma = (destino: Activo) => previa?.pistaId === p.id && previa.activo === destino
+    const marcar = (destino: Activo) => {
+      ultima.current = { pistaId: p.id, activo: destino }
+    }
+
     if (r.origen === 'archivo') {
+      const esMisma = misma('archivo')
       setEnlace(null)
       setActivo('archivo')
       pararOtros('archivo')
+      marcar('archivo')
       void datos.urlDe('audio', r.archivo_ruta!).then((url) => {
+        if (!vigente()) return // se ha pulsado otra tarjeta mientras se preparaba
         if (!url) informar('error', 'No se ha podido abrir el archivo. Revisa la conexión y vuelve a pulsar.')
-        else void archivo?.reproducir(url, seg)
+        else void archivo?.reproducir(url, seg, esMisma)
       })
       return
     }
@@ -107,34 +137,47 @@ export function Reproductor() {
 
     if (e.servicio === 'spotify' && useSpotify.getState().conectado) {
       // Spotify conectado: suena completa en la app de Spotify del usuario.
+      const esMisma = misma('connect')
       setActivo('connect')
       pararOtros('connect')
-      connect?.reproducir(e, seg).catch((err: unknown) => {
+      marcar('connect')
+      connect?.reproducir(e, seg, esMisma).catch((err: unknown) => {
+        if (!vigente()) return
         if (err instanceof ErrorSpotify && err.codigo === 'desconectado') {
           setActivo('spotify')
+          marcar('spotify')
           spotify?.reproducir(e, seg).catch(() => usarRespaldo(e))
           informar('cargando', err.message)
         } else informar('error', err instanceof ErrorSpotify ? err.message : 'Spotify no ha respondido.')
       })
     } else if (e.servicio === 'spotify') {
+      const esMisma = misma('spotify')
       setActivo('spotify')
       pararOtros('spotify')
-      spotify?.reproducir(e, seg).catch(() => usarRespaldo(e))
+      marcar('spotify')
+      spotify?.reproducir(e, seg, esMisma).catch(() => vigente() && usarRespaldo(e))
     } else {
+      const esMisma = misma('youtube')
       setActivo('youtube')
       pararOtros('youtube')
-      youtube?.reproducir(e, seg).catch(() => usarRespaldo(e))
+      marcar('youtube')
+      youtube?.reproducir(e, seg, esMisma).catch(() => vigente() && usarRespaldo(e))
     }
   }, [peticion, informar])
 
-  // Pausa / detener desde los botones.
+  // Pausa / detener desde los botones. Cada orden se atiende UNA vez: cambiar de fuente no debe
+  // repetir la última orden (antes, un «Detener» antiguo cancelaba la siguiente reproducción).
+  const ordenAtendida = useRef(0)
   useEffect(() => {
-    if (!orden || !activo) return
+    if (!orden || orden.n === ordenAtendida.current) return
+    ordenAtendida.current = orden.n
+    if (!activo) return
     const motor = motores.current[activo]
     if (orden.tipo === 'alternar') motor?.alternar()
     else {
       motor?.detener()
       setRespaldo(null)
+      ultima.current = null
     }
   }, [orden, activo])
 
@@ -192,6 +235,8 @@ export function Reproductor() {
           )}
         </div>
       )}
+
+      <ControlVolumen fuente={activo === 'connect' ? 'spotify' : activo === 'spotify' ? 'spotify-integrado' : 'local'} />
 
       {aviso && (
         <p className="reproductor-aviso" role="status">

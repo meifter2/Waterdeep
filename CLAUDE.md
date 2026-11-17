@@ -47,17 +47,25 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
 ```
 
 ## Reproductor (no romper)
-- Suena UNA pista cada vez (mezcla = fase 2). Pulsar la que suena = pausa/reanuda. Nombre de tarjeta = 1.ª pista.
-- Bucle por pista (ambientes/música sí, efectos no); «Repetir» en la barra lo cambia al vuelo.
-- Archivo: HTMLAudio + temporizador recalculado en `timeupdate` (±15 ms). YouTube: start/endSeconds oficiales.
-  Spotify integrado: seek/pausa por `playback_update` (aprox.). Connect: `position_ms` + temporizador (aprox. ±1 s);
-  con fin, repeat de Spotify en «off» y repite la app. En móvil el iframe de Spotify SIEMPRE da 30 s.
-- Errores: YouTube 101/150, Spotify ≤30 s (cookies Brave/Safari), API no carga ⇒ iframe de respaldo.
+- Suena UNA pista cada vez (mezcla = fase 2; nunca superponer Spotify con otras fuentes).
+- **Pulsar tarjeta/chip = reproducir esa pista** (`reproducir`/`reproducirElemento`), nunca pausar. Si es la misma y suena de
+  verdad, no se reinicia; si está en pausa, se reanuda; si Spotify cambió a otra, se vuelve a poner. Pausar/Reanudar/Detener
+  solo en la barra. Las órdenes de la barra se atienden UNA vez (`ordenAtendida`), no al cambiar de fuente.
+- Tarjeta: toda la superficie es un botón (pista principal = primera); chips solo si hay varias pistas; Editar aparte.
+- Turnos («generacion») en todos los motores: lo que llega tarde de una orden anterior se descarta.
+- Connect: órdenes en cola (solo la última se ejecuta); `estadoActual` lee uri/contexto/dispositivo/progreso/volumen;
+  sondeo 4 s detecta cambios externos (estado `otra`); el corte del tramo verifica la canción antes de relanzarla.
+- Volumen (`data/volumen.ts`): «local» (MP3 + YouTube, clave `banda-sonora:volumen`, 70 % por defecto) y «spotify»
+  (volumen REAL del dispositivo, leído, nunca forzado; PUT limitado a 1/350 ms, 429 ⇒ Retry-After; sin `supports_volume`
+  ⇒ desactivado). Silencio en Spotify = bajar a 0 y recuperar. El iframe de Spotify no admite volumen (deslizador desactivado).
+- Bucle por pista; «Repetir» de la barra lo cambia al vuelo. Archivo: HTMLAudio (+ volume/muted). YouTube: start/endSeconds,
+  setVolume/mute. Spotify integrado: seek/pausa por `playback_update` (aprox.). Connect: `position_ms` + temporizador (±1 s).
+- Errores: YouTube 101/150, Spotify ≤30 s (cookies Brave/Safari; en móvil el iframe SIEMPRE da 30 s), API no carga ⇒ respaldo.
 
 ## Comandos y pruebas
 - `npm run dev|build|preview` (4173) · `build:prueba`+`preview:prueba` (4174, Supabase simulado) ·
   `build:spotify`+`preview:spotify` (4175)
-- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
+- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
 - Despliegue: Vercel publica cada push a `main`. Las ramas generan vista previa (usa variables de «Preview»).
   Google en vistas previas: Supabase solo vuelve a URLs de su lista ⇒ usar email o añadir `https://*.vercel.app/**`.
 
@@ -70,3 +78,4 @@ Trabajo en `ccr-4e49e839-kg8cvn`. Pasar a `main` SOLO con permiso y tras validar
 | Banda sonora, Vercel, Supabase+Google, PWA, Spotify Connect, email+contraseña | Hechas (v3 publicada en `main`) |
 | Identidad DFY (nombre, icono, PWA, metadatos) | Hecha en la rama y en `main` |
 | F1 Biblioteca (v4) | Hecha en la rama, probada con simuladores; falta ejecutar 002 y probar la vista previa |
+| F1 Revisión reproductor (volumen, sincronía Spotify, tarjetas rápidas) | Hecha en la rama; falta prueba manual en Vercel |

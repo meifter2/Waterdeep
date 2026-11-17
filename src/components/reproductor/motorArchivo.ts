@@ -12,6 +12,7 @@ export class MotorArchivo {
   private seg: Segmento = { inicio: null, fin: null }
   private temporizador = 0
   private parado = true
+  private generacion = 0
 
   constructor(private informar: Informe) {
     const a = new Audio()
@@ -46,11 +47,29 @@ export class MotorArchivo {
     return this.audio
   }
 
-  async reproducir(url: string, seg: Segmento) {
+  /** Volumen 0–1 y silencio: se aplican al instante, también mientras suena. */
+  fijarVolumen(volumen: number, silenciado: boolean) {
+    this.audio.volume = Math.min(1, Math.max(0, volumen))
+    this.audio.muted = silenciado
+  }
+
+  /** Reproduce la pista; si es la misma que ya está cargada, la reanuda (o sigue) en lugar de reiniciarla. */
+  async reproducir(url: string, seg: Segmento, misma = false) {
+    const g = ++this.generacion
     window.clearTimeout(this.temporizador)
     this.parado = false
-    this.seg = seg
     const a = this.audio
+    if (misma && a.src === url && a.readyState > 0) {
+      this.seg = seg
+      if (!a.paused) {
+        this.informar('sonando', '')
+        return
+      }
+      if (seg.fin != null && a.currentTime * 1000 >= seg.fin - MARGEN_MS) a.currentTime = (seg.inicio ?? 0) / 1000
+      await a.play().catch(() => this.informar('pausa', 'El navegador no ha dejado empezar el sonido. Pulsa «Reanudar».'))
+      return
+    }
+    this.seg = seg
     if (a.src !== url) {
       a.src = url
       await new Promise<void>((resolver, rechazar) => {
@@ -64,6 +83,7 @@ export class MotorArchivo {
         a.addEventListener('error', mal)
       }).catch(() => undefined)
     }
+    if (g !== this.generacion) return // se ha pedido otra pista mientras cargaba
     a.loop = this.repetir && seg.fin == null && !seg.inicio
     a.currentTime = (seg.inicio ?? 0) / 1000
     try {
@@ -81,6 +101,7 @@ export class MotorArchivo {
   }
 
   detener() {
+    this.generacion++
     this.parado = true
     window.clearTimeout(this.temporizador)
     this.audio.pause()

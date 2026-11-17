@@ -20,7 +20,8 @@
     "test:sql": "node pruebas/sql.test.mjs",
     "test:biblioteca": "node pruebas/biblioteca.cjs",
     "test:email": "node pruebas/email.cjs",
-    "test:identidad": "node pruebas/identidad.cjs"
+    "test:identidad": "node pruebas/identidad.cjs",
+    "test:reproductor": "node pruebas/reproductor.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",

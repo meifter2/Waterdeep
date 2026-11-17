@@ -22,7 +22,7 @@ type Edicion = { elemento: Elemento | null; tipo: Tipo } | null
 /** Pantalla principal: carpetas con sus tarjetas y el reproductor abajo. */
 export function Biblioteca() {
   const { elementos, recursos, pistas, carga, error, limpiarError } = useDatos()
-  const pulsarElemento = useReproduccion((s) => s.pulsarElemento)
+  const reproducirElemento = useReproduccion((s) => s.reproducirElemento)
   const errorSpotify = useSpotify((s) => s.error)
   const [busqueda, setBusqueda] = useState('')
   const [edicion, setEdicion] = useState<Edicion>(null)
@@ -73,7 +73,7 @@ export function Biblioteca() {
   const alTeclear = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const primero = porCarpeta.flatMap((g) => g.lista).find((el) => pistas.some((p) => p.elemento_id === el.id))
-      if (primero) pulsarElemento(primero.id)
+      if (primero) reproducirElemento(primero.id)
     }
     if (e.key === 'Escape') setBusqueda('')
   }

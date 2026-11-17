@@ -60,9 +60,9 @@ const { comprobar, fin } = comprobador();
   await p.getByRole('button', { name: 'Reproducir Tema principal de Capitana Idris' }).click();
   await p.waitForFunction(() => (window.__log || []).some((l) => l.startsWith('spotify:play')));
   comprobar('Spotify: suena y el archivo se para', (await audio()).pausado && (await log()).some((l) => l.startsWith('spotify:create spotify:track:4cOd')));
-  await p.getByRole('button', { name: 'Pausar Tema principal de Capitana Idris' }).click();
+  await p.getByRole('button', { name: 'Pausar', exact: true }).click();
   await p.waitForTimeout(200);
-  comprobar('Pulsar la pista que suena la pausa', (await estado()).startsWith('En pausa'));
+  comprobar('Pausar desde la barra', (await estado()).startsWith('En pausa'));
   await p.getByRole('button', { name: 'Detener' }).click();
 
   // ── YouTube con tramo oficial ──

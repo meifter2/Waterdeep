@@ -34,6 +34,7 @@ window.YT = { PlayerState:{PLAYING:1,PAUSED:2,ENDED:0,BUFFERING:3,CUED:5}, Playe
     if(x.videoId==='bloqueado01') return this.o.events.onError({data:150}); this.playVideo() }
   loadPlaylist(x){ this.id=x.list; __log.push('yt:loadPlaylist '+x.list); this.playVideo() }
   getPlayerState(){ return this.state } destroy(){}
+  setVolume(v){ __log.push('yt:volumen '+v) } mute(){ __log.push('yt:silencio') } unMute(){ __log.push('yt:sonido') }
   _terminar(){ this.state=0; this.o.events.onStateChange({data:0}) }
 }};
 window.onYouTubeIframeAPIReady();`;

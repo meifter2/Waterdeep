@@ -32,14 +32,26 @@ export class MotorSpotify {
   private inicioAplicado = false
   private avisoPreviewDado = false
   private temporizadores: number[] = []
+  private uriActual = ''
+  private pausado = true
+  private generacion = 0
 
   constructor(
     private host: HTMLElement,
     private informar: Informe,
   ) {}
 
-  async reproducir(e: EnlaceSpotify, seg: Segmento) {
+  async reproducir(e: EnlaceSpotify, seg: Segmento, misma = false) {
+    const g = ++this.generacion
+    // Misma pista ya cargada: si suena se deja; si está en pausa se reanuda (no se reinicia).
+    if (misma && this.ctrl && this.uriActual === e.uri && this.haSonado) {
+      if (!this.pausado) return this.informar('sonando', '')
+      this.ctrl.resume()
+      return
+    }
     const api = await cargarSpotify()
+    if (g !== this.generacion) return
+    this.uriActual = e.uri
     this.limpiarTemporizadores()
     this.tipo = e.tipo
     this.seg = seg
@@ -71,6 +83,7 @@ export class MotorSpotify {
   }
 
   detener() {
+    this.generacion++
     this.limpiarTemporizadores()
     this.pendiente = false
     this.ctrl?.pause()
@@ -88,6 +101,7 @@ export class MotorSpotify {
     c.addListener('playback_update', ({ data }) => {
       if (!data) return
       const { isPaused, isBuffering, duration, position } = data
+      this.pausado = isPaused
 
       // Inicio del tramo: si Spotify empezó antes de lo pedido, se salta una vez (aprox. ±1 s).
       if (!isPaused && !this.inicioAplicado && this.seg.inicio && position < this.seg.inicio - 1500) {
