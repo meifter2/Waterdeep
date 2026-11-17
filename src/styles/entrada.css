@@ -47,3 +47,42 @@
 .boton-google:hover {
   border-color: var(--tinta);
 }
+
+.entrada-separador {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 22rem;
+  font-size: var(--t-s);
+  color: var(--tinta-suave);
+}
+
+.entrada-separador::before,
+.entrada-separador::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--linea);
+}
+
+.entrada-form {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 22rem;
+  justify-items: stretch;
+}
+
+.entrada-form .boton-principal {
+  justify-self: start;
+}
+
+.entrada-form .aviso {
+  max-width: none;
+}
+
+.entrada-enlaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+}
