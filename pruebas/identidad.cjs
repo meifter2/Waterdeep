@@ -40,7 +40,7 @@ const { comprobar, fin } = comprobador();
   await p.waitForFunction(async () => !(await caches.keys()).includes('banda-sonora-v1'), null, { timeout: 6000, polling: 200 }).catch(() => {});
   const cachesNombres = await p.evaluate(() => caches.keys());
   comprobar('El service worker nuevo retira su caché antigua (solo archivos de la app)', !cachesNombres.includes('banda-sonora-v1'), cachesNombres.join(','));
-  comprobar('…sin tocar los datos del navegador', (await p.evaluate(() => localStorage.getItem('banda-sonora:biblioteca'))).includes('El Ancla Torcida'));
+  comprobar('…sin tocar los datos del navegador', (await p.evaluate(() => (localStorage.getItem('banda-sonora:biblioteca') ?? '') + (localStorage.getItem('banda-sonora:canciones') ?? ''))).includes('El Ancla Torcida'));
 
   // Pantalla de entrada (con Supabase)
   await p.goto('http://localhost:4174/');
