@@ -6,7 +6,7 @@
 Mesa de sonido personal del máster de D&D. Elementos en 7 carpetas (Opening, Ending, Personajes, Lugares,
 Momentos, Ambientes, Efectos), cada uno con retrato opcional y una o varias pistas (sonidos de Spotify,
 YouTube o archivos propios, con etiqueta, tramo inicio/fin y bucle). Los sonidos se reutilizan sin duplicar.
-Cuentas con Google (Supabase Auth + RLS). Spotify Connect opcional. PWA con «compartir» en Android.
+Cuentas con Google o email+contraseña (Supabase Auth + RLS; recuperar contraseña con enlace al correo). Spotify Connect opcional. PWA con «compartir» en Android.
 Sin variables de Supabase ⇒ «modo local» (localStorage + IndexedDB). El usuario tiene Spotify Premium.
 Roadmap (NO empezar sin pedirlo): F2 mezclador · F3 modo sesión/escenas · F4 biblioteca de solo lectura para jugadores
 (solo lo publicado expresamente; la cuenta del usuario será la única administradora).
@@ -53,8 +53,9 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
 ## Comandos y pruebas
 - `npm run dev|build|preview` (4173) · `build:prueba`+`preview:prueba` (4174, Supabase simulado) ·
   `build:spotify`+`preview:spotify` (4175)
-- `npm run test:sql|enlaces|biblioteca|musica|compartir` (4173) · `test:supabase` (4174) · `test:spotify` (4175)
+- `npm run test:sql|enlaces|biblioteca|musica|compartir` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
 - Despliegue: Vercel publica cada push a `main`. Las ramas generan vista previa (usa variables de «Preview»).
+  Google en vistas previas: Supabase solo vuelve a URLs de su lista ⇒ usar email o añadir `https://*.vercel.app/**`.
 
 ## Git
 Trabajo en `ccr-4e49e839-kg8cvn`. Pasar a `main` SOLO con permiso y tras validar el SQL en Supabase.
@@ -62,5 +63,5 @@ Trabajo en `ccr-4e49e839-kg8cvn`. Pasar a `main` SOLO con permiso y tras validar
 ## Estado
 | Fase | Estado |
 |------|--------|
-| Banda sonora, Vercel, Supabase+Google, PWA, Spotify Connect | Hechas (v3 publicada en `main`) |
+| Banda sonora, Vercel, Supabase+Google, PWA, Spotify Connect, email+contraseña | Hechas (v3 publicada en `main`) |
 | F1 Biblioteca (v4) | Hecha en la rama, probada con simuladores; falta ejecutar 002 y probar la vista previa |

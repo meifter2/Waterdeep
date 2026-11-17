@@ -18,7 +18,8 @@
     "preview:spotify": "vite preview --outDir dist-spotify --port 4175 --strictPort",
     "test:spotify": "node pruebas/spotify.cjs",
     "test:sql": "node pruebas/sql.test.mjs",
-    "test:biblioteca": "node pruebas/biblioteca.cjs"
+    "test:biblioteca": "node pruebas/biblioteca.cjs",
+    "test:email": "node pruebas/email.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",
