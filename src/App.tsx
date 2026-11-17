@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Biblioteca } from './pages/Biblioteca'
-import { Entrada } from './pages/Entrada'
+import { Entrada, NuevaContrasena } from './pages/Entrada'
 import { escucharSesion, useSesion } from './data/sesion'
 import { useDatos } from './data/store'
 import { useReproduccion } from './data/reproduccion'
@@ -10,6 +10,7 @@ import { precargar } from './lib/apis'
 export function App() {
   const estado = useSesion((s) => s.estado)
   const usuarioId = useSesion((s) => s.usuario?.id)
+  const recuperando = useSesion((s) => s.recuperando)
 
   useEffect(() => escucharSesion(), [])
   useEffect(() => precargar(), [])
@@ -24,6 +25,7 @@ export function App() {
   }, [estado, usuarioId])
 
   if (estado === 'comprobando') return <p className="comprobando">Abriendo tu banda sonora…</p>
+  if (recuperando) return <NuevaContrasena />
   if (estado === 'fuera') return <Entrada />
   return <Biblioteca />
 }
