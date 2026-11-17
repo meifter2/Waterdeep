@@ -1,7 +1,7 @@
 {
-  "name": "Banda sonora",
-  "short_name": "Banda sonora",
-  "description": "La música de tu mesa: opening, ending, personajes, lugares y momentos.",
+  "name": "DFY · El sonido de tus aventuras",
+  "short_name": "DFY",
+  "description": "El sonido de tus aventuras: la música de tus partidas de rol, lista para sonar con un toque.",
   "lang": "es",
   "id": "/",
   "start_url": "/",
@@ -11,13 +11,38 @@
   "background_color": "#e3e7e0",
   "theme_color": "#1d3438",
   "icons": [
-    { "src": "/iconos/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/iconos/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/iconos/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/iconos/dfy-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/iconos/dfy-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/iconos/dfy-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/iconos/dfy.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ],
   "share_target": {
     "action": "/",
     "method": "GET",
-    "params": { "title": "title", "text": "text", "url": "url" }
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
   }
 }

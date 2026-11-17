@@ -24,12 +24,34 @@
 }
 
 .entrada h1 {
-  font-size: clamp(2.8rem, 8vw, 4.6rem);
+  font-size: clamp(3.4rem, 10vw, 5.6rem);
   font-weight: 700;
   line-height: 1;
+  letter-spacing: 0.04em;
 }
 
-.entrada-texto > p:first-of-type {
+.entrada-marca {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.entrada-marca img {
+  width: clamp(3.5rem, 9vw, 4.75rem);
+  height: auto;
+  border-radius: 22%;
+  box-shadow: var(--sombra);
+}
+
+.entrada .entrada-lema {
+  font-family: var(--f-titulo);
+  font-style: italic;
+  font-size: var(--t-xl);
+  color: var(--oro);
+  margin-top: -0.6rem;
+}
+
+.entrada-texto > p:nth-of-type(2) {
   font-family: var(--f-titulo);
   font-size: var(--t-l);
   line-height: 1.45;
