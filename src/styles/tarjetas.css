@@ -126,10 +126,6 @@
 }
 
 /* Varias pistas: botones debajo, alineados con el texto. */
-.tarjeta-pistas {
-  padding: 0 0.8rem 0.7rem;
-}
-
 .tarjeta[data-retrato] .tarjeta-pistas {
   padding-left: calc(4.5rem + 0.8rem);
   margin-top: -0.25rem;
@@ -139,10 +135,11 @@
 .tarjeta-pistas {
   list-style: none;
   margin: 0;
-  padding: 0;
+  /* Aire respecto al borde de la tarjeta (antes otra regla lo anulaba con padding: 0). */
+  padding: 0.1rem 0.8rem 0.8rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: 0.4rem 0.45rem;
 }
 
 .pista-chip {
