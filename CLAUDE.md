@@ -75,12 +75,12 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
   Google en vistas previas: Supabase solo vuelve a URLs de su lista ⇒ usar email o añadir `https://*.vercel.app/**`.
 
 ## Git
-Trabajo en `ccr-4e49e839-kg8cvn`. Pasar a `main` SOLO con permiso y tras validar el SQL en Supabase.
+Trabajo en `ccr-4e49e839-kg8cvn` (se conserva). Pasar a `main` SOLO con permiso. Punto de recuperación anterior a F1: `fa42f32`.
 
 ## Estado
 | Fase | Estado |
 |------|--------|
 | Banda sonora, Vercel, Supabase+Google, PWA, Spotify Connect, email+contraseña | Hechas (v3 publicada en `main`) |
 | Identidad DFY (nombre, icono, PWA, metadatos) | Hecha en la rama y en `main` |
-| F1 Biblioteca (v4) | Hecha en la rama, probada con simuladores; falta ejecutar 002 y probar la vista previa |
-| F1 Revisión reproductor (volumen, sincronía Spotify, tarjetas rápidas) | Hecha en la rama; falta prueba manual en Vercel |
+| F1 Biblioteca (v4) + controles ■ ▶/❚❚ ⟲ | Publicada en `main` (002 ya ejecutado en Supabase) |
+| F1 Revisión reproductor (volumen, sincronía Spotify, tarjetas rápidas) | Publicada en `main`; falta prueba manual en producción |
