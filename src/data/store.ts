@@ -92,7 +92,7 @@ export function validarImportacion(texto: string): DatosCancion[] | string {
   }
   const d = bruto as { version?: number; canciones?: unknown[]; personajes?: unknown[] }
   const lista = d?.version === 3 ? d.canciones : d?.version === 2 ? d.personajes : null
-  if (!Array.isArray(lista)) return 'Esta copia no es de la banda sonora.'
+  if (!Array.isArray(lista)) return 'Esta copia no es de DFY (ni de Banda sonora, su nombre anterior).'
   return lista
     .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && typeof (x as { nombre?: unknown }).nombre === 'string')
     .map((x) => ({

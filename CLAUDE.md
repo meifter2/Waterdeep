@@ -1,9 +1,11 @@
-# CLAUDE.md — Banda sonora («Waterdeep: Dragon Heist»)
+# CLAUDE.md — DFY · «El sonido de tus aventuras» (antes «Banda sonora»)
 
 > Contexto para Claude Code. Breve (≤100 líneas). Actualizar al cerrar cada fase.
 > No repetir lo que ya está en el código: solo lo necesario para orientarse.
 
 ## Resumen
+**DFY** = D (dado D20) + FY (guiño a Spotify). Icono `public/iconos/dfy*`. Las claves `banda-sonora:*` del navegador,
+las tablas, buckets, variables y rutas conservan su nombre (no cambiarlos: se perderían datos).
 App web del máster centrada SOLO en la música. Canciones (enlace Spotify/YouTube) en 5 carpetas:
 Opening, Ending, Personajes, Lugares, Momentos. Pulsar una tarjeta → suena en el reproductor integrado.
 Multiusuario: entrar con Google (Supabase Auth); cada usuario solo ve lo suyo (RLS).
