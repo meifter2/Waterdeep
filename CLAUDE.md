@@ -1,8 +1,10 @@
-# CLAUDE.md — Banda sonora («Waterdeep: Dragon Heist»)
+# CLAUDE.md — DFY · «El sonido de tus aventuras» (antes «Banda sonora»)
 
 > Contexto para Claude Code. Breve (≤100 líneas). Actualizar al cerrar cada fase.
 
 ## Resumen
+**DFY** = D (dado D20) + FY (guiño a Spotify). Eslogan: «El sonido de tus aventuras». Icono: D20 dorado con ondas
+sobre verde muelle (`public/iconos/dfy*.png|svg`). Antes se llamaba «Banda sonora».
 Mesa de sonido personal del máster de D&D. Elementos en 7 carpetas (Opening, Ending, Personajes, Lugares,
 Momentos, Ambientes, Efectos), cada uno con retrato opcional y una o varias pistas (sonidos de Spotify,
 YouTube o archivos propios, con etiqueta, tramo inicio/fin y bucle). Los sonidos se reutilizan sin duplicar.
@@ -15,6 +17,8 @@ Roadmap (NO empezar sin pedirlo): F2 mezclador · F3 modo sesión/escenas · F4 
 - **Siempre en español**, explicando cada paso. Experto en producto/UX/frontend, no programador. Dicta por voz.
 - Plan antes de cambios grandes; preguntar decisiones importantes. **Ahorrar tokens**: empezar por este archivo.
 - **Archivos ≤ ~1000 líneas** (límite 1500). Dividir por responsabilidad.
+- **Nombre antiguo que NO se cambia** (datos): claves `banda-sonora:*`, IndexedDB `banda-sonora`, políticas SQL
+  «banda sonora: …», `window.__audioBandaSonora` (pruebas). Tablas, buckets, variables y rutas tampoco.
 - Nada de contenido del libro. Interfaz en español (sentence case). Frontend ⇒ skill `frontend-design`;
   Supabase ⇒ skills `supabase` y `supabase-postgres-best-practices`. Nunca subir secretos ni `.env`.
 
@@ -53,7 +57,7 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
 ## Comandos y pruebas
 - `npm run dev|build|preview` (4173) · `build:prueba`+`preview:prueba` (4174, Supabase simulado) ·
   `build:spotify`+`preview:spotify` (4175)
-- `npm run test:sql|enlaces|biblioteca|musica|compartir` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
+- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
 - Despliegue: Vercel publica cada push a `main`. Las ramas generan vista previa (usa variables de «Preview»).
   Google en vistas previas: Supabase solo vuelve a URLs de su lista ⇒ usar email o añadir `https://*.vercel.app/**`.
 
@@ -64,4 +68,5 @@ Trabajo en `ccr-4e49e839-kg8cvn`. Pasar a `main` SOLO con permiso y tras validar
 | Fase | Estado |
 |------|--------|
 | Banda sonora, Vercel, Supabase+Google, PWA, Spotify Connect, email+contraseña | Hechas (v3 publicada en `main`) |
+| Identidad DFY (nombre, icono, PWA, metadatos) | Hecha en la rama y en `main` |
 | F1 Biblioteca (v4) | Hecha en la rama, probada con simuladores; falta ejecutar 002 y probar la vista previa |

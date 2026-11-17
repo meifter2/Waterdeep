@@ -5,7 +5,7 @@ const { SPOTIFY, YOUTUBE } = require('./falsos.cjs');
 const { wav, crearElemento, anadirSonidos, comprobador, CAPTURAS } = require('./ayuda.cjs');
 const URL = 'http://localhost:4173/';
 const SPOT = 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT';
-const RETRATO = path.join(__dirname, '../public/iconos/icono-192.png');
+const RETRATO = path.join(__dirname, '../public/iconos/dfy-192.png');
 const { comprobar, fin } = comprobador();
 
 (async () => {

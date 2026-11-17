@@ -1,4 +1,7 @@
-# Base de datos de Banda sonora (Supabase)
+# Base de datos de DFY (Supabase)
+
+DFY se llamaba antes «Banda sonora»: por eso los comentarios del SQL y los nombres de las políticas de Storage
+(«banda sonora: …») conservan el nombre anterior. No hace falta cambiarlos.
 
 Ejecutar en **Supabase › SQL Editor › New query › pegar el archivo entero › Run**, en este orden:
 

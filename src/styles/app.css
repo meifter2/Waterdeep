@@ -22,6 +22,19 @@
   font-weight: 700;
 }
 
+.cabecera-marca .marca {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  letter-spacing: 0.04em;
+}
+
+.cabecera-marca .marca img {
+  width: clamp(2.25rem, 5vw, 2.75rem);
+  height: auto;
+  border-radius: 22%;
+}
+
 .cabecera-marca p {
   font-family: var(--f-titulo);
   font-style: italic;

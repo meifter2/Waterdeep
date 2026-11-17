@@ -5,7 +5,7 @@ const path = require('path');
 const { wav, crearElemento, comprobador, CAPTURAS } = require('./ayuda.cjs');
 const URL = 'http://localhost:4174/';
 const SB = 'https://prueba.supabase.co';
-const RETRATO = path.join(__dirname, '../public/iconos/icono-192.png');
+const RETRATO = path.join(__dirname, '../public/iconos/dfy-192.png');
 const { comprobar, fin } = comprobador();
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');

@@ -18,7 +18,7 @@ const PISTA = 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT?si=abc';
 
   // PWA: manifiesto y service worker
   const m = await (await p.request.get(URL + 'manifest.webmanifest')).json();
-  comprobar('Manifiesto: standalone, iconos 192/512 y maskable', m.display === 'standalone' && m.icons.length === 3 && m.icons.some((i) => i.purpose === 'maskable'));
+  comprobar('Manifiesto: standalone, iconos 192/512 y maskable', m.display === 'standalone' && m.icons.length >= 3 && m.icons.some((i) => i.purpose === 'maskable'));
   comprobar('Manifiesto: share target por GET con url/text/title', m.share_target?.method === 'GET' && m.share_target.params.url === 'url' && m.share_target.params.text === 'text');
   await p.goto(URL);
   await p.waitForFunction(() => navigator.serviceWorker?.ready.then(() => true), null, { timeout: 10000 });

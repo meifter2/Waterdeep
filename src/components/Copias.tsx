@@ -38,7 +38,7 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
     const url = URL.createObjectURL(new Blob([json()], { type: 'application/json' }))
     const a = document.createElement('a')
     a.href = url
-    a.download = `banda-sonora-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `dfy-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
     setMensaje({ ok: true, texto: 'Archivo descargado.' })

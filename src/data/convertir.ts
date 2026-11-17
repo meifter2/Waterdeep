@@ -102,7 +102,7 @@ export function leerCopia(contenido: string): Biblioteca | string {
   }
   if (d?.version === 3 && Array.isArray(d.canciones)) return desdeCanciones(d.canciones as CancionAntigua[])
   if (d?.version === 2 && Array.isArray(d.personajes)) return desdeCanciones((d.personajes as CancionAntigua[]).map((p) => ({ ...p, tipo: 'personaje' })))
-  if (d?.version !== 4 || !Array.isArray(d.elementos) || !Array.isArray(d.recursos) || !Array.isArray(d.pistas)) return 'Esta copia no es de la banda sonora.'
+  if (d?.version !== 4 || !Array.isArray(d.elementos) || !Array.isArray(d.recursos) || !Array.isArray(d.pistas)) return 'Esta copia no es de DFY (ni de Banda sonora, su nombre anterior).'
   const elementos: Elemento[] = (d.elementos as Record<string, unknown>[])
     .filter((e) => typeof e?.id === 'string' && typeof e.nombre === 'string' && e.nombre.trim())
     .map((e) => ({

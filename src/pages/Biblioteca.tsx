@@ -97,7 +97,10 @@ export function Biblioteca() {
     <div className="app">
       <header className="cabecera">
         <div className="cabecera-marca">
-          <h1>Banda sonora</h1>
+          <h1 className="marca" title="DFY · El sonido de tus aventuras">
+            <img src="/iconos/dfy.svg" alt="" width="44" height="44" />
+            DFY
+          </h1>
           {elementos.length > 0 && (
             <p>
               {elementos.length === 1 ? '1 elemento' : `${elementos.length} elementos`}, {recursos.length === 1 ? '1 sonido' : `${recursos.length} sonidos`}
