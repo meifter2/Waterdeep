@@ -102,6 +102,83 @@
   gap: 0.5rem;
 }
 
+/* Controles de reproducción: ■ ▶/❚❚ ⟲ (grandes, para pulsar rápido en la mesa). */
+.transporte {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.control {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--muelle-activo);
+  background: transparent;
+  color: var(--muelle-tinta);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.control:hover:not(:disabled) {
+  border-color: var(--oro-sobre-oscuro);
+}
+
+.control:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--oro-sobre-oscuro);
+  outline-offset: 3px;
+}
+
+.control:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.control-principal {
+  width: 3.5rem;
+  height: 3.5rem;
+  border: 0;
+  background: var(--oro-sobre-oscuro);
+  color: var(--muelle);
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.6);
+}
+
+.control-principal:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--oro-sobre-oscuro) 85%, white);
+}
+
+.control-principal:disabled {
+  opacity: 0.45;
+}
+
+/* Repetir activado: icono dorado, fondo marcado y un punto bajo el icono. */
+.control-repetir {
+  position: relative;
+}
+
+.control-repetir[aria-pressed='true'] {
+  color: var(--oro-sobre-oscuro);
+  background: var(--muelle-activo);
+  border-color: var(--oro-sobre-oscuro);
+}
+
+.control-repetir[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  bottom: 0.3rem;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--oro-sobre-oscuro);
+}
+
 .reproductor-abrir {
   font-size: var(--t-s);
   color: var(--muelle-tinta-suave);
@@ -115,27 +192,6 @@
   border-left: 3px solid var(--oro-sobre-oscuro);
   padding: 0.5rem 0.75rem;
   border-radius: var(--r-s);
-}
-
-.boton-oro {
-  background: var(--oro-sobre-oscuro);
-  border-color: var(--oro-sobre-oscuro);
-  color: #1d1505;
-  min-width: 6.5rem;
-}
-
-.boton-oscuro {
-  background: transparent;
-  border-color: var(--muelle-activo);
-  color: var(--muelle-tinta);
-}
-
-.boton-oscuro:hover {
-  border-color: var(--muelle-tinta-suave);
-}
-
-.boton-oscuro[aria-pressed='true'] {
-  background: var(--muelle-activo);
 }
 
 /* Ecualizador: cuatro barras que solo se mueven mientras suena. */

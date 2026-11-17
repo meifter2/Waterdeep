@@ -19,7 +19,7 @@ export function App() {
   useEffect(() => {
     if (estado === 'dentro') void useDatos.getState().cargar()
     if (estado === 'fuera') {
-      useReproduccion.getState().detener()
+      useReproduccion.getState().olvidar()
       useDatos.getState().vaciar()
     }
   }, [estado, usuarioId])

@@ -92,7 +92,7 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   // 6) Botones de la barra
   await p.getByRole('button', { name: 'Pausar', exact: true }).click(); await p.waitForTimeout(100);
   comprobar('Botón Pausar', (await estado(p)).startsWith('En pausa'));
-  await p.getByRole('button', { name: 'Reanudar', exact: true }).click(); await p.waitForTimeout(100);
+  await p.getByRole('button', { name: 'Reproducir', exact: true }).click(); await p.waitForTimeout(100);
   comprobar('Botón Reanudar', (await estado(p)).startsWith('Sonando'));
   await p.getByRole('button', { name: 'Detener' }).click(); await p.waitForTimeout(100);
   comprobar('Botón Detener', (await log(p)).at(-1) === 'spotify:pause' && await p.locator('.tarjeta[data-actual]').count() === 0);

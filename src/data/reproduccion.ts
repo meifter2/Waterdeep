@@ -24,7 +24,12 @@ interface Reproduccion {
   /** Reproduce la pista principal (la primera según el orden) de un elemento. Devuelve false si no tiene. */
   reproducirElemento: (elementoId: string) => boolean
   alternar: () => void
+  /** Botón principal ▶/❚❚: pausa o reanuda; si está detenido (o falló, o Spotify cambió), vuelve a poner la última pista. */
+  principal: () => void
+  /** Detiene, pero recuerda la última pista para poder volver a ponerla desde el principio. */
   detener: () => void
+  /** Detiene y olvida la pista (al borrarla o al cerrar sesión). */
+  olvidar: () => void
   informar: (estado: EstadoReproduccion, aviso?: string) => void
   alternarRepetir: () => void
 }
@@ -51,7 +56,19 @@ export const useReproduccion = create<Reproduccion>()((set, get) => ({
   },
 
   alternar: () => set((s) => ({ orden: { tipo: 'alternar', n: (s.orden?.n ?? 0) + 1 } })),
-  detener: () => set((s) => ({ orden: { tipo: 'detener', n: (s.orden?.n ?? 0) + 1 }, pistaId: null, estado: 'parado', aviso: '' })),
+  principal: () => {
+    const { estado, pistaId } = get()
+    if (!pistaId || estado === 'cargando') return // sin pista o con una orden en curso: nada (sin duplicados)
+    if (!useDatos.getState().pistas.some((p) => p.id === pistaId)) return get().olvidar() // la pista ya no existe
+    if (estado === 'sonando' || estado === 'pausa') get().alternar()
+    else get().reproducir(pistaId) // parado, error u «otra» en Spotify: desde el principio
+  },
+  detener: () =>
+    set((s) => (s.estado === 'parado' ? {} : { orden: { tipo: 'detener', n: (s.orden?.n ?? 0) + 1 }, estado: 'parado', aviso: '' })),
+  olvidar: () => {
+    get().detener()
+    set({ pistaId: null, estado: 'parado', aviso: '' })
+  },
   informar: (estado, aviso) => set((s) => ({ estado, aviso: aviso ?? s.aviso })),
   alternarRepetir: () => set((s) => ({ repetir: !s.repetir })),
 }))

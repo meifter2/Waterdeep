@@ -26,8 +26,8 @@ export function Tarjeta({ elemento, alEditar }: { elemento: Elemento; alEditar: 
   const reproducirElemento = useReproduccion((s) => s.reproducirElemento)
 
   const actual = pistas.find((p) => p.id === pistaId)
-  // Si Spotify cambió a otra canción desde fuera, la tarjeta deja de marcarse como «sonando».
-  const esActual = !!actual && estado !== 'otra'
+  // Detenida, o si Spotify cambió a otra canción desde fuera, la tarjeta deja de marcarse.
+  const esActual = !!actual && estado !== 'otra' && estado !== 'parado'
   const sonando = esActual && (estado === 'sonando' || estado === 'cargando')
   const conRetrato = !!elemento.retrato_ruta
   const varias = pistas.length > 1

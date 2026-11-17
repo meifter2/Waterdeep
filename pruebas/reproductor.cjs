@@ -107,7 +107,7 @@ const { comprobar, fin } = comprobador();
   const reanudado = await audio();
   comprobar('Pulsar la tarjeta en pausa la recupera donde estaba (no la reinicia)', !reanudado.pausado && reanudado.t >= pausa.t - 0.05 && reanudado.t > 0.2, `${pausa.t.toFixed(2)}→${reanudado.t.toFixed(2)}`);
   await p.getByRole('button', { name: 'Pausar', exact: true }).click();
-  await p.getByRole('button', { name: 'Reanudar', exact: true }).click();
+  await p.getByRole('button', { name: 'Reproducir', exact: true }).click();
   await p.waitForTimeout(150);
   comprobar('Reanudar', !(await audio()).pausado && (await estado()).startsWith('Sonando'));
   await p.getByRole('button', { name: 'Detener' }).click();

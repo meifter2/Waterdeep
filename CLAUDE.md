@@ -51,6 +51,9 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
 - **Pulsar tarjeta/chip = reproducir esa pista** (`reproducir`/`reproducirElemento`), nunca pausar. Si es la misma y suena de
   verdad, no se reinicia; si está en pausa, se reanuda; si Spotify cambió a otra, se vuelve a poner. Pausar/Reanudar/Detener
   solo en la barra. Las órdenes de la barra se atienden UNA vez (`ordenAtendida`), no al cambiar de fuente.
+- Barra (`Transporte.tsx`): ■ Detener · ▶/❚❚ `principal()` · ⟲ Repetir (aria-pressed). Detener RECUERDA la pista
+  (estado `parado`); ▶ la vuelve a poner desde el inicio del tramo. `olvidar()` (borrar/cerrar sesión) la olvida.
+  Mientras `cargando`, ▶ desactivado. Connect: alternar ignora duplicados; Detener solo pausa si suena lo de DFY.
 - Tarjeta: toda la superficie es un botón (pista principal = primera); chips solo si hay varias pistas; Editar aparte.
 - Turnos («generacion») en todos los motores: lo que llega tarde de una orden anterior se descarta.
 - Motor detenido (`parado`) ignora sus eventos tardíos (YouTube avisa de pausa/fin tras `stopVideo`: antes
@@ -67,7 +70,7 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
 ## Comandos y pruebas
 - `npm run dev|build|preview` (4173) · `build:prueba`+`preview:prueba` (4174, Supabase simulado) ·
   `build:spotify`+`preview:spotify` (4175)
-- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
+- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente|transporte` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
 - Despliegue: Vercel publica cada push a `main`. Las ramas generan vista previa (usa variables de «Preview»).
   Google en vistas previas: Supabase solo vuelve a URLs de su lista ⇒ usar email o añadir `https://*.vercel.app/**`.
 

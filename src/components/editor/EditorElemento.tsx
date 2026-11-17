@@ -57,7 +57,7 @@ export function EditorElemento({
   alGuardar: (mensaje: string) => void
 }) {
   const { recursos, pistas, urls, eliminarElemento } = useDatos()
-  const { pistaId, detener } = useReproduccion()
+  const { pistaId, olvidar } = useReproduccion()
   const [tipo, setTipo] = useState<Tipo>(elemento?.tipo ?? tipoInicial)
   const [nombre, setNombre] = useState(elemento?.nombre ?? '')
   const [descripcion, setDescripcion] = useState(elemento?.descripcion ?? '')
@@ -151,7 +151,7 @@ export function EditorElemento({
 
   const borrar = () => {
     if (!elemento) return
-    if (pistas.some((p) => p.id === pistaId && p.elemento_id === elemento.id)) detener()
+    if (pistas.some((p) => p.id === pistaId && p.elemento_id === elemento.id)) olvidar()
     alCerrar()
     void eliminarElemento(elemento.id)
   }

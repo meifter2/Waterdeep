@@ -51,7 +51,7 @@ const { comprobar, fin } = comprobador();
   comprobar('Archivo: repite el tramo sin salirse (1–2 s)', !a2.pausado && a2.t >= 0.95 && a2.t <= 2.06, a2.t.toFixed(2));
   comprobar('La barra muestra pista, origen y tramo', (await estado()).includes('Tensión, archivo propio, 0:01–0:02'), await estado());
   // Sin bucle: se para en el fin
-  await p.getByRole('button', { name: 'Repetir: sí' }).click();
+  await p.getByRole('button', { name: 'Repetir', exact: true }).click();
   await p.waitForTimeout(1500);
   const a3 = await audio();
   comprobar('Archivo sin bucle: se para al llegar al fin y vuelve al inicio', a3.pausado && Math.abs(a3.t - 1) < 0.06 && (await estado()).startsWith('En pausa'), `${a3.t.toFixed(2)} ${await estado()}`);

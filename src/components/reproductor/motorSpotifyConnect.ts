@@ -47,6 +47,8 @@ export class MotorSpotifyConnect {
   private volumenPendiente: number | null = null
   private volumenOcupado = false
   private ultimoCambioVolumen = 0
+  /** Hay una orden de pausar/reanudar en camino: se ignoran las repetidas. */
+  private alternando = false
 
   constructor(
     private informar: Informe,
@@ -131,11 +133,16 @@ export class MotorSpotifyConnect {
   }
 
   alternar() {
+    if (this.alternando) return
+    this.alternando = true
     const g = this.generacion
     const id = this.dispositivo?.id
     const siguiente = !this.sonando
     window.clearTimeout(this.corte)
     ;(siguiente ? reanudar(id) : pausar(id))
+      .finally(() => {
+        this.alternando = false
+      })
       .then(async () => {
         if (!this.vigente(g)) return
         this.sonando = siguiente
@@ -148,10 +155,19 @@ export class MotorSpotifyConnect {
       .catch((err: unknown) => this.informar('error', err instanceof ErrorSpotify ? err.message : 'Spotify no ha respondido.'))
   }
 
+  /**
+   * Spotify no tiene «stop»: se pausa. Pero solo si sigue sonando lo que puso DFY: si en la app de Spotify
+   * ya suena otra cosa, no se toca. Si entretanto se pide otra pista (nuevo turno), tampoco.
+   */
   detener() {
-    this.generacion++
+    const g = ++this.generacion
     this.limpiarTemporizadores()
-    if (this.sonando) pausar(this.dispositivo?.id).catch(() => {})
+    const e = this.actual
+    const id = this.dispositivo?.id
+    if (this.sonando && e)
+      void estadoActual()
+        .then((s) => (this.vigente(g) && s?.sonando && suenaEsto(s, e) ? pausar(id) : undefined))
+        .catch(() => {})
     this.sonando = false
   }
 

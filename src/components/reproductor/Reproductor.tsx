@@ -11,10 +11,11 @@ import { MotorSpotify } from './motorSpotify'
 import { MotorSpotifyConnect } from './motorSpotifyConnect'
 import { MotorYoutube } from './motorYoutube'
 import { ControlVolumen } from './ControlVolumen'
+import { Transporte } from './Transporte'
 import { useVolumen } from '../../data/volumen'
 
 const TEXTO_ESTADO: Record<EstadoReproduccion, string> = {
-  parado: 'En silencio',
+  parado: 'Detenido',
   cargando: 'Cargando',
   sonando: 'Sonando',
   pausa: 'En pausa',
@@ -32,7 +33,7 @@ interface Motores {
 }
 
 export function Reproductor() {
-  const { pistaId, estado, aviso, peticion, orden, repetir, informar, alternar, detener, alternarRepetir } = useReproduccion()
+  const { pistaId, estado, aviso, peticion, orden, repetir, informar } = useReproduccion()
   const pista = useDatos((s) => s.pistas.find((p) => p.id === pistaId))
   const elemento = useDatos((s) => s.elementos.find((e) => e.id === pista?.elemento_id))
   const recurso = useDatos((s) => s.recursos.find((r) => r.id === pista?.recurso_id))
@@ -191,7 +192,9 @@ export function Reproductor() {
     }
   }, [orden, activo])
 
-  const visible = pistaId !== null
+  const hayPista = pistaId !== null
+  // El marco (vídeo de YouTube, reproductor de Spotify) solo se muestra mientras hay algo cargado.
+  const visible = hayPista && estado !== 'parado'
   const nombrePista = pista?.etiqueta || recurso?.titulo || ''
   const fuente =
     recurso?.origen === 'archivo'
@@ -209,7 +212,7 @@ export function Reproductor() {
         <div className="reproductor-textos">
           <p className="reproductor-titulo">{elemento?.nombre ?? 'Elige un sonido'}</p>
           <p className="reproductor-estado" aria-live="polite">
-            {visible ? `${TEXTO_ESTADO[estado]}${detalle && estado !== 'error' ? `: ${detalle}` : ''}` : 'Pulsa una tarjeta y sonará.'}
+            {hayPista ? `${TEXTO_ESTADO[estado]}${detalle && estado !== 'error' ? `: ${detalle}` : ''}` : 'Pulsa una tarjeta y sonará.'}
           </p>
         </div>
       </div>
@@ -227,24 +230,14 @@ export function Reproductor() {
         )}
       </div>
 
-      {visible && (
-        <div className="reproductor-controles">
-          <button type="button" className="boton boton-oro" onClick={alternar} disabled={estado === 'error'}>
-            {estado === 'sonando' || estado === 'cargando' ? 'Pausar' : 'Reanudar'}
-          </button>
-          <button type="button" className="boton boton-oscuro" aria-pressed={repetir} onClick={alternarRepetir}>
-            {repetir ? 'Repetir: sí' : 'Repetir: no'}
-          </button>
-          <button type="button" className="boton boton-oscuro" onClick={detener}>
-            Detener
-          </button>
-          {enlace && (
-            <a className="reproductor-abrir" href={enlace.web} target="_blank" rel="noopener noreferrer">
-              Abrir en {nombreServicio(enlace.servicio)}
-            </a>
-          )}
-        </div>
-      )}
+      <div className="reproductor-controles">
+        <Transporte />
+        {enlace && hayPista && (
+          <a className="reproductor-abrir" href={enlace.web} target="_blank" rel="noopener noreferrer">
+            Abrir en {nombreServicio(enlace.servicio)}
+          </a>
+        )}
+      </div>
 
       <ControlVolumen fuente={activo === 'connect' ? 'spotify' : activo === 'spotify' ? 'spotify-integrado' : 'local'} />
 

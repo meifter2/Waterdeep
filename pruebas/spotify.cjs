@@ -124,10 +124,10 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   await p.getByRole('button', { name: 'Pausar', exact: true }).click();
   await p.waitForTimeout(300);
   comprobar('Pausar', api.some((x) => x.startsWith('PUT /me/player/pause?device_id=pc1')) && (await p.locator('.reproductor-estado').innerText()).startsWith('En pausa'));
-  await p.getByRole('button', { name: 'Reanudar', exact: true }).click();
+  await p.getByRole('button', { name: 'Reproducir', exact: true }).click();
   await p.waitForTimeout(300);
   comprobar('Reanudar', (await p.locator('.reproductor-estado').innerText()).startsWith('Sonando'));
-  await p.getByRole('button', { name: 'Repetir: sí' }).click();
+  await p.getByRole('button', { name: 'Repetir', exact: true }).click();
   await p.waitForTimeout(300);
   comprobar('Quitar repetir', api.some((x) => x.startsWith('PUT /me/player/repeat?state=off')));
   await p.getByRole('button', { name: 'Detener' }).click();
@@ -211,6 +211,37 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   dispositivos = [{ id: 'pc1', name: 'Mi PC', type: 'Computer', is_active: false, is_restricted: false, volume_percent: 35, supports_volume: true }];
   sp.dispositivo = 'pc1';
   await p.getByRole('button', { name: 'Detener' }).click();
+
+  // 3h) Controles de reproducción con Spotify conectado
+  const pausas = () => api.filter((x) => x.startsWith('PUT /me/player/pause')).length;
+  await p.getByRole('button', { name: 'Reproducir Ending Waterdeep' }).click();
+  await p.waitForFunction(() => document.querySelector('.reproductor-estado')?.textContent.startsWith('Sonando'));
+  sp.progreso = 42000;
+  await p.getByRole('button', { name: 'Pausar', exact: true }).click();
+  await p.waitForTimeout(400);
+  const nPlay = plays().length;
+  await p.getByRole('button', { name: 'Reproducir', exact: true }).click();
+  await p.waitForTimeout(400);
+  comprobar('Connect: reanudar continúa (orden sin canción ni posición: Spotify sigue donde estaba)', plays().length === nPlay + 1 && !plays().at(-1).includes('uris') && sp.progreso === 42000);
+  const nPausas = pausas();
+  await p.getByRole('button', { name: 'Detener' }).click();
+  await p.waitForTimeout(500);
+  comprobar('Connect: detener pausa Spotify y dice «Detenido»', pausas() === nPausas + 1 && !sp.sonando && (await estado()).startsWith('Detenido'));
+  await p.getByRole('button', { name: 'Reproducir', exact: true }).click();
+  await p.waitForTimeout(600);
+  comprobar('Connect: detener → ▶ vuelve a poner la canción desde el principio', plays().at(-1).includes(B) && sp.uri === B && sp.progreso === 0 && sp.sonando && (await estado()).startsWith('Sonando'), plays().at(-1));
+  // Doble clic rápido en ❚❚: una sola orden
+  const nP2 = pausas();
+  await p.locator('.control-principal').dblclick();
+  await p.waitForTimeout(600);
+  comprobar('Connect: doble clic rápido no duplica órdenes', pausas() - nP2 <= 1 && plays().length <= nPlay + 3, `${pausas() - nP2} pausas`);
+  // Asegura que suena y simula que en la app de Spotify han puesto otra cosa
+  if (!sp.sonando) { await p.getByRole('button', { name: 'Reproducir', exact: true }).click(); await p.waitForTimeout(500); }
+  Object.assign(sp, { uri: 'spotify:track:otraCancionDeFuera00001', sonando: true });
+  const nP3 = pausas();
+  await p.getByRole('button', { name: 'Detener' }).click();
+  await p.waitForTimeout(600);
+  comprobar('Connect: detener NO pausa lo que ya no puso DFY', pausas() === nP3 && sp.sonando && sp.uri.includes('otraCancionDeFuera'));
 
   // 4) Spotify cerrado: sin dispositivos
   dispositivos = [];

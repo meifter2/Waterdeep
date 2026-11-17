@@ -34,7 +34,7 @@ export function BibliotecaSonidos({ alCerrar }: { alCerrar: () => void }) {
 
   const borrar = (r: Recurso) => {
     const st = useReproduccion.getState()
-    if (pistas.some((p) => p.recurso_id === r.id && p.id === st.pistaId)) st.detener()
+    if (pistas.some((p) => p.recurso_id === r.id && p.id === st.pistaId)) st.olvidar()
     void eliminarRecurso(r.id)
   }
 
