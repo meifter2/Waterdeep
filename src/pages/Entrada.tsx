@@ -36,10 +36,14 @@ export function Entrada() {
   return (
     <main className="entrada">
       <div className="entrada-texto">
-        <h1>Banda sonora</h1>
+        <div className="entrada-marca">
+          <img src="/iconos/dfy.svg" alt="" width="72" height="72" />
+          <h1>DFY</h1>
+        </div>
+        <p className="entrada-lema">El sonido de tus aventuras</p>
         <p>
-          La música de tu mesa en un solo sitio: opening, ending, personajes, lugares y momentos. Pulsa una tarjeta y suena su
-          canción de Spotify o YouTube.
+          Prepara la música de tus personajes, lugares y momentos, y lánzala con un toque durante la partida. Con Spotify,
+          YouTube y lo que tú añadas.
         </p>
         <button type="button" className="boton boton-google" onClick={() => void entrarConGoogle()}>
           <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
@@ -108,7 +112,7 @@ export function Entrada() {
             )}
           </div>
         </form>
-        <p className="ayuda">Cada cuenta tiene sus propias canciones. Nadie más puede verlas.</p>
+        <p className="ayuda">Cada cuenta tiene su propia música. Nadie más puede verla.</p>
       </div>
     </main>
   )

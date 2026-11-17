@@ -24,7 +24,7 @@ export function App() {
     }
   }, [estado, usuarioId])
 
-  if (estado === 'comprobando') return <p className="comprobando">Abriendo tu banda sonora…</p>
+  if (estado === 'comprobando') return <p className="comprobando">Abriendo DFY…</p>
   if (recuperando) return <NuevaContrasena />
   if (estado === 'fuera') return <Entrada />
   return <Biblioteca />

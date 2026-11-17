@@ -1,8 +1,9 @@
-// Service worker de Banda sonora: permite instalar la app y que abra rápido.
+// Service worker de DFY (antes «Banda sonora»): permite instalar la app y que abra rápido.
 // - Páginas: primero la red (siempre la versión publicada más reciente); sin red, la última guardada.
 // - Archivos con huella (/assets/…): se guardan al usarlos; nunca cambian.
 // - Spotify, YouTube, Supabase y Google: no se tocan (pasan directos a la red).
-const CACHE = 'banda-sonora-v1'
+// v2: identidad DFY (iconos nuevos). Solo guarda archivos de la app; ningún dato del usuario.
+const CACHE = 'dfy-v2'
 
 self.addEventListener('install', () => self.skipWaiting())
 
