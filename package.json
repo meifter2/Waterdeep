@@ -21,7 +21,8 @@
     "test:biblioteca": "node pruebas/biblioteca.cjs",
     "test:email": "node pruebas/email.cjs",
     "test:identidad": "node pruebas/identidad.cjs",
-    "test:reproductor": "node pruebas/reproductor.cjs"
+    "test:reproductor": "node pruebas/reproductor.cjs",
+    "test:cambio-fuente": "node pruebas/cambio-fuente.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",

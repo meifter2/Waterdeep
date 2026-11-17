@@ -23,6 +23,8 @@ export class MotorYoutube {
   private seg: Segmento = { inicio: null, fin: null }
   private volumen = { valor: 70, silenciado: false }
   private generacion = 0
+  /** Detenido: los eventos tardíos del reproductor se ignoran (no repiten ni informan). */
+  private parado = true
   private estado = ESTADO.SIN_EMPEZAR
   private temporizador = 0
 
@@ -47,6 +49,7 @@ export class MotorYoutube {
 
   async reproducir(e: EnlaceYoutube, seg: Segmento, misma = false) {
     const g = ++this.generacion
+    this.parado = false
     // Misma pista ya cargada: si suena, se deja; si está en pausa, se reanuda.
     if (misma && this.player && this.actual?.web === e.web) {
       if (this.estado === ESTADO.SONANDO) return this.informar('sonando', '')
@@ -79,7 +82,7 @@ export class MotorYoutube {
               resolver()
             },
             onStateChange: (ev) => this.alCambiar(ev.data),
-            onError: (ev) => this.informar('error', ERRORES[ev.data] ?? 'YouTube no ha podido reproducir este vídeo.'),
+            onError: (ev) => !this.parado && this.informar('error', ERRORES[ev.data] ?? 'YouTube no ha podido reproducir este vídeo.'),
           },
         })
       })
@@ -101,6 +104,7 @@ export class MotorYoutube {
 
   detener() {
     this.generacion++
+    this.parado = true
     window.clearTimeout(this.temporizador)
     this.player?.stopVideo()
   }
@@ -118,6 +122,7 @@ export class MotorYoutube {
 
   private alCambiar(estado: number) {
     this.estado = estado
+    if (this.parado) return
     if (estado === ESTADO.TERMINADO) {
       if (this.repetir && this.actual) this.cargar(this.actual)
       else this.informar('pausa')

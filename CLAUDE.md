@@ -53,6 +53,8 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
   solo en la barra. Las órdenes de la barra se atienden UNA vez (`ordenAtendida`), no al cambiar de fuente.
 - Tarjeta: toda la superficie es un botón (pista principal = primera); chips solo si hay varias pistas; Editar aparte.
 - Turnos («generacion») en todos los motores: lo que llega tarde de una orden anterior se descarta.
+- Motor detenido (`parado`) ignora sus eventos tardíos (YouTube avisa de pausa/fin tras `stopVideo`: antes
+  relanzaba el vídeo bajo el MP3). Y el reproductor solo acepta avisos del motor activo (`activoRef`).
 - Connect: órdenes en cola (solo la última se ejecuta); `estadoActual` lee uri/contexto/dispositivo/progreso/volumen;
   sondeo 4 s detecta cambios externos (estado `otra`); el corte del tramo verifica la canción antes de relanzarla.
 - Volumen (`data/volumen.ts`): «local» (MP3 + YouTube, clave `banda-sonora:volumen`, 70 % por defecto) y «spotify»
@@ -65,7 +67,7 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
 ## Comandos y pruebas
 - `npm run dev|build|preview` (4173) · `build:prueba`+`preview:prueba` (4174, Supabase simulado) ·
   `build:spotify`+`preview:spotify` (4175)
-- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
+- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
 - Despliegue: Vercel publica cada push a `main`. Las ramas generan vista previa (usa variables de «Preview»).
   Google en vistas previas: Supabase solo vuelve a URLs de su lista ⇒ usar email o añadir `https://*.vercel.app/**`.
 

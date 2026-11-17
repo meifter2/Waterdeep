@@ -40,7 +40,13 @@ export function Reproductor() {
   const hostSpotify = useRef<HTMLDivElement>(null)
   const hostYoutube = useRef<HTMLDivElement>(null)
   const motores = useRef<Motores>({})
-  const [activo, setActivo] = useState<Activo>(null)
+  const [activo, setActivoEstado] = useState<Activo>(null)
+  // Copia inmediata de la fuente activa (el estado de React se actualiza después).
+  const activoRef = useRef<Activo>(null)
+  const setActivo = (a: Activo) => {
+    activoRef.current = a
+    setActivoEstado(a)
+  }
   const [enlace, setEnlace] = useState<EnlaceMusical | null>(null)
   const [respaldo, setRespaldo] = useState<string | null>(null)
   const [dispositivo, setDispositivo] = useState('')
@@ -50,12 +56,16 @@ export function Reproductor() {
   // Crea los motores una sola vez.
   useEffect(() => {
     const m = motores.current
-    const inf = (e: EstadoReproduccion, a?: string) => informar(e, a)
-    if (hostSpotify.current && !m.spotify) m.spotify = new MotorSpotify(hostSpotify.current, inf)
-    if (hostYoutube.current && !m.youtube) m.youtube = new MotorYoutube(hostYoutube.current, inf)
-    m.connect ??= new MotorSpotifyConnect(inf, setDispositivo, (v) => useVolumen.getState().informarSpotify(v))
+    // Cada motor solo puede informar mientras es la fuente activa: los avisos tardíos de una fuente
+    // ya parada (p. ej. YouTube avisando de su pausa) no pueden pisar el estado de la nueva.
+    const inf = (origen: Activo) => (e: EstadoReproduccion, a?: string) => {
+      if (activoRef.current === origen) informar(e, a)
+    }
+    if (hostSpotify.current && !m.spotify) m.spotify = new MotorSpotify(hostSpotify.current, inf('spotify'))
+    if (hostYoutube.current && !m.youtube) m.youtube = new MotorYoutube(hostYoutube.current, inf('youtube'))
+    m.connect ??= new MotorSpotifyConnect(inf('connect'), setDispositivo, (v) => useVolumen.getState().informarSpotify(v))
     if (!m.archivo) {
-      m.archivo = new MotorArchivo(inf)
+      m.archivo = new MotorArchivo(inf('archivo'))
       ;(window as unknown as { __audioBandaSonora?: HTMLAudioElement }).__audioBandaSonora = m.archivo.elemento
     }
   }, [informar])
