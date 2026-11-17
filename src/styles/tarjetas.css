@@ -1,0 +1,207 @@
+/* Tarjetas de elementos: compactas, con retrato opcional a la izquierda y un botón por pista. */
+
+.tarjetas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16.5rem), 1fr));
+  gap: 0.6rem;
+}
+
+.tarjeta {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  background: var(--superficie-alta);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-m);
+  overflow: hidden;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.tarjeta[data-retrato] {
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+}
+
+.tarjeta:hover {
+  border-color: var(--verdin);
+}
+
+.tarjeta-retrato {
+  background: var(--verdin-suave);
+  min-height: 4.5rem;
+}
+
+.tarjeta-retrato img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.tarjeta-cuerpo {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 0.35rem;
+  padding: 0.65rem 0.8rem 0.7rem;
+}
+
+.tarjeta-tocar {
+  display: grid;
+  gap: 0.1rem;
+  justify-items: start;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0 3.2rem 0 0;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.tarjeta-nombre {
+  font-family: var(--f-titulo);
+  font-size: var(--t-l);
+  font-weight: 600;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.tarjeta-tocar:hover .tarjeta-nombre {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.tarjeta-nota {
+  font-size: var(--t-s);
+  color: var(--tinta-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.tarjeta-fuente {
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+  font-style: italic;
+}
+
+.tarjeta-editar {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  font: inherit;
+  font-size: var(--t-xs);
+  color: var(--tinta-suave);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-s);
+  padding: 0.2rem 0.45rem;
+  cursor: pointer;
+}
+
+.tarjeta-editar:hover {
+  border-color: var(--linea);
+  color: var(--tinta);
+}
+
+/* Botones de pista: pequeños para que quepan muchos. */
+.tarjeta-pistas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.pista-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font: inherit;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--tinta);
+  background: var(--superficie);
+  border: 1px solid var(--linea);
+  border-radius: 999px;
+  padding: 0.3rem 0.6rem 0.3rem 0.5rem;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.pista-chip::before {
+  content: '';
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 6px solid var(--verdin);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+.pista-chip[data-sonando]::before {
+  width: 6px;
+  height: 8px;
+  border: 0;
+  border-left: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+}
+
+.pista-chip:hover {
+  border-color: var(--verdin);
+}
+
+/* Elemento que suena: placa oscura con filo de oro (como hasta ahora). */
+.tarjeta[data-actual] {
+  background: var(--muelle);
+  color: var(--muelle-tinta);
+  border-color: var(--oro);
+  box-shadow: inset 4px 0 0 var(--oro-sobre-oscuro);
+}
+
+.tarjeta[data-actual] .tarjeta-nota,
+.tarjeta[data-actual] .tarjeta-fuente,
+.tarjeta[data-actual] .tarjeta-editar {
+  color: var(--muelle-tinta-suave);
+}
+
+.tarjeta[data-actual] .pista-chip {
+  background: var(--muelle-activo);
+  border-color: var(--muelle-activo);
+  color: var(--muelle-tinta);
+}
+
+.tarjeta[data-actual] .pista-chip[data-actual] {
+  background: var(--oro-sobre-oscuro);
+  border-color: var(--oro-sobre-oscuro);
+  color: #1d1505;
+}
+
+.tarjeta[data-actual] .pista-chip::before {
+  border-left-color: var(--oro-sobre-oscuro);
+}
+
+.tarjeta[data-actual] .pista-chip[data-actual]::before {
+  border-left-color: currentColor;
+}
+
+/* Ambientes y efectos: aún más compactos. */
+.seccion-ambiente .tarjeta-nombre,
+.seccion-efecto .tarjeta-nombre {
+  font-size: var(--t-m);
+}
+
+.seccion-ambiente .tarjetas,
+.seccion-efecto .tarjetas,
+.bordes-sesion .tarjetas {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
+}

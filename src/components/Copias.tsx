@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { exportar, useDatos, validarImportacion } from '../data/store'
-import type { DatosCancion } from '../data/types'
+import { exportarCopia, leerCopia } from '../data/convertir'
+import { importarBiblioteca } from '../data/guardar'
+import { useDatos } from '../data/store'
+import type { Biblioteca } from '../data/types'
 import { modoLocal } from '../lib/supabase'
 
-/** Ventana de copias: exportar las canciones y añadir las de una copia. */
+/** Copias: exportar la biblioteca y añadir la de una copia (sin duplicar sonidos). */
 export function Copias({ alCerrar }: { alCerrar: () => void }) {
-  const importar = useDatos((s) => s.importar)
-  const total = useDatos((s) => s.canciones.length)
+  const total = useDatos((s) => s.elementos.length)
   const [mensaje, setMensaje] = useState<{ ok: boolean; texto: string } | null>(null)
   const [pegado, setPegado] = useState('')
-  const [pendiente, setPendiente] = useState<DatosCancion[] | null>(null)
+  const [pendiente, setPendiente] = useState<Biblioteca | null>(null)
   const [importando, setImportando] = useState(false)
   const dialogo = useRef<HTMLDialogElement>(null)
   const archivo = useRef<HTMLInputElement>(null)
@@ -19,7 +20,10 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
     if (d && !d.open) d.showModal()
   }, [])
 
-  const json = () => exportar(useDatos.getState().canciones)
+  const json = () => {
+    const { elementos, recursos, pistas } = useDatos.getState()
+    return exportarCopia({ elementos, recursos, pistas })
+  }
 
   const copiar = async () => {
     try {
@@ -41,7 +45,7 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
   }
 
   const comprobar = (texto: string) => {
-    const r = validarImportacion(texto)
+    const r = leerCopia(texto)
     if (typeof r === 'string') {
       setMensaje({ ok: false, texto: r })
       setPendiente(null)
@@ -54,15 +58,18 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
   const anadir = async () => {
     if (!pendiente) return
     setImportando(true)
-    const n = await importar(pendiente)
+    try {
+      const r = await importarBiblioteca(pendiente)
+      setMensaje({
+        ok: true,
+        texto: `${r.elementos} elementos añadidos.${r.omitidos ? ` ${r.omitidos} archivos propios no estaban en esta cuenta y se han omitido.` : ''}`,
+      })
+      setPegado('')
+    } catch (e) {
+      setMensaje({ ok: false, texto: e instanceof Error ? `${e.message} Lo añadido hasta el fallo se ha conservado.` : 'No se ha podido añadir.' })
+    }
     setImportando(false)
     setPendiente(null)
-    setPegado('')
-    setMensaje(
-      n === pendiente.length
-        ? { ok: true, texto: `${n} canciones añadidas.` }
-        : { ok: false, texto: `Se añadieron ${n} de ${pendiente.length}. Revisa la conexión y vuelve a intentarlo con el resto.` },
-    )
   }
 
   return (
@@ -71,8 +78,9 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
         <h2 id="copias-titulo">Copias</h2>
         <p className="ayuda-normal">
           {modoLocal
-            ? `Tus ${total} canciones se guardan solo en este navegador. Haz una copia para no perderlas.`
-            : `Tus ${total} canciones están guardadas en tu cuenta. Una copia sirve para tenerlas también fuera de ella.`}
+            ? `Tus ${total} elementos se guardan solo en este navegador. Haz una copia para no perderlos.`
+            : `Tus ${total} elementos están guardados en tu cuenta. Una copia sirve para tenerlos también fuera.`}{' '}
+          La copia incluye enlaces, tramos y etiquetas; los archivos de audio y los retratos se quedan en tu almacenamiento.
         </p>
 
         {mensaje && (
@@ -90,7 +98,7 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
           </button>
         </div>
 
-        <h3>Añadir canciones desde una copia</h3>
+        <h3>Añadir desde una copia</h3>
         <div className="campo">
           <label htmlFor="pegar-copia">Pega aquí el texto de una copia</label>
           <textarea id="pegar-copia" rows={3} value={pegado} onChange={(e) => setPegado(e.target.value)} />
@@ -117,10 +125,13 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
 
         {pendiente && (
           <div className="confirmar" role="alertdialog" aria-label="Confirmar">
-            <p>La copia tiene {pendiente.length} canciones. Se añadirán a las que ya tienes.</p>
+            <p>
+              La copia tiene {pendiente.elementos.length} elementos y {pendiente.recursos.length} sonidos. Se añadirán a los tuyos; los
+              sonidos repetidos se reutilizan.
+            </p>
             <div className="confirmar-botones">
-              <button type="button" className="boton boton-principal" disabled={importando} onClick={anadir}>
-                {importando ? 'Añadiendo…' : 'Añadir canciones'}
+              <button type="button" className="boton boton-principal" disabled={importando} onClick={() => void anadir()}>
+                {importando ? 'Añadiendo…' : 'Añadir'}
               </button>
               <button type="button" className="boton boton-sutil" onClick={() => setPendiente(null)}>
                 Cancelar

@@ -77,8 +77,9 @@ export async function elegirDispositivo(): Promise<Dispositivo | null> {
 
 const conDispositivo = (ruta: string, id?: string) => (id ? `${ruta}${ruta.includes('?') ? '&' : '?'}device_id=${id}` : ruta)
 
-export async function reproducirEn(d: Dispositivo, e: EnlaceSpotify) {
-  const cuerpo = e.tipo === 'track' || e.tipo === 'episode' ? { uris: [e.uri] } : { context_uri: e.uri }
+export async function reproducirEn(d: Dispositivo, e: EnlaceSpotify, inicioMs: number | null = null) {
+  const suelta = e.tipo === 'track' || e.tipo === 'episode'
+  const cuerpo = suelta ? { uris: [e.uri], ...(inicioMs ? { position_ms: inicioMs } : {}) } : { context_uri: e.uri }
   await llamar(conDispositivo('/me/player/play', d.id), { method: 'PUT', body: JSON.stringify(cuerpo) })
 }
 
@@ -88,9 +89,9 @@ export const modoRepetir = (modo: 'track' | 'context' | 'off', id?: string) =>
   llamar(conDispositivo(`/me/player/repeat?state=${modo}`, id), { method: 'PUT' })
 
 /** Estado actual de Spotify (null si no hay nada activo). */
-export async function estadoActual(): Promise<{ sonando: boolean } | null> {
+export async function estadoActual(): Promise<{ sonando: boolean; progreso: number | null } | null> {
   const r = await llamar('/me/player')
   if (r.status === 204) return null
-  const j = (await r.json().catch(() => null)) as { is_playing?: boolean } | null
-  return j ? { sonando: !!j.is_playing } : null
+  const j = (await r.json().catch(() => null)) as { is_playing?: boolean; progress_ms?: number } | null
+  return j ? { sonando: !!j.is_playing, progreso: typeof j.progress_ms === 'number' ? j.progress_ms : null } : null
 }

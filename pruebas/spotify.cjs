@@ -3,6 +3,7 @@
 const { chromium } = require('playwright');
 const crypto = require('crypto');
 const { SPOTIFY } = require('./falsos.cjs');
+const { crearElemento } = require('./ayuda.cjs');
 const URL = 'http://localhost:4175/';
 const PISTA = 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT';
 let fallos = 0;
@@ -47,10 +48,8 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   await p.reload();
 
   // Una canción de Spotify (modo local)
-  await p.getByRole('button', { name: /^Añadir lugar/ }).click();
-  await p.getByLabel(/^Nombre/).fill('Ciudad nevada');
-  await p.getByLabel('Enlace de la canción').fill(PISTA);
-  await p.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await crearElemento(p, { tipo: 'lugar', nombre: 'Ciudad nevada', sonidos: [{ enlace: PISTA }] });
+  await crearElemento(p, { tipo: 'momento', nombre: 'Clímax', sonidos: [{ enlace: PISTA, inicio: '0:30', fin: '0:31' }] });
 
   // 1) Conectar
   await p.getByRole('button', { name: 'Conectar Spotify' }).click();
@@ -64,13 +63,24 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   comprobar('Vuelve a la app y limpia la dirección', p.url() === URL);
 
   // 2) Pulsar la tarjeta → suena en el dispositivo
-  await p.getByRole('button', { name: 'Reproducir la canción de Ciudad nevada' }).click();
+  await p.getByRole('button', { name: 'Reproducir Ciudad nevada' }).click();
   await p.waitForTimeout(500);
   const play = api.find((x) => x.startsWith('PUT /me/player/play?device_id=pc1')) || '';
   comprobar('Manda reproducir la canción completa en «Mi PC»', play.includes('"uris":["spotify:track:4cOdK2wGLETKBW3PvgPWqT"]'));
   comprobar('Activa repetir canción', api.some((x) => x.startsWith('PUT /me/player/repeat?state=track&device_id=pc1')));
   comprobar('La barra dice dónde suena', (await p.locator('.reproductor-estado').innerText()).includes('en Mi PC'));
   comprobar('No carga el reproductor integrado', !(await p.locator('.falso-spotify').count()));
+
+  // 2b) Tramo: el inicio va a Spotify (position_ms); con fin, la app corta (aprox.) y no usa repetir de Spotify
+  await p.getByRole('button', { name: 'Reproducir Clímax' }).click();
+  await p.waitForTimeout(500);
+  comprobar('Tramo: empieza en 0:30 (position_ms)', api.some((x) => x.startsWith('PUT /me/player/play?device_id=pc1') && x.includes('"position_ms":30000')));
+  comprobar('Tramo con fin: no activa repetir canción de Spotify', api.filter((x) => x.startsWith('PUT /me/player/repeat')).at(-1).includes('state=off'));
+  const antesCorte = api.filter((x) => x.includes('"position_ms":30000')).length;
+  await p.waitForTimeout(1500);
+  comprobar('Tramo en bucle: al llegar al fin vuelve al inicio (aprox.)', api.filter((x) => x.includes('"position_ms":30000')).length > antesCorte);
+  await p.getByRole('button', { name: 'Reproducir Ciudad nevada' }).click();
+  await p.waitForTimeout(400);
 
   // 3) Pausar y reanudar desde la barra
   await p.getByRole('button', { name: 'Pausar', exact: true }).click();
@@ -88,14 +98,14 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
 
   // 4) Spotify cerrado: sin dispositivos
   dispositivos = [];
-  await p.getByRole('button', { name: 'Reproducir la canción de Ciudad nevada' }).click();
+  await p.getByRole('button', { name: 'Reproducir Ciudad nevada' }).click();
   await p.waitForTimeout(400);
   comprobar('Sin Spotify abierto: explica qué hacer', (await p.locator('.reproductor-aviso').innerText()).includes('Abre la app de Spotify'));
 
   // 5) Conexión caducada: vuelve al reproductor integrado
   dispositivos = [{ id: 'm1', name: 'Pixel', type: 'Smartphone', is_active: true, is_restricted: false }];
   respuestaPlay = 401;
-  await p.getByRole('button', { name: 'Reproducir la canción de Ciudad nevada' }).click();
+  await p.getByRole('button', { name: 'Reproducir Ciudad nevada' }).click();
   await p.waitForTimeout(800);
   comprobar('Si caduca: se desconecta y usa el reproductor integrado', (await p.getByRole('button', { name: 'Conectar Spotify' }).isVisible()) && (await p.locator('.falso-spotify').count()) === 1);
 

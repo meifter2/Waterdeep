@@ -1,89 +1,66 @@
 # CLAUDE.md — Banda sonora («Waterdeep: Dragon Heist»)
 
 > Contexto para Claude Code. Breve (≤100 líneas). Actualizar al cerrar cada fase.
-> No repetir lo que ya está en el código: solo lo necesario para orientarse.
 
 ## Resumen
-App web del máster centrada SOLO en la música. Canciones (enlace Spotify/YouTube) en 5 carpetas:
-Opening, Ending, Personajes, Lugares, Momentos. Pulsar una tarjeta → suena en el reproductor integrado.
-Multiusuario: entrar con Google (Supabase Auth); cada usuario solo ve lo suyo (RLS).
-Spotify Connect opcional: con «Conectar Spotify» suena completa en la app de Spotify del usuario (móvil/PC).
-PWA instalable (Android) con «share target»: compartir desde Spotify/YouTube abre el editor con el enlace.
-Sin variables de Supabase la app funciona en «modo local» (navegador, sin cuentas).
-El usuario tiene Spotify Premium.
+Mesa de sonido personal del máster de D&D. Elementos en 7 carpetas (Opening, Ending, Personajes, Lugares,
+Momentos, Ambientes, Efectos), cada uno con retrato opcional y una o varias pistas (sonidos de Spotify,
+YouTube o archivos propios, con etiqueta, tramo inicio/fin y bucle). Los sonidos se reutilizan sin duplicar.
+Cuentas con Google (Supabase Auth + RLS). Spotify Connect opcional. PWA con «compartir» en Android.
+Sin variables de Supabase ⇒ «modo local» (localStorage + IndexedDB). El usuario tiene Spotify Premium.
+Roadmap (NO empezar sin pedirlo): F2 mezclador · F3 modo sesión/escenas · F4 biblioteca de solo lectura para jugadores
+(solo lo publicado expresamente; la cuenta del usuario será la única administradora).
 
 ## Usuario y forma de trabajar
-- Responder **siempre en español**, explicando cada paso. Usuario: experto en producto/UX/frontend, no programador puro.
-  Suele dictar por voz: interpretar con cuidado y preguntar si algo es ambiguo.
-- Plan antes de cambios grandes; preguntar decisiones importantes no cubiertas aquí.
-- **Prioridad: ahorrar tokens.** Empezar SIEMPRE por este archivo; leer solo lo necesario; respuestas concisas.
-- **Tamaño de archivo: máximo ~1000 líneas** (límite duro 1500). Dividir por responsabilidad.
-
-## Reglas clave
-- **Nada de contenido del libro** en el código. **Interfaz en español** (sentence case).
-- **Frontend → skill `frontend-design` obligatoria.** Supabase → skills `supabase` y `supabase-postgres-best-practices`.
-- Nunca subir secretos ni `.env`. En el front solo la clave pública (publishable). Nunca service_role/secret.
+- **Siempre en español**, explicando cada paso. Experto en producto/UX/frontend, no programador. Dicta por voz.
+- Plan antes de cambios grandes; preguntar decisiones importantes. **Ahorrar tokens**: empezar por este archivo.
+- **Archivos ≤ ~1000 líneas** (límite 1500). Dividir por responsabilidad.
+- Nada de contenido del libro. Interfaz en español (sentence case). Frontend ⇒ skill `frontend-design`;
+  Supabase ⇒ skills `supabase` y `supabase-postgres-best-practices`. Nunca subir secretos ni `.env`.
 
 ## Stack
-React 19 + TypeScript + Vite · Zustand · CSS plano con tokens · @supabase/supabase-js (versión fijada).
-Reproducción: Spotify iFrame API + YouTube IFrame Player API. Fuentes: Alegreya + Alegreya Sans.
-Variables (Vercel y `.env.local`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SPOTIFY_CLIENT_ID` (todas públicas).
+React 19 + TS + Vite · Zustand · CSS plano con tokens · @supabase/supabase-js y @electric-sql/pglite (fijadas).
+Variables públicas (Vercel y `.env.local`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SPOTIFY_CLIENT_ID`.
+
+## Base de datos (bd/)
+- `esquema.sql` (v3, ya ejecutado por el usuario): tabla `canciones`. NO borrarla (la usa la versión publicada).
+- `002-biblioteca.sql` (v4, idempotente, solo añade): `elementos`, `recursos`, `pistas` + RLS + buckets privados
+  `audio` (50 MB) y `retratos` (5 MB) con políticas por carpeta `<uid>/…` + copia de `canciones` (marca `migrado_de`).
+- Pistas con FK compuestas (id, user_id) ⇒ mismo dueño garantizado. Borrar elemento ⇒ borra sus pistas, no recursos.
+- El cliente NUNCA envía `user_id` (default `auth.uid()`). Archivos: URL firmada 6 h.
+- Este entorno NO llega a supabase.co: el SQL se valida con PGlite (`pruebas/sql.test.mjs`) y la app con simuladores.
 
 ## Estructura
 ```
-public/                      manifest.webmanifest (share_target GET → /?title&text&url), sw.js, iconos/
-bd/esquema.sql               tabla `canciones` + RLS + grants + trigger (se pega en el SQL Editor; idempotente)
-src/
-  App.tsx                    puerta: comprobando / Entrada (Google) / Biblioteca
-  pages/Entrada.tsx · Biblioteca.tsx
-  data/types.ts              Cancion, Tipo y CARPETAS (títulos y textos de cada carpeta)
-  data/repositorio.ts        Supabase o local (misma interfaz) + migración de datos antiguos
-  data/store.ts              canciones (cambios optimistas con deshacer) + copias v3
-  data/sesion.ts             sesión Google (onAuthStateChange)
-  data/reproduccion.ts       qué suena, pausa, repetir
-  lib/supabase.ts            cliente (null ⇒ modo local) · lib/enlaces.ts · lib/apis.ts
-  lib/compartir.ts           captura lo compartido al arrancar (sobrevive al login) · lib/titulo.ts (oEmbed)
-  lib/spotifyAuth.ts         OAuth PKCE (vuelta en /spotify, rewrite en vercel.json), tokens en localStorage
-  lib/spotifyApi.ts          Web API: dispositivos, play/pause/repeat, estado (errores traducidos)
-  lib/pwa.ts                 registro del SW (solo PROD) + botón «Instalar app»
-  components/                ConexionSpotify, Seccion, Tarjeta, Editor (chips de carpeta, recuerda la última), Copias, Cuenta,
-                             Migracion, Instalar, Confirmar, reproductor/
-  styles/                    tokens, base, app, reproductor, dialogos, entrada
-pruebas/                     enlaces.test.ts · musica.cjs · compartir.cjs (PWA) · supabase.cjs · spotify.cjs (simulados)
+src/data/  types (Elemento/Recurso/Pista, CARPETAS) · repositorio (Supabase|local+IndexedDB, errores traducidos)
+           store (biblioteca, borrados optimistas, URLs) · guardar (elemento+pistas, subidas, reutilizar, importar)
+           convertir (v2/v3→v4, copias v4, claveEnlace) · reproduccion (pistaId, repetir) · sesion
+src/lib/   enlaces · archivos (validación, SHA-256, retrato 512 WebP, IndexedDB) · tiempo (m:ss) · apis
+           spotifyAuth/spotifyApi (Connect) · compartir · titulo (oEmbed) · pwa · supabase
+src/components/  Tarjeta (retrato + chips) · Seccion · editor/(EditorElemento, FilaPista, AnadirPista)
+           BibliotecaSonidos · Compartido · Copias · Migracion · ConexionSpotify · reproductor/
+src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
 ```
 
-## Comportamiento del reproductor (no romper)
-- Un único reproductor por servicio, reutilizado (Spotify `loadUri`, YouTube `loadVideoById`).
-- Pulsar la que suena = pausa/reanuda. Cambiar de servicio pausa/detiene el otro. «Repetir» por defecto sí.
-- Spotify conectado ⇒ motorSpotifyConnect (elige dispositivo activo/del tipo del aparato; repeat track/context;
-  sondeo cada 5 s). Error 'desconectado' ⇒ cae al iframe. En móvil el iframe SIEMPRE da 30 s (límite de Spotify).
-- Spotify ≤30 s ⇒ la sesión no llega al iframe (cookies de terceros bloqueadas en Brave/Safari).
-  Solución probada: permitir cookies en la página o usar Chrome/Edge.
-- YouTube errores 101/150 ⇒ «no permite reproducirlo fuera de YouTube». Vídeo visible ≥200 px.
-- Si la API no carga ⇒ iframe básico de respaldo y aviso «Pulsa ▶».
+## Reproductor (no romper)
+- Suena UNA pista cada vez (mezcla = fase 2). Pulsar la que suena = pausa/reanuda. Nombre de tarjeta = 1.ª pista.
+- Bucle por pista (ambientes/música sí, efectos no); «Repetir» en la barra lo cambia al vuelo.
+- Archivo: HTMLAudio + temporizador recalculado en `timeupdate` (±15 ms). YouTube: start/endSeconds oficiales.
+  Spotify integrado: seek/pausa por `playback_update` (aprox.). Connect: `position_ms` + temporizador (aprox. ±1 s);
+  con fin, repeat de Spotify en «off» y repite la app. En móvil el iframe de Spotify SIEMPRE da 30 s.
+- Errores: YouTube 101/150, Spotify ≤30 s (cookies Brave/Safari), API no carga ⇒ iframe de respaldo.
 
-## Datos
-- Supabase: el cliente NUNCA envía `user_id` (default `auth.uid()`); RLS con `(select auth.uid()) = user_id`.
-- Al entrar con cuenta, si el navegador tiene canciones antiguas se ofrece «Subir a mi cuenta».
-- Modo local: `banda-sonora:canciones`; convierte solo la clave antigua `banda-sonora:datos` (v2).
-- Este entorno de Claude NO llega a supabase.co (red bloqueada): probar con `pruebas/supabase.cjs`.
-
-## Comandos
-- `npm run dev` · `npm run build` · `npm run preview` (4173)
-- `npm run test:enlaces` · `npm run test:musica` · `npm run test:compartir` (con preview en 4173)
-- `npm run build:prueba && npm run preview:prueba` (4174) y `npm run test:supabase`
-- `npm run build:spotify && npm run preview:spotify` (4175) y `npm run test:spotify`
-- Despliegue: Vercel publica cada push a `main` (master-waterdeep.vercel.app). `base: '/'` (PWA).
-- SW: red primero para páginas; cachea /assets e /iconos; no toca otros dominios. Cambiar `CACHE` si cambia la estrategia.
+## Comandos y pruebas
+- `npm run dev|build|preview` (4173) · `build:prueba`+`preview:prueba` (4174, Supabase simulado) ·
+  `build:spotify`+`preview:spotify` (4175)
+- `npm run test:sql|enlaces|biblioteca|musica|compartir` (4173) · `test:supabase` (4174) · `test:spotify` (4175)
+- Despliegue: Vercel publica cada push a `main`. Las ramas generan vista previa (usa variables de «Preview»).
 
 ## Git
-Trabajo en `ccr-4e49e839-kg8cvn`; el usuario autorizó llevarlo a `main` (despliegue). Commits pequeños en español.
+Trabajo en `ccr-4e49e839-kg8cvn`. Pasar a `main` SOLO con permiso y tras validar el SQL en Supabase.
 
-## Estado de fases
-| Fase | Descripción | Estado |
-|------|-------------|--------|
-| 2 | Banda sonora: tarjeta → canción Spotify/YouTube | Hecha y probada por el usuario |
-| 3 | Publicación en Vercel desde `main` | Hecha y funcionando |
-| 4 | Supabase: Google, carpetas, RLS por usuario | Código hecho y probado con simulador; falta configurar proyecto (SQL, Google, variables en Vercel) |
-| 5 | PWA + compartir desde Android | Hecha y probada con simulador; falta prueba en el móvil |
-| 6 | Spotify Connect (canciones completas en móvil y PC) | Hecha y probada con simulador; falta app en developer.spotify.com + variable |
+## Estado
+| Fase | Estado |
+|------|--------|
+| Banda sonora, Vercel, Supabase+Google, PWA, Spotify Connect | Hechas (v3 publicada en `main`) |
+| F1 Biblioteca (v4) | Hecha en la rama, probada con simuladores; falta ejecutar 002 y probar la vista previa |

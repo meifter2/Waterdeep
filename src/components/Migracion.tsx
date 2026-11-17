@@ -1,44 +1,49 @@
 import { useState } from 'react'
-import { cancionesAntiguasDelNavegador, olvidarCancionesAntiguas } from '../data/repositorio'
-import { useDatos } from '../data/store'
+import { leerDelNavegador, olvidarDelNavegador } from '../data/convertir'
+import { importarBiblioteca } from '../data/guardar'
 import { modoLocal } from '../lib/supabase'
 
-/** Si este navegador guarda canciones de la versión anterior, ofrece subirlas a la cuenta. */
+/** Si este navegador guarda datos de antes de tener cuenta, ofrece subirlos (sin duplicar sonidos). */
 export function Migracion() {
-  const importar = useDatos((s) => s.importar)
-  const [antiguas, setAntiguas] = useState(() => (modoLocal ? [] : cancionesAntiguasDelNavegador()))
+  const [antiguos, setAntiguos] = useState(() => (modoLocal ? null : leerDelNavegador()))
   const [subiendo, setSubiendo] = useState(false)
-  if (antiguas.length === 0) return null
+  const [error, setError] = useState('')
+  if (!antiguos || antiguos.elementos.length === 0) return null
+  const n = antiguos.elementos.length
 
   const subir = async () => {
     setSubiendo(true)
-    const n = await importar(antiguas)
-    setSubiendo(false)
-    if (n === antiguas.length) {
-      olvidarCancionesAntiguas()
-      setAntiguas([])
+    setError('')
+    try {
+      await importarBiblioteca(antiguos)
+      olvidarDelNavegador()
+      setAntiguos(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se ha podido subir. Inténtalo de nuevo.')
     }
+    setSubiendo(false)
   }
 
   return (
     <div className="aviso aviso-ok migracion" role="status">
       <p>
-        Este navegador guarda {antiguas.length === 1 ? '1 canción' : `${antiguas.length} canciones`} de antes de tener
-        cuenta. ¿Las subimos a tu cuenta?
+        Este navegador guarda {n === 1 ? '1 elemento' : `${n} elementos`} de antes de tener cuenta. ¿Los subimos a tu cuenta? Los
+        sonidos que ya tengas no se duplican.
       </p>
+      {error && <p className="error">{error}</p>}
       <div className="acciones">
-        <button type="button" className="boton boton-principal" disabled={subiendo} onClick={subir}>
+        <button type="button" className="boton boton-principal" disabled={subiendo} onClick={() => void subir()}>
           {subiendo ? 'Subiendo…' : 'Subir a mi cuenta'}
         </button>
         <button
           type="button"
           className="boton boton-sutil"
           onClick={() => {
-            olvidarCancionesAntiguas()
-            setAntiguas([])
+            olvidarDelNavegador()
+            setAntiguos(null)
           }}
         >
-          Descartarlas
+          Descartarlos
         </button>
       </div>
     </div>

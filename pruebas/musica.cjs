@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const { SPOTIFY, YOUTUBE } = require('./falsos.cjs');
+const { crearElemento } = require('./ayuda.cjs');
 const URL = 'http://localhost:4173/';
 const OUT = process.env.CAPTURAS || require('os').tmpdir() + '/';
 let fallos = 0;
@@ -12,12 +13,7 @@ async function preparar(ctx, { bloquear = false } = {}) {
 }
 
 async function anadir(p, nombre, enlace, tipo = 'personaje', nota = '') {
-  await p.getByRole('button', { name: /^Añadir personaje/ }).first().click();
-  await p.getByLabel(/^Nombre/).fill(nombre);
-  await p.getByLabel('Enlace de la canción').fill(enlace);
-  await p.getByRole('radio', { name: { opening: 'Opening', ending: 'Ending', personaje: 'Personaje', lugar: 'Lugar', momento: 'Momento' }[tipo], exact: true }).check();
-  if (nota) await p.getByLabel('Nota (opcional)').fill(nota);
-  await p.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await crearElemento(p, { tipo, nombre, descripcion: nota, sonidos: enlace ? [{ enlace }] : [] });
 }
 const log = (p) => p.evaluate(() => window.__log || []);
 const estado = (p) => p.locator('.reproductor-estado').innerText();
@@ -33,16 +29,19 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
 
   // Editor: validación
   await p.getByRole('button', { name: /^Añadir personaje/ }).click();
-  await p.getByLabel('Enlace de la canción').fill('https://soundcloud.com/x');
-  comprobar('editor rechaza SoundCloud', (await p.locator('#ed-enlace-ayuda').innerText()).includes('Solo se admiten'));
-  await p.getByLabel('Enlace de la canción').fill('https://open.spotify.com/intl-es/track/4cOdK2wGLETKBW3PvgPWqT?si=1');
-  comprobar('editor reconoce Spotify', (await p.locator('#ed-enlace-ayuda').innerText()).includes('canción de Spotify'));
+  await p.fill('#nuevo-enlace', 'https://soundcloud.com/x');
+  comprobar('editor rechaza SoundCloud', (await p.locator('#nuevo-enlace-ayuda').innerText()).includes('Solo se admiten'));
+  await p.fill('#nuevo-enlace', 'https://open.spotify.com/intl-es/track/4cOdK2wGLETKBW3PvgPWqT?si=1');
+  comprobar('editor reconoce Spotify', (await p.locator('#nuevo-enlace-ayuda').innerText()).includes('canción de Spotify'));
+  await p.getByRole('button', { name: 'Añadir enlace' }).click();
+  await p.waitForSelector('.fila-pista');
   await p.getByRole('button', { name: 'Guardar', exact: true }).click();
   comprobar('editor exige nombre', await p.getByText('Escribe un nombre.').isVisible());
-  await p.getByLabel(/^Nombre/).fill('Maela Brezo');
-  await p.getByLabel('Nota (opcional)').fill('Tabernera');
+  await p.fill('#ed-nombre', 'Maela Brezo');
+  await p.fill('#ed-descripcion', 'Tabernera');
   await p.screenshot({ path: OUT + '02-editor.png' });
   await p.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await p.waitForSelector('dialog[open]', { state: 'detached' });
 
   await anadir(p, 'Capitana Idris Mor', 'https://youtu.be/dQw4w9WgXcQ', 'personaje', 'Entra con la guardia');
   await anadir(p, 'Osric Velo', '', 'personaje');
@@ -50,7 +49,7 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await anadir(p, 'Canción sin sesión', 'https://open.spotify.com/track/previewPreviewPreview1', 'opening');
 
   // 1) Pulsar Spotify
-  await p.getByRole('button', { name: 'Reproducir la canción de Maela Brezo' }).click();
+  await p.getByRole('button', { name: 'Reproducir Maela Brezo' }).click();
   await p.waitForFunction(() => (window.__log||[]).some(l => l.startsWith('spotify:play')));
   await p.waitForTimeout(150);
   comprobar('Spotify: crea y reproduce', (await log(p)).join('|').includes('spotify:create spotify:track:4cOdK2wGLETKBW3PvgPWqT|spotify:play'));
@@ -59,7 +58,7 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await p.screenshot({ path: OUT + '03-sonando-spotify.png' });
 
   // 2) Cambiar a YouTube
-  await p.getByRole('button', { name: 'Reproducir la canción de Capitana Idris Mor' }).click();
+  await p.getByRole('button', { name: 'Reproducir Capitana Idris Mor' }).click();
   await p.waitForFunction(() => (window.__log||[]).some(l => l.startsWith('yt:play')));
   const l2 = (await log(p)).join('|');
   comprobar('YouTube: pausa Spotify y suena el vídeo', l2.includes('spotify:pause') && l2.includes('yt:create dQw4w9WgXcQ') && l2.includes('yt:play'));
@@ -67,10 +66,10 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await p.screenshot({ path: OUT + '04-sonando-youtube.png' });
 
   // 3) Pulsar el mismo = pausa; otra vez = reanuda
-  await p.getByRole('button', { name: 'Pausar la canción de Capitana Idris Mor' }).click();
+  await p.getByRole('button', { name: 'Pausar Capitana Idris Mor' }).click();
   await p.waitForTimeout(100);
   comprobar('Pulsar el que suena lo pausa', (await estado(p)).startsWith('En pausa'), await estado(p));
-  await p.getByRole('button', { name: 'Reproducir la canción de Capitana Idris Mor' }).click();
+  await p.getByRole('button', { name: 'Reproducir Capitana Idris Mor' }).click();
   await p.waitForTimeout(100);
   comprobar('Pulsar de nuevo lo reanuda', (await estado(p)).startsWith('Sonando'));
 
@@ -81,7 +80,7 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   comprobar('Repetir: YouTube vuelve a empezar', (await log(p)).slice(antes).join('|').includes('yt:load dQw4w9WgXcQ'));
 
   // 5) Volver a Spotify reutiliza el reproductor (loadUri)
-  await p.getByRole('button', { name: 'Reproducir la canción de Maela Brezo' }).click();
+  await p.getByRole('button', { name: 'Reproducir Maela Brezo' }).click();
   await p.waitForTimeout(400);
   const l5 = (await log(p)).join('|');
   comprobar('Spotify reutiliza reproductor (loadUri + play)', l5.includes('yt:stop') && /spotify:loadUri spotify:track:4cOd[^|]*\|spotify:play/.test(l5));
@@ -99,18 +98,18 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   comprobar('Botón Detener', (await log(p)).at(-1) === 'spotify:pause' && await p.locator('.tarjeta[data-actual]').count() === 0);
 
   // 7) Sin canción → abre editor
-  await p.getByRole('button', { name: 'Añadir canción a Osric Velo' }).click();
-  comprobar('Sin enlace: pulsar abre el editor', await p.getByRole('heading', { name: 'Editar canción' }).isVisible());
+  await p.getByRole('button', { name: 'Añadir sonido a Osric Velo' }).click();
+  comprobar('Sin enlace: pulsar abre el editor', await p.getByRole('heading', { name: 'Editar Osric Velo' }).isVisible());
   await p.getByRole('button', { name: 'Cancelar' }).click();
 
   // 8) Vídeo que no se puede insertar
-  await p.getByRole('button', { name: 'Reproducir la canción de Vídeo protegido' }).click();
+  await p.getByRole('button', { name: 'Reproducir Vídeo protegido' }).click();
   await p.waitForTimeout(300);
   comprobar('YouTube bloqueado: explica el motivo', (await p.locator('.reproductor-aviso').innerText()).includes('no permite reproducirlo fuera de YouTube'));
   await p.screenshot({ path: OUT + '05-error-youtube.png' });
 
   // 9) Spotify sin sesión (30 s)
-  await p.getByRole('button', { name: 'Reproducir la canción de Canción sin sesión' }).click();
+  await p.getByRole('button', { name: 'Reproducir Canción sin sesión' }).click();
   await p.waitForTimeout(400);
   comprobar('Spotify sin sesión: avisa de los 30 s', (await p.locator('.reproductor-aviso').innerText()).includes('30 segundos'));
 
@@ -131,19 +130,19 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
 
   // 12) Copias: exportar y recuperar
   await p.getByRole('button', { name: 'Copias' }).click();
-  const json = await p.evaluate(() => localStorage.getItem('banda-sonora:canciones'));
+  const json = await p.evaluate(() => localStorage.getItem('banda-sonora:biblioteca'));
   const copia = JSON.stringify({ version: 3, canciones: [{ tipo: 'lugar', nombre: 'El Ancla Torcida', enlace: 'https://youtu.be/dQw4w9WgXcQ', nota: '' }] });
   await p.getByLabel('Pega aquí el texto de una copia').fill(copia);
   await p.getByRole('button', { name: 'Comprobar texto' }).click();
-  comprobar('Copias: valida y pide confirmación', (await p.locator('.confirmar').innerText()).includes('1 canciones'));
-  await p.getByRole('button', { name: 'Añadir canciones' }).click();
+  comprobar('Copias: valida y pide confirmación', (await p.locator('.confirmar').innerText()).includes('1 elementos'));
+  await p.getByRole('button', { name: 'Añadir', exact: true }).click();
   await p.waitForTimeout(200);
   await p.getByRole('button', { name: 'Cerrar' }).click();
   comprobar('Copias: añade a la carpeta correcta', await p.locator('.seccion-lugar .tarjeta').count() === 1);
 
   // 13) Eliminar
   await p.getByRole('button', { name: 'Editar Vídeo protegido' }).click();
-  await p.getByRole('button', { name: 'Eliminar' }).click();
+  await p.getByRole('button', { name: 'Eliminar momento' }).click();
   await p.locator('.confirmar').getByRole('button', { name: 'Eliminar' }).click();
   await p.waitForTimeout(200);
   comprobar('Eliminar canción', await p.locator('.tarjeta').count() === 5);
@@ -153,9 +152,9 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await preparar(m);
   const mp = await m.newPage();
   await mp.goto(URL);
-  await mp.evaluate((d) => localStorage.setItem('banda-sonora:canciones', d), json);
+  await mp.evaluate((d) => localStorage.setItem('banda-sonora:biblioteca', d), json);
   await mp.reload();
-  await mp.getByRole('button', { name: 'Reproducir la canción de Capitana Idris Mor' }).click();
+  await mp.getByRole('button', { name: 'Reproducir Capitana Idris Mor' }).click();
   await mp.waitForTimeout(300);
   await mp.screenshot({ path: OUT + '06-movil.png' });
   comprobar('Móvil sin desplazamiento horizontal', await mp.evaluate(() => document.documentElement.scrollWidth) <= 390);
@@ -165,9 +164,9 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await preparar(f, { bloquear: true });
   const fp = await f.newPage();
   await fp.goto(URL);
-  await fp.evaluate((d) => localStorage.setItem('banda-sonora:canciones', d), json);
+  await fp.evaluate((d) => localStorage.setItem('banda-sonora:biblioteca', d), json);
   await fp.reload();
-  await fp.getByRole('button', { name: 'Reproducir la canción de Maela Brezo' }).click();
+  await fp.getByRole('button', { name: 'Reproducir Maela Brezo' }).click();
   await fp.waitForSelector('.marco-respaldo', { timeout: 15000 });
   comprobar('Sin API: muestra reproductor básico y lo explica', (await fp.locator('.reproductor-aviso').innerText()).includes('Pulsa ▶'));
   await fp.screenshot({ path: OUT + '07-respaldo.png' });
@@ -177,9 +176,9 @@ const estado = (p) => p.locator('.reproductor-estado').innerText();
   await preparar(o);
   const op = await o.newPage();
   await op.goto(URL);
-  await op.evaluate((d) => localStorage.setItem('banda-sonora:canciones', d), json);
+  await op.evaluate((d) => localStorage.setItem('banda-sonora:biblioteca', d), json);
   await op.reload();
-  await op.getByRole('button', { name: 'Reproducir la canción de Maela Brezo' }).click();
+  await op.getByRole('button', { name: 'Reproducir Maela Brezo' }).click();
   await op.waitForTimeout(300);
   await op.screenshot({ path: OUT + '08-oscuro.png' });
 

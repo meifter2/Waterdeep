@@ -1,39 +1,41 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { BibliotecaSonidos } from '../components/BibliotecaSonidos'
+import { Compartido } from '../components/Compartido'
+import { ConexionSpotify } from '../components/ConexionSpotify'
 import { Copias } from '../components/Copias'
 import { Cuenta } from '../components/Cuenta'
-import { Editor, ultimaCarpeta, type Inicial } from '../components/Editor'
+import { EditorElemento } from '../components/editor/EditorElemento'
 import { Instalar } from '../components/Instalar'
-import { ConexionSpotify } from '../components/ConexionSpotify'
-import { useSpotify } from '../lib/spotifyAuth'
 import { Migracion } from '../components/Migracion'
 import { Reproductor } from '../components/reproductor/Reproductor'
 import { Seccion } from '../components/Seccion'
 import { useReproduccion } from '../data/reproduccion'
 import { almacenamientoDisponible } from '../data/storage'
 import { useDatos } from '../data/store'
-import { CARPETAS, type Cancion, type Tipo } from '../data/types'
-import { tomarCompartido } from '../lib/compartir'
-import { interpretarEnlace } from '../lib/enlaces'
+import { CARPETAS, type Elemento, type Tipo } from '../data/types'
+import { tomarCompartido, type Compartido as DatosCompartidos } from '../lib/compartir'
+import { useSpotify } from '../lib/spotifyAuth'
 import { modoLocal } from '../lib/supabase'
 
-type Edicion = { cancion: Cancion | null; tipo: Tipo; inicial?: Inicial } | null
+type Edicion = { elemento: Elemento | null; tipo: Tipo } | null
 
 /** Pantalla principal: carpetas con sus tarjetas y el reproductor abajo. */
 export function Biblioteca() {
-  const { canciones, carga, error, limpiarError } = useDatos()
-  const reproducir = useReproduccion((s) => s.reproducir)
+  const { elementos, recursos, pistas, carga, error, limpiarError } = useDatos()
+  const pulsarElemento = useReproduccion((s) => s.pulsarElemento)
+  const errorSpotify = useSpotify((s) => s.error)
   const [busqueda, setBusqueda] = useState('')
   const [edicion, setEdicion] = useState<Edicion>(null)
-  const [copias, setCopias] = useState(false)
+  const [dialogo, setDialogo] = useState<'copias' | 'sonidos' | null>(null)
+  const [compartido, setCompartido] = useState<DatosCompartidos | null>(null)
   const [hecho, setHecho] = useState('')
-  const errorSpotify = useSpotify((s) => s.error)
   const buscador = useRef<HTMLInputElement>(null)
 
-  // Canción compartida desde otra app: se abre el editor con el enlace ya puesto.
+  // Sonido compartido desde otra app: se abre su ventana con el enlace ya puesto.
   useEffect(() => {
     if (carga !== 'lista') return
     const c = tomarCompartido()
-    if (c) setEdicion({ cancion: null, tipo: ultimaCarpeta(), inicial: { enlace: c.enlace, nota: c.texto, compartida: true } })
+    if (c) setCompartido(c)
   }, [carga])
 
   useEffect(() => {
@@ -57,16 +59,22 @@ export function Biblioteca() {
 
   const q = busqueda.trim().toLocaleLowerCase('es')
   const porCarpeta = useMemo(() => {
-    const filtradas = canciones
-      .filter((c) => !q || [c.nombre, c.nota].some((v) => v.toLocaleLowerCase('es').includes(q)))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
-    return CARPETAS.map((carpeta) => ({ carpeta, lista: filtradas.filter((c) => c.tipo === carpeta.tipo) }))
-  }, [canciones, q])
-
-  const primera = porCarpeta.flatMap((g) => g.lista).find((c) => typeof interpretarEnlace(c.enlace) !== 'string')
+    const coincide = (e: Elemento) => {
+      if (!q) return true
+      const textos = [e.nombre, e.descripcion]
+      for (const p of pistas)
+        if (p.elemento_id === e.id) textos.push(p.etiqueta, recursos.find((r) => r.id === p.recurso_id)?.titulo ?? '')
+      return textos.some((v) => v.toLocaleLowerCase('es').includes(q))
+    }
+    const filtrados = elementos.filter(coincide).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    return CARPETAS.map((carpeta) => ({ carpeta, lista: filtrados.filter((e) => e.tipo === carpeta.tipo) }))
+  }, [elementos, pistas, recursos, q])
 
   const alTeclear = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && primera) reproducir(primera.id)
+    if (e.key === 'Enter') {
+      const primero = porCarpeta.flatMap((g) => g.lista).find((el) => pistas.some((p) => p.elemento_id === el.id))
+      if (primero) pulsarElemento(primero.id)
+    }
     if (e.key === 'Escape') setBusqueda('')
   }
 
@@ -76,10 +84,10 @@ export function Biblioteca() {
       <Seccion
         key={carpeta.tipo}
         carpeta={carpeta}
-        canciones={lista}
+        elementos={lista}
         buscando={!!q}
-        alAnadir={() => setEdicion({ cancion: null, tipo: carpeta.tipo })}
-        alEditar={(c) => setEdicion({ cancion: c, tipo: c.tipo })}
+        alAnadir={() => setEdicion({ elemento: null, tipo: carpeta.tipo })}
+        alEditar={(el) => setEdicion({ elemento: el, tipo: el.tipo })}
       />
     )
   }
@@ -90,13 +98,17 @@ export function Biblioteca() {
       <header className="cabecera">
         <div className="cabecera-marca">
           <h1>Banda sonora</h1>
-          {canciones.length > 0 && <p>{canciones.length === 1 ? '1 canción' : `${canciones.length} canciones`}</p>}
+          {elementos.length > 0 && (
+            <p>
+              {elementos.length === 1 ? '1 elemento' : `${elementos.length} elementos`}, {recursos.length === 1 ? '1 sonido' : `${recursos.length} sonidos`}
+            </p>
+          )}
         </div>
         <div className="cabecera-acciones">
-          {canciones.length > 0 && (
+          {elementos.length > 0 && (
             <div className="buscador">
               <label className="sr" htmlFor="buscar">
-                Buscar canción
+                Buscar
               </label>
               <input
                 id="buscar"
@@ -116,7 +128,10 @@ export function Biblioteca() {
           )}
           <Instalar />
           <ConexionSpotify />
-          <button type="button" className="boton" onClick={() => setCopias(true)}>
+          <button type="button" className="boton" onClick={() => setDialogo('sonidos')}>
+            Sonidos
+          </button>
+          <button type="button" className="boton" onClick={() => setDialogo('copias')}>
             Copias
           </button>
           <Cuenta />
@@ -147,13 +162,11 @@ export function Biblioteca() {
             {hecho}
           </p>
         )}
-        {modoLocal && almacenamientoDisponible && (
-          <p className="aviso-suave">Modo local: las canciones se guardan solo en este navegador.</p>
-        )}
+        {modoLocal && almacenamientoDisponible && <p className="aviso-suave">Modo local: todo se guarda solo en este navegador.</p>}
         {carga === 'lista' && <Migracion />}
 
         {carga === 'cargando' ? (
-          <p className="cargando">Cargando tus canciones…</p>
+          <p className="cargando">Cargando tu biblioteca…</p>
         ) : carga === 'error' ? null : sinResultados ? (
           <p className="vacio-corto">Nada coincide con «{busqueda}». Prueba con otro nombre o pulsa Esc para ver todo.</p>
         ) : (
@@ -165,22 +178,22 @@ export function Biblioteca() {
             {seccion(2)}
             {seccion(3)}
             {seccion(4)}
+            <div className="bordes-sesion">
+              {seccion(5)}
+              {seccion(6)}
+            </div>
           </>
         )}
       </main>
 
       <Reproductor />
 
-      {edicion && (
-        <Editor
-          cancion={edicion.cancion}
-          tipoInicial={edicion.tipo}
-          inicial={edicion.inicial}
-          alCerrar={() => setEdicion(null)}
-          alGuardar={setHecho}
-        />
+      {edicion && <EditorElemento elemento={edicion.elemento} tipoInicial={edicion.tipo} alCerrar={() => setEdicion(null)} alGuardar={setHecho} />}
+      {compartido && (
+        <Compartido enlaceInicial={compartido.enlace} textoInicial={compartido.texto} alCerrar={() => setCompartido(null)} alGuardar={setHecho} />
       )}
-      {copias && <Copias alCerrar={() => setCopias(false)} />}
+      {dialogo === 'copias' && <Copias alCerrar={() => setDialogo(null)} />}
+      {dialogo === 'sonidos' && <BibliotecaSonidos alCerrar={() => setDialogo(null)} />}
     </div>
   )
 }

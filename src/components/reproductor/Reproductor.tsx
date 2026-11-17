@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useReproduccion, type EstadoReproduccion } from '../../data/reproduccion'
 import { useDatos } from '../../data/store'
-import { describirEnlace, interpretarEnlace, nombreServicio, type EnlaceMusical, type Servicio } from '../../lib/enlaces'
-import { urlRespaldo } from './motor'
+import { describirEnlace, interpretarEnlace, nombreServicio, type EnlaceMusical } from '../../lib/enlaces'
+import { ErrorSpotify } from '../../lib/spotifyApi'
+import { useSpotify } from '../../lib/spotifyAuth'
+import { describirTramo } from '../../lib/tiempo'
+import { urlRespaldo, type Segmento } from './motor'
+import { MotorArchivo } from './motorArchivo'
 import { MotorSpotify } from './motorSpotify'
 import { MotorSpotifyConnect } from './motorSpotifyConnect'
-import { useSpotify } from '../../lib/spotifyAuth'
-import { ErrorSpotify } from '../../lib/spotifyApi'
 import { MotorYoutube } from './motorYoutube'
 
 const TEXTO_ESTADO: Record<EstadoReproduccion, string> = {
@@ -17,75 +19,111 @@ const TEXTO_ESTADO: Record<EstadoReproduccion, string> = {
   error: 'No se puede reproducir',
 }
 
+type Activo = 'spotify' | 'youtube' | 'connect' | 'archivo' | null
+
+interface Motores {
+  spotify?: MotorSpotify
+  youtube?: MotorYoutube
+  connect?: MotorSpotifyConnect
+  archivo?: MotorArchivo
+}
+
 export function Reproductor() {
-  const { cancionId, estado, aviso, peticion, orden, repetir, informar, alternar, detener, alternarRepetir } =
-    useReproduccion()
-  const personaje = useDatos((s) => s.canciones.find((p) => p.id === cancionId))
+  const { pistaId, estado, aviso, peticion, orden, repetir, informar, alternar, detener, alternarRepetir } = useReproduccion()
+  const pista = useDatos((s) => s.pistas.find((p) => p.id === pistaId))
+  const elemento = useDatos((s) => s.elementos.find((e) => e.id === pista?.elemento_id))
+  const recurso = useDatos((s) => s.recursos.find((r) => r.id === pista?.recurso_id))
 
   const hostSpotify = useRef<HTMLDivElement>(null)
   const hostYoutube = useRef<HTMLDivElement>(null)
-  const motores = useRef<{ spotify?: MotorSpotify; youtube?: MotorYoutube; connect?: MotorSpotifyConnect }>({})
-  const [activo, setActivo] = useState<Servicio | 'connect' | null>(null)
-  const [dispositivo, setDispositivo] = useState('')
+  const motores = useRef<Motores>({})
+  const [activo, setActivo] = useState<Activo>(null)
   const [enlace, setEnlace] = useState<EnlaceMusical | null>(null)
   const [respaldo, setRespaldo] = useState<string | null>(null)
+  const [dispositivo, setDispositivo] = useState('')
 
   // Crea los motores una sola vez.
   useEffect(() => {
-    if (hostSpotify.current && !motores.current.spotify)
-      motores.current.spotify = new MotorSpotify(hostSpotify.current, (e, a) => informar(e, a))
-    if (hostYoutube.current && !motores.current.youtube)
-      motores.current.youtube = new MotorYoutube(hostYoutube.current, (e, a) => informar(e, a))
-    if (!motores.current.connect) motores.current.connect = new MotorSpotifyConnect((e, a) => informar(e, a), setDispositivo)
+    const m = motores.current
+    const inf = (e: EstadoReproduccion, a?: string) => informar(e, a)
+    if (hostSpotify.current && !m.spotify) m.spotify = new MotorSpotify(hostSpotify.current, inf)
+    if (hostYoutube.current && !m.youtube) m.youtube = new MotorYoutube(hostYoutube.current, inf)
+    m.connect ??= new MotorSpotifyConnect(inf, setDispositivo)
+    if (!m.archivo) {
+      m.archivo = new MotorArchivo(inf)
+      ;(window as unknown as { __audioBandaSonora?: HTMLAudioElement }).__audioBandaSonora = m.archivo.elemento
+    }
   }, [informar])
 
   useEffect(() => {
-    const { spotify, youtube } = motores.current
+    const { spotify, youtube, connect, archivo } = motores.current
     if (spotify) spotify.repetir = repetir
     if (youtube) youtube.repetir = repetir
-    motores.current.connect?.fijarRepetir(repetir)
+    connect?.fijarRepetir(repetir)
+    archivo?.fijarRepetir(repetir)
   }, [repetir])
 
-  // Cada pulsación en un personaje.
+  // Cada pulsación en una pista.
   useEffect(() => {
     if (!peticion) return
-    const p = useDatos.getState().canciones.find((x) => x.id === useReproduccion.getState().cancionId)
-    if (!p) return
-    const e = interpretarEnlace(p.enlace)
+    const datos = useDatos.getState()
+    const p = datos.pistas.find((x) => x.id === useReproduccion.getState().pistaId)
+    const r = p && datos.recursos.find((x) => x.id === p.recurso_id)
+    if (!p || !r) return
+    const seg: Segmento = { inicio: p.inicio_ms, fin: p.fin_ms }
+    const { spotify, youtube, connect, archivo } = motores.current
+    const repetirAhora = useReproduccion.getState().repetir
+    for (const m of [spotify, youtube, archivo]) if (m) m.repetir = repetirAhora
+    connect?.fijarRepetir(repetirAhora)
+    const pararOtros = (menos: Activo) => {
+      if (menos !== 'spotify') spotify?.detener()
+      if (menos !== 'youtube') youtube?.detener()
+      if (menos !== 'connect') connect?.detener()
+      if (menos !== 'archivo') archivo?.detener()
+    }
+    setRespaldo(null)
+
+    if (r.origen === 'archivo') {
+      setEnlace(null)
+      setActivo('archivo')
+      pararOtros('archivo')
+      void datos.urlDe('audio', r.archivo_ruta!).then((url) => {
+        if (!url) informar('error', 'No se ha podido abrir el archivo. Revisa la conexión y vuelve a pulsar.')
+        else void archivo?.reproducir(url, seg)
+      })
+      return
+    }
+
+    const e = interpretarEnlace(r.enlace)
     if (typeof e === 'string') {
       informar('error', e)
       return
     }
     setEnlace(e)
-    setActivo(e.servicio)
-    setRespaldo(null)
-    const { spotify, youtube, connect } = motores.current
+    const usarRespaldo = (en: EnlaceMusical) => {
+      setRespaldo(urlRespaldo(en, seg.inicio))
+      informar('pausa', `El reproductor de ${nombreServicio(en.servicio)} no ha cargado del todo. Pulsa ▶ en él para empezar.`)
+    }
+
     if (e.servicio === 'spotify' && useSpotify.getState().conectado) {
       // Spotify conectado: suena completa en la app de Spotify del usuario.
-      youtube?.detener()
-      spotify?.detener()
       setActivo('connect')
-      connect?.reproducir(e).catch((err: unknown) => {
+      pararOtros('connect')
+      connect?.reproducir(e, seg).catch((err: unknown) => {
         if (err instanceof ErrorSpotify && err.codigo === 'desconectado') {
-          // Sin conexión válida: se usa el reproductor integrado de siempre.
           setActivo('spotify')
-          spotify?.reproducir(e).catch(() => usarRespaldo(e))
+          spotify?.reproducir(e, seg).catch(() => usarRespaldo(e))
           informar('cargando', err.message)
         } else informar('error', err instanceof ErrorSpotify ? err.message : 'Spotify no ha respondido.')
       })
     } else if (e.servicio === 'spotify') {
-      youtube?.detener()
-      connect?.detener()
-      spotify?.reproducir(e).catch(() => usarRespaldo(e))
+      setActivo('spotify')
+      pararOtros('spotify')
+      spotify?.reproducir(e, seg).catch(() => usarRespaldo(e))
     } else {
-      spotify?.detener()
-      connect?.detener()
-      youtube?.reproducir(e).catch(() => usarRespaldo(e))
-    }
-
-    function usarRespaldo(en: EnlaceMusical) {
-      setRespaldo(urlRespaldo(en))
-      informar('pausa', `El reproductor de ${nombreServicio(en.servicio)} no ha cargado del todo. Pulsa ▶ en él para empezar.`)
+      setActivo('youtube')
+      pararOtros('youtube')
+      youtube?.reproducir(e, seg).catch(() => usarRespaldo(e))
     }
   }, [peticion, informar])
 
@@ -100,17 +138,25 @@ export function Reproductor() {
     }
   }, [orden, activo])
 
-  const visible = cancionId !== null
-  const detalle = enlace ? describirEnlace(enlace) + (activo === 'connect' && dispositivo ? ` en ${dispositivo}` : '') : ''
+  const visible = pistaId !== null
+  const nombrePista = pista?.etiqueta || recurso?.titulo || ''
+  const fuente =
+    recurso?.origen === 'archivo'
+      ? 'archivo propio'
+      : enlace
+        ? describirEnlace(enlace) + (activo === 'connect' && dispositivo ? ` en ${dispositivo}` : '')
+        : ''
+  const tramo = pista ? describirTramo(pista.inicio_ms, pista.fin_ms) : ''
+  const detalle = [nombrePista, fuente, tramo && (recurso?.origen === 'spotify' ? `${tramo}, aprox.` : tramo)].filter(Boolean).join(', ')
 
   return (
     <section className="reproductor" data-estado={estado} data-visible={visible || undefined} aria-label="Reproductor">
       <div className="reproductor-info">
         <Ecualizador activo={estado === 'sonando'} />
         <div className="reproductor-textos">
-          <p className="reproductor-titulo">{personaje?.nombre ?? 'Elige una canción'}</p>
+          <p className="reproductor-titulo">{elemento?.nombre ?? 'Elige un sonido'}</p>
           <p className="reproductor-estado" aria-live="polite">
-            {visible ? `${TEXTO_ESTADO[estado]}${detalle && estado !== 'error' ? `, ${detalle}` : ''}` : 'Pulsa una tarjeta y sonará su canción.'}
+            {visible ? `${TEXTO_ESTADO[estado]}${detalle && estado !== 'error' ? `: ${detalle}` : ''}` : 'Pulsa una tarjeta y sonará.'}
           </p>
         </div>
       </div>
@@ -122,7 +168,7 @@ export function Reproductor() {
           <iframe
             className="marco-respaldo"
             src={respaldo}
-            title={`Reproductor de ${personaje?.nombre ?? 'música'}`}
+            title={`Reproductor de ${elemento?.nombre ?? 'música'}`}
             allow="autoplay; encrypted-media; clipboard-write; fullscreen; picture-in-picture"
           />
         )}

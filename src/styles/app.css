@@ -109,10 +109,6 @@
   color: var(--tinta-suave);
 }
 
-.bordes-sesion .tarjetas {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
-}
-
 .aviso-suave,
 .cargando {
   color: var(--tinta-suave);
@@ -155,122 +151,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.tarjetas {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13.5rem), 1fr));
-  gap: 0.75rem;
-}
-
-/* ───── Tarjeta ───── */
-.tarjeta {
-  position: relative;
-}
-
-.tarjeta-tocar {
-  width: 100%;
-  min-height: 6.75rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  text-align: left;
-  font: inherit;
-  color: var(--tinta);
-  background: var(--superficie-alta);
-  border: 1px solid var(--linea);
-  border-radius: var(--r-m);
-  padding: 0.85rem 4rem 0.8rem 1rem;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.tarjeta-tocar:hover {
-  border-color: var(--verdin);
-}
-
-.tarjeta-tocar:active {
-  transform: translateY(1px);
-}
-
-.tarjeta-nombre {
-  font-family: var(--f-titulo);
-  font-size: var(--t-l);
-  font-weight: 600;
-  line-height: 1.15;
-  overflow-wrap: anywhere;
-}
-
-.tarjeta-nota {
-  font-size: var(--t-s);
-  color: var(--tinta-suave);
-}
-
-.tarjeta-fuente {
-  margin-top: auto;
-  padding-top: 0.4rem;
-  font-size: var(--t-xs);
-  font-weight: 500;
-  color: var(--verdin);
-}
-
-.tarjeta-editar {
-  position: absolute;
-  top: 0.55rem;
-  right: 0.55rem;
-  font: inherit;
-  font-size: var(--t-xs);
-  color: var(--tinta-suave);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--r-s);
-  padding: 0.2rem 0.45rem;
-  cursor: pointer;
-}
-
-.tarjeta-editar:hover {
-  border-color: var(--linea);
-  color: var(--tinta);
-}
-
-/* Personaje que suena: placa oscura con filo de oro. */
-.tarjeta[data-actual] .tarjeta-tocar {
-  background: var(--muelle);
-  color: var(--muelle-tinta);
-  border-color: var(--oro-sobre-oscuro);
-  box-shadow: inset 4px 0 0 var(--oro-sobre-oscuro);
-}
-
-.tarjeta[data-actual] .tarjeta-nota {
-  color: var(--muelle-tinta-suave);
-}
-
-.tarjeta[data-actual] .tarjeta-fuente {
-  color: var(--oro-sobre-oscuro);
-}
-
-.tarjeta[data-actual] .tarjeta-editar {
-  color: var(--muelle-tinta-suave);
-}
-
-.tarjeta[data-actual] .tarjeta-editar:hover {
-  color: var(--muelle-tinta);
-  border-color: var(--muelle-activo);
-}
-
-.tarjeta[data-sin-cancion] .tarjeta-tocar {
-  border-style: dashed;
-  background: transparent;
-}
-
-.tarjeta[data-sin-cancion] .tarjeta-fuente {
-  color: var(--tinta-suave);
-  font-style: italic;
-  font-weight: 400;
 }
 
 /* ───── Estados vacíos y avisos ───── */

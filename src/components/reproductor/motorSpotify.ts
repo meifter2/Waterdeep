@@ -1,7 +1,7 @@
 import { cargarSpotify, type SpotifyController } from '../../lib/apis'
 import { spotifyConfigurado } from '../../lib/spotifyAuth'
 import type { EnlaceSpotify } from '../../lib/enlaces'
-import type { Informe } from './motor'
+import type { Informe, Segmento } from './motor'
 
 // Controla el reproductor oficial de Spotify (iFrame API).
 // Un único reproductor se reutiliza: cambiar de personaje solo cambia la canción (loadUri).
@@ -28,6 +28,8 @@ export class MotorSpotify {
   private haSonado = false
   private ultimaPos = 0
   private tipo: EnlaceSpotify['tipo'] = 'track'
+  private seg: Segmento = { inicio: null, fin: null }
+  private inicioAplicado = false
   private avisoPreviewDado = false
   private temporizadores: number[] = []
 
@@ -36,14 +38,17 @@ export class MotorSpotify {
     private informar: Informe,
   ) {}
 
-  async reproducir(e: EnlaceSpotify) {
+  async reproducir(e: EnlaceSpotify, seg: Segmento) {
     const api = await cargarSpotify()
     this.limpiarTemporizadores()
     this.tipo = e.tipo
+    this.seg = seg
     this.pendiente = true
     this.haSonado = false
+    this.inicioAplicado = !seg.inicio
     this.ultimaPos = 0
     this.avisoPreviewDado = false
+    const inicioSeg = seg.inicio ? seg.inicio / 1000 : undefined
 
     if (!this.ctrl) {
       this.ctrl = await new Promise<SpotifyController>((resolver) => {
@@ -53,7 +58,7 @@ export class MotorSpotify {
       })
       this.escuchar(this.ctrl)
     } else {
-      this.ctrl.loadUri(e.uri)
+      this.ctrl.loadUri(e.uri, false, inicioSeg)
     }
 
     // Respaldo: si el evento «ready» no llega, se insiste en reproducir.
@@ -71,6 +76,11 @@ export class MotorSpotify {
     this.ctrl?.pause()
   }
 
+  private volverAlInicio(c: SpotifyController) {
+    if (this.seg.inicio) c.seek(this.seg.inicio / 1000)
+    else c.play()
+  }
+
   private escuchar(c: SpotifyController) {
     c.addListener('ready', () => {
       if (this.pendiente) c.play()
@@ -79,12 +89,27 @@ export class MotorSpotify {
       if (!data) return
       const { isPaused, isBuffering, duration, position } = data
 
+      // Inicio del tramo: si Spotify empezó antes de lo pedido, se salta una vez (aprox. ±1 s).
+      if (!isPaused && !this.inicioAplicado && this.seg.inicio && position < this.seg.inicio - 1500) {
+        this.inicioAplicado = true
+        c.seek(this.seg.inicio / 1000)
+        return
+      }
+      // Fin del tramo (aproximado: Spotify informa de la posición cada poco).
+      if (!isPaused && this.seg.fin != null && position >= this.seg.fin) {
+        if (this.repetir) this.volverAlInicio(c)
+        else {
+          c.pause()
+          this.informar('pausa')
+        }
+        return
+      }
       // Fin de la canción: el reproductor se queda en pausa al final.
       const termino = isPaused && this.haSonado && duration > 0 && this.ultimaPos >= duration - 1500
       this.ultimaPos = position
       if (termino && this.repetir && this.tipo === 'track') {
         this.haSonado = false
-        c.play()
+        this.volverAlInicio(c)
         return
       }
 

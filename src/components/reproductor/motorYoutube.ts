@@ -1,6 +1,6 @@
 import { cargarYoutube, type YTPlayer } from '../../lib/apis'
 import type { EnlaceYoutube } from '../../lib/enlaces'
-import type { Informe } from './motor'
+import type { Informe, Segmento } from './motor'
 
 // Controla el reproductor oficial de YouTube (IFrame Player API).
 
@@ -20,6 +20,7 @@ export class MotorYoutube {
   repetir = true
   private player: YTPlayer | null = null
   private actual: EnlaceYoutube | null = null
+  private seg: Segmento = { inicio: null, fin: null }
   private estado = ESTADO.SIN_EMPEZAR
   private temporizador = 0
 
@@ -28,9 +29,11 @@ export class MotorYoutube {
     private informar: Informe,
   ) {}
 
-  async reproducir(e: EnlaceYoutube) {
+  async reproducir(e: EnlaceYoutube, seg: Segmento) {
     const YT = await cargarYoutube()
     this.actual = e
+    // El tramo de la pista manda; si no hay, se respeta el ?t= del enlace.
+    this.seg = { inicio: seg.inicio ?? (e.inicio ? e.inicio * 1000 : null), fin: seg.fin }
     window.clearTimeout(this.temporizador)
 
     if (!this.player) {
@@ -38,7 +41,8 @@ export class MotorYoutube {
         const el = document.createElement('div')
         this.host.replaceChildren(el)
         const vars: Record<string, string | number> = { autoplay: 1, playsinline: 1, rel: 0 }
-        if (e.videoId && e.inicio) vars.start = e.inicio
+        if (e.videoId && this.seg.inicio) vars.start = Math.floor(this.seg.inicio / 1000)
+        if (e.videoId && this.seg.fin) vars.end = Math.ceil(this.seg.fin / 1000)
         if (!e.videoId && e.listaId) Object.assign(vars, { listType: 'playlist', list: e.listaId })
         this.player = new YT.Player(el, {
           width: '100%',
@@ -77,7 +81,12 @@ export class MotorYoutube {
 
   private cargar(e: EnlaceYoutube) {
     if (!this.player) return
-    if (e.videoId) this.player.loadVideoById({ videoId: e.videoId, startSeconds: e.inicio })
+    if (e.videoId)
+      this.player.loadVideoById({
+        videoId: e.videoId,
+        startSeconds: this.seg.inicio != null ? this.seg.inicio / 1000 : undefined,
+        endSeconds: this.seg.fin != null ? this.seg.fin / 1000 : undefined,
+      })
     else if (e.listaId) this.player.loadPlaylist({ list: e.listaId, listType: 'playlist' })
   }
 

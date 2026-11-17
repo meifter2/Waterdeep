@@ -6,6 +6,7 @@ export interface SpotifyController {
   pause(): void
   resume(): void
   togglePlay(): void
+  seek(segundos: number): void
   destroy(): void
   addListener(evento: 'ready', cb: () => void): void
   addListener(evento: 'playback_update', cb: (e: { data: SpotifyPlayback }) => void): void
@@ -27,7 +28,7 @@ export interface SpotifyIFrameAPI {
 }
 
 export interface YTPlayer {
-  loadVideoById(o: { videoId: string; startSeconds?: number }): void
+  loadVideoById(o: { videoId: string; startSeconds?: number; endSeconds?: number }): void
   loadPlaylist(o: { list: string; listType: 'playlist'; index?: number }): void
   playVideo(): void
   pauseVideo(): void

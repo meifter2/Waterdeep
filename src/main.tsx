@@ -7,8 +7,10 @@ import { completarConexionSpotify, escucharSpotifyOtrasPestanas } from './lib/sp
 import './styles/tokens.css'
 import './styles/base.css'
 import './styles/app.css'
+import './styles/tarjetas.css'
 import './styles/reproductor.css'
 import './styles/dialogos.css'
+import './styles/editor.css'
 import './styles/entrada.css'
 
 capturarCompartido()

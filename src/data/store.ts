@@ -1,110 +1,135 @@
 import { create } from 'zustand'
-import { nuevoId } from '../lib/id'
-import { repositorio } from './repositorio'
-import { TIPOS, type Cancion, type DatosCancion } from './types'
+import { repositorio, type Bucket } from './repositorio'
+import { vacia, type Biblioteca, type Elemento, type Pista, type Recurso } from './types'
 
-// Canciones del usuario. Los cambios se ven al instante (optimista) y se guardan
-// en segundo plano; si el guardado falla, se deshacen y se avisa.
+// Biblioteca del usuario en memoria. Las operaciones complejas (guardar un elemento con sus pistas)
+// están en guardar.ts; aquí, la carga, los borrados y las direcciones de archivos privados.
 
 type Carga = 'pendiente' | 'cargando' | 'lista' | 'error'
 
-interface Estado {
-  canciones: Cancion[]
-  carga: Carga
-  error: string
-  cargar: () => Promise<void>
-  vaciar: () => void
-  crear: (d: DatosCancion) => Promise<string | null>
-  actualizar: (id: string, cambios: Partial<DatosCancion>) => Promise<void>
-  eliminar: (id: string) => Promise<void>
-  importar: (lista: DatosCancion[]) => Promise<number>
-  limpiarError: () => void
+interface Parcial {
+  elementos?: Elemento[]
+  recursos?: Recurso[]
+  pistas?: Pista[]
+  quitarPistas?: string[]
 }
 
-const ERROR_GUARDAR = 'No se ha podido guardar el cambio. Revisa la conexión e inténtalo de nuevo.'
+interface Estado extends Biblioteca {
+  carga: Carga
+  error: string
+  /** Direcciones temporales de archivos privados (ruta → url). */
+  urls: Record<string, string>
+  cargar: () => Promise<void>
+  vaciar: () => void
+  avisar: (mensaje: string) => void
+  limpiarError: () => void
+  /** Inserta o sustituye filas (por id) y quita pistas. */
+  fusionar: (p: Parcial) => void
+  urlDe: (bucket: Bucket, ruta: string) => Promise<string | null>
+  eliminarElemento: (id: string) => Promise<void>
+  quitarPista: (id: string) => Promise<void>
+  eliminarRecurso: (id: string) => Promise<void>
+  actualizarRecurso: (id: string, cambios: Partial<Pick<Recurso, 'titulo' | 'descripcion'>>) => Promise<void>
+}
+
+const mezclar = <T extends { id: string }>(lista: T[], nuevos: T[] = []) => {
+  if (!nuevos.length) return lista
+  const ids = new Set(nuevos.map((n) => n.id))
+  return [...lista.filter((x) => !ids.has(x.id)), ...nuevos]
+}
+
+const mensaje = (e: unknown, porDefecto: string) => (e instanceof Error && e.message ? e.message : porDefecto)
 
 export const useDatos = create<Estado>()((set, get) => ({
-  canciones: [],
+  ...vacia(),
   carga: 'pendiente',
   error: '',
+  urls: {},
 
   cargar: async () => {
     set({ carga: 'cargando', error: '' })
     try {
-      set({ canciones: await repositorio.listar(), carga: 'lista' })
-    } catch {
-      set({ carga: 'error', error: 'No se han podido cargar tus canciones. Revisa la conexión y recarga la página.' })
+      const b = await repositorio.listar()
+      set({ ...b, carga: 'lista' })
+      const rutas = b.elementos.map((e) => e.retrato_ruta).filter((r): r is string => !!r)
+      if (rutas.length) {
+        const urls = await repositorio.urls('retratos', rutas).catch(() => ({}))
+        set((s) => ({ urls: { ...s.urls, ...urls } }))
+      }
+    } catch (e) {
+      set({ carga: 'error', error: mensaje(e, 'No se ha podido cargar tu biblioteca. Revisa la conexión y recarga.') })
     }
   },
 
-  vaciar: () => set({ canciones: [], carga: 'pendiente', error: '' }),
+  vaciar: () => set({ ...vacia(), carga: 'pendiente', error: '', urls: {} }),
+  avisar: (error) => set({ error }),
+  limpiarError: () => set({ error: '' }),
 
-  crear: async (d) => {
-    const temporal: Cancion = { ...d, id: `tmp-${nuevoId()}`, orden: 0, creado: '', actualizado: '' }
-    set((s) => ({ canciones: [...s.canciones, temporal] }))
+  fusionar: (p) =>
+    set((s) => ({
+      elementos: mezclar(s.elementos, p.elementos),
+      recursos: mezclar(s.recursos, p.recursos),
+      pistas: mezclar(s.pistas, p.pistas).filter((x) => !p.quitarPistas?.includes(x.id)),
+    })),
+
+  urlDe: async (bucket, ruta) => {
+    const ya = get().urls[ruta]
+    if (ya) return ya
     try {
-      const real = await repositorio.crear(d)
-      set((s) => ({ canciones: s.canciones.map((c) => (c.id === temporal.id ? real : c)) }))
-      return real.id
+      const u = (await repositorio.urls(bucket, [ruta]))[ruta]
+      if (u) set((s) => ({ urls: { ...s.urls, [ruta]: u } }))
+      return u ?? null
     } catch {
-      set((s) => ({ canciones: s.canciones.filter((c) => c.id !== temporal.id), error: ERROR_GUARDAR }))
       return null
     }
   },
 
-  actualizar: async (id, cambios) => {
-    const antes = get().canciones.find((c) => c.id === id)
-    if (!antes) return
-    set((s) => ({ canciones: s.canciones.map((c) => (c.id === id ? { ...c, ...cambios } : c)) }))
+  eliminarElemento: async (id) => {
+    const antes = { elementos: get().elementos, pistas: get().pistas }
+    const el = antes.elementos.find((e) => e.id === id)
+    set({ elementos: antes.elementos.filter((e) => e.id !== id), pistas: antes.pistas.filter((p) => p.elemento_id !== id) })
     try {
-      await repositorio.actualizar(id, cambios)
-    } catch {
-      set((s) => ({ canciones: s.canciones.map((c) => (c.id === id ? antes : c)), error: ERROR_GUARDAR }))
+      await repositorio.eliminar('elementos', id)
+      if (el?.retrato_ruta) await repositorio.borrarArchivos('retratos', [el.retrato_ruta]).catch(() => {})
+    } catch (e) {
+      set({ ...antes, error: mensaje(e, 'No se ha podido eliminar. Inténtalo de nuevo.') })
     }
   },
 
-  eliminar: async (id) => {
-    const antes = get().canciones
-    set({ canciones: antes.filter((c) => c.id !== id) })
+  quitarPista: async (id) => {
+    const antes = get().pistas
+    set({ pistas: antes.filter((p) => p.id !== id) })
     try {
-      await repositorio.eliminar(id)
-    } catch {
-      set({ canciones: antes, error: 'No se ha podido eliminar. Revisa la conexión e inténtalo de nuevo.' })
+      await repositorio.eliminar('pistas', id)
+    } catch (e) {
+      set({ pistas: antes, error: mensaje(e, 'No se ha podido quitar la pista. Inténtalo de nuevo.') })
     }
   },
 
-  importar: async (lista) => {
-    let ok = 0
-    for (const d of lista) if (await get().crear(d)) ok++
-    return ok
+  // Borra el sonido de la biblioteca: sus pistas desaparecen de todos los elementos y se borra el archivo.
+  eliminarRecurso: async (id) => {
+    const antes = { recursos: get().recursos, pistas: get().pistas }
+    const r = antes.recursos.find((x) => x.id === id)
+    set({ recursos: antes.recursos.filter((x) => x.id !== id), pistas: antes.pistas.filter((p) => p.recurso_id !== id) })
+    try {
+      await repositorio.eliminar('recursos', id)
+      if (r?.archivo_ruta) await repositorio.borrarArchivos('audio', [r.archivo_ruta]).catch(() => {})
+    } catch (e) {
+      set({ ...antes, error: mensaje(e, 'No se ha podido eliminar el sonido. Inténtalo de nuevo.') })
+    }
   },
 
-  limpiarError: () => set({ error: '' }),
+  actualizarRecurso: async (id, cambios) => {
+    const antes = get().recursos
+    set({ recursos: antes.map((r) => (r.id === id ? { ...r, ...cambios } : r)) })
+    try {
+      await repositorio.actualizar('recursos', id, cambios)
+    } catch (e) {
+      set({ recursos: antes, error: mensaje(e, 'No se ha podido guardar el cambio.') })
+    }
+  },
 }))
 
-/** Valida una copia (versión 3, o la 2 antigua con solo personajes). Devuelve la lista o un error. */
-export function validarImportacion(texto: string): DatosCancion[] | string {
-  let bruto: unknown
-  try {
-    bruto = JSON.parse(texto)
-  } catch {
-    return 'El texto no es una copia válida. Usa una copia hecha desde «Copias».'
-  }
-  const d = bruto as { version?: number; canciones?: unknown[]; personajes?: unknown[] }
-  const lista = d?.version === 3 ? d.canciones : d?.version === 2 ? d.personajes : null
-  if (!Array.isArray(lista)) return 'Esta copia no es de la banda sonora.'
-  return lista
-    .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && typeof (x as { nombre?: unknown }).nombre === 'string')
-    .map((x) => ({
-      tipo: TIPOS.includes(x.tipo as Cancion['tipo']) ? (x.tipo as Cancion['tipo']) : 'personaje',
-      nombre: String(x.nombre).slice(0, 120),
-      enlace: String(x.enlace ?? '').slice(0, 500),
-      nota: String(x.nota ?? '').slice(0, 300),
-    }))
-    .filter((x) => x.nombre.trim())
-}
-
-export function exportar(canciones: Cancion[]): string {
-  const limpias = canciones.map(({ tipo, nombre, enlace, nota }) => ({ tipo, nombre, enlace, nota }))
-  return JSON.stringify({ version: 3, canciones: limpias }, null, 2)
-}
+/** Pistas de un elemento, en su orden. */
+export const pistasDe = (pistas: Pista[], elementoId: string) =>
+  pistas.filter((p) => p.elemento_id === elementoId).sort((a, b) => a.orden - b.orden)
