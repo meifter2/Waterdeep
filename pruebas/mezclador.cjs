@@ -19,7 +19,7 @@ const cerca = (a, b) => Math.abs(a - b) < 0.011;
   const errores = [];
   p.on('pageerror', (e) => errores.push(String(e)));
   await p.goto(URL);
-  await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('banda-sonora'); });
+  await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('banda-sonora'); localStorage.setItem('banda-sonora:mezcla', JSON.stringify({ transicion: 'instantaneo', entrada: 0, salida: 0 })); }); // fundidos: ver fundidos.cjs
   await p.reload();
 
   // Duraciones distintas: archivos idénticos se reutilizarían como un único sonido.

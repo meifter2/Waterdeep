@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { MAX_AMBIENTES, useMezcla, type CanalAmbiente } from '../../data/mezcla'
 import { useReproduccion } from '../../data/reproduccion'
 import { esLocal, useDatos } from '../../data/store'
-import { useVolumen } from '../../data/volumen'
+import { MAX_SEGUNDOS, PREAJUSTES, useVolumen, type Transicion } from '../../data/volumen'
 
 // Panel de mezcla (fase 2). No es modal: se abre encima de la biblioteca sin parar nada,
 // y las tarjetas siguen funcionando mientras está abierto. La barra de transporte no se toca.
@@ -113,6 +113,7 @@ function Cabecera() {
         <IconoParar />
         Detener todo
       </button>
+      <Transiciones />
     </div>
   )
 }
@@ -338,3 +339,49 @@ const IconoAltavoz = ({ silenciado, alto }: { silenciado: boolean; alto: boolean
     )}
   </svg>
 )
+
+const NOMBRES: Record<Exclude<Transicion, 'personalizado'>, string> = { instantaneo: 'Instantáneo', suave: 'Suave', cinematografico: 'Cinematográfico' }
+
+/**
+ * Transiciones: tres preajustes y, plegado, el ajuste fino de segundos. Se aplican a los ambientes (entrada/salida)
+ * y al cambio entre músicas propias (crossfade). Los efectos y «Detener todo» son siempre instantáneos.
+ */
+function Transiciones() {
+  const { transicion, entrada, salida, fijarTransicion, fijarSegundos } = useVolumen()
+  const s = (n: number) => `${String(n).replace('.', ',')} s`
+  return (
+    <div className="transiciones">
+      <div className="transiciones-fila" role="group" aria-label="Transiciones">
+        <span className="transiciones-titulo">Transiciones</span>
+        <div className="transiciones-opciones">
+          {(Object.keys(NOMBRES) as (keyof typeof NOMBRES)[]).map((t) => (
+            <button key={t} type="button" aria-pressed={transicion === t} onClick={() => fijarTransicion(t)} title={`Entrada ${s(PREAJUSTES[t].entrada)}, salida ${s(PREAJUSTES[t].salida)}`}>
+              {NOMBRES[t]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <details className="transiciones-ajuste">
+        <summary>
+          {transicion === 'personalizado' ? 'Personalizado' : 'Ajustar segundos'}: entrada {s(entrada)}, salida {s(salida)}
+        </summary>
+        {(['entrada', 'salida'] as const).map((cual) => (
+          <label key={cual} className="transiciones-segundos">
+            <span>{cual === 'entrada' ? 'Entrada (aparece)' : 'Salida (se apaga)'}</span>
+            <input
+              type="range"
+              min={0}
+              max={MAX_SEGUNDOS}
+              step={0.5}
+              value={cual === 'entrada' ? entrada : salida}
+              onChange={(e) => fijarSegundos(cual, Number(e.target.value))}
+              style={{ ['--relleno' as string]: `${((cual === 'entrada' ? entrada : salida) / MAX_SEGUNDOS) * 100}%` }}
+            />
+            <output>{s(cual === 'entrada' ? entrada : salida)}</output>
+          </label>
+        ))}
+        <p className="mezclador-nota">Los efectos y «Detener todo» siempre son instantáneos. Spotify y YouTube no se funden.</p>
+      </details>
+    </div>
+  )
+}

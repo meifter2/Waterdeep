@@ -28,14 +28,42 @@ const limitar = (v: unknown, defecto: number) => {
   return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : defecto
 }
 
-type PrefMezcla = { maestro: number; ambiente: number; efecto: number; youtubeConCapas: boolean }
+// Transiciones (fase 2B): preajustes de fundido en segundos. «personalizado» = segundos ajustados a mano.
+export type Transicion = 'instantaneo' | 'suave' | 'cinematografico' | 'personalizado'
+export const PREAJUSTES: Record<Exclude<Transicion, 'personalizado'>, { entrada: number; salida: number }> = {
+  instantaneo: { entrada: 0, salida: 0 },
+  suave: { entrada: 3, salida: 3 },
+  cinematografico: { entrada: 6, salida: 8 },
+}
+export const MAX_SEGUNDOS = 20
+const segundos = (v: unknown, defecto: number) => {
+  const n = Number(v)
+  return Number.isFinite(n) ? Math.min(MAX_SEGUNDOS, Math.max(0, Math.round(n * 2) / 2)) : defecto
+}
+const deduce = (entrada: number, salida: number): Transicion =>
+  (Object.entries(PREAJUSTES).find(([, p]) => p.entrada === entrada && p.salida === salida)?.[0] as Transicion) ?? 'personalizado'
+
+type PrefMezcla = { maestro: number; ambiente: number; efecto: number; youtubeConCapas: boolean; transicion: Transicion; entrada: number; salida: number }
 
 function leerMezcla(): PrefMezcla {
+  const porDefecto: PrefMezcla = { maestro: 100, ambiente: 60, efecto: 80, youtubeConCapas: false, transicion: 'suave', ...PREAJUSTES.suave }
   try {
     const d = JSON.parse(almacenamientoSeguro.getItem(CLAVE_MEZCLA) ?? 'null')
-    return { maestro: limitar(d?.maestro, 100), ambiente: limitar(d?.ambiente, 60), efecto: limitar(d?.efecto, 80), youtubeConCapas: d?.youtubeConCapas === true }
+    const entrada = segundos(d?.entrada, PREAJUSTES.suave.entrada)
+    const salida = segundos(d?.salida, PREAJUSTES.suave.salida)
+    // Copias antiguas solo con el nombre del preajuste: se toman sus segundos.
+    const t = d?.transicion as Transicion | undefined
+    const tiempos = t && t !== 'personalizado' && t in PREAJUSTES && d?.entrada == null ? PREAJUSTES[t] : { entrada, salida }
+    return {
+      maestro: limitar(d?.maestro, 100),
+      ambiente: limitar(d?.ambiente, 60),
+      efecto: limitar(d?.efecto, 80),
+      youtubeConCapas: d?.youtubeConCapas === true,
+      ...tiempos,
+      transicion: deduce(tiempos.entrada, tiempos.salida),
+    }
   } catch {
-    return { maestro: 100, ambiente: 60, efecto: 80, youtubeConCapas: false }
+    return porDefecto
   }
 }
 
@@ -72,11 +100,20 @@ interface Volumen {
   /** «Permitir ambientes con YouTube» (desactivado por defecto): ambientes y efectos pueden sonar con un vídeo visible. */
   youtubeConCapas: boolean
   alternarYoutubeConCapas: () => void
+  /** Transiciones: preajuste y segundos de entrada (fade in) y salida (fade out). */
+  transicion: Transicion
+  entrada: number
+  salida: number
+  fijarTransicion: (t: Exclude<Transicion, 'personalizado'>) => void
+  fijarSegundos: (cual: 'entrada' | 'salida', v: number) => void
 }
 
 const guardar = (local: number, silenciado: boolean) => almacenamientoSeguro.setItem(CLAVE, JSON.stringify({ local, silenciado }))
 const guardarMezcla = (d: PrefMezcla) =>
-  almacenamientoSeguro.setItem(CLAVE_MEZCLA, JSON.stringify({ maestro: d.maestro, ambiente: d.ambiente, efecto: d.efecto, youtubeConCapas: d.youtubeConCapas }))
+  almacenamientoSeguro.setItem(
+    CLAVE_MEZCLA,
+    JSON.stringify({ maestro: d.maestro, ambiente: d.ambiente, efecto: d.efecto, youtubeConCapas: d.youtubeConCapas, transicion: d.transicion, entrada: d.entrada, salida: d.salida }),
+  )
 
 export const useVolumen = create<Volumen>()((set, get) => ({
   ...leer(),
@@ -130,7 +167,22 @@ export const useVolumen = create<Volumen>()((set, get) => ({
     set((s) => ({ youtubeConCapas: !s.youtubeConCapas }))
     guardarMezcla(get())
   },
+  fijarTransicion: (t) => {
+    set({ transicion: t, ...PREAJUSTES[t] })
+    guardarMezcla(get())
+  },
+  fijarSegundos: (cual, v) => {
+    const s = { entrada: get().entrada, salida: get().salida, [cual]: segundos(v, 0) }
+    set({ ...s, transicion: deduce(s.entrada, s.salida) })
+    guardarMezcla(get())
+  },
 }))
+
+/** Duraciones de fundido actuales en milisegundos. */
+export const fundidosMs = () => {
+  const s = useVolumen.getState()
+  return { entrada: s.entrada * 1000, salida: s.salida * 1000 }
+}
 
 /** Factor del maestro en 0–1 (0 si la mezcla está silenciada). */
 export const factorMaestro = (s: Pick<Volumen, 'maestro' | 'maestroSilenciado'> = useVolumen.getState()) =>

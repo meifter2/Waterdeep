@@ -6,13 +6,13 @@ import { ErrorSpotify } from '../../lib/spotifyApi'
 import { useSpotify } from '../../lib/spotifyAuth'
 import { describirTramo } from '../../lib/tiempo'
 import { urlRespaldo, type Segmento } from './motor'
-import { MotorArchivo } from './motorArchivo'
+import { MotorMusica } from './motorMusica'
 import { MotorSpotify } from './motorSpotify'
 import { MotorSpotifyConnect } from './motorSpotifyConnect'
 import { MotorYoutube } from './motorYoutube'
 import { ControlVolumen } from './ControlVolumen'
 import { Transporte } from './Transporte'
-import { useVolumen } from '../../data/volumen'
+import { fundidosMs, useVolumen } from '../../data/volumen'
 import { useMezcla } from '../../data/mezcla'
 import { freesoundIdDe } from '../../lib/freesound'
 import { BotonMezcla, Mezclador } from './Mezclador'
@@ -32,7 +32,7 @@ interface Motores {
   spotify?: MotorSpotify
   youtube?: MotorYoutube
   connect?: MotorSpotifyConnect
-  archivo?: MotorArchivo
+  archivo?: MotorMusica
 }
 
 export function Reproductor() {
@@ -71,12 +71,19 @@ export function Reproductor() {
     if (hostYoutube.current && !m.youtube) m.youtube = new MotorYoutube(hostYoutube.current, inf('youtube'))
     m.connect ??= new MotorSpotifyConnect(inf('connect'), setDispositivo, (v) => useVolumen.getState().informarSpotify(v))
     if (!m.archivo) {
-      m.archivo = new MotorArchivo((e, a) => {
-        if (activoRef.current !== 'archivo') return
-        if (e === 'error' && reintentarArchivo.current?.(a)) return
-        informar(e, a)
-      })
-      ;(window as unknown as { __audioBandaSonora?: HTMLAudioElement }).__audioBandaSonora = m.archivo.elemento
+      // Música propia con fundidos y crossfade (fase 2B); los segundos salen de las preferencias de la mezcla.
+      const musica = new MotorMusica(
+        (e, a) => {
+          if (activoRef.current !== 'archivo') return
+          if (e === 'error' && reintentarArchivo.current?.(a)) return
+          informar(e, a)
+        },
+        () => fundidosMs(),
+      )
+      m.archivo = musica
+      // Para las pruebas: el audio de la música que manda (cambia de un reproductor a otro en cada cruce).
+      Object.defineProperty(window, '__audioBandaSonora', { configurable: true, get: () => musica.elemento })
+      ;(window as unknown as { __musicaDFY?: MotorMusica }).__musicaDFY = musica
     }
     // Al desaparecer el reproductor (cerrar sesión), nada puede seguir sonando por detrás: antes el MP3
     // seguía, porque la orden «detener» llegaba cuando el componente ya no estaba.

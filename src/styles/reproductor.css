@@ -337,7 +337,7 @@
   cursor: default;
 }
 
-:is(.volumen, .fader) input[type='range'] {
+:is(.volumen, .fader, .transiciones-segundos) input[type='range'] {
   grid-area: barra;
   width: 100%;
   margin: 0;
@@ -351,25 +351,25 @@
   cursor: pointer;
 }
 
-:is(.volumen, .fader) input[type='range']::-webkit-slider-runnable-track {
+:is(.volumen, .fader, .transiciones-segundos) input[type='range']::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
   background: linear-gradient(to right, var(--oro-sobre-oscuro) var(--relleno, 0%), var(--muelle-activo) var(--relleno, 0%));
 }
 
-:is(.volumen, .fader) input[type='range']::-moz-range-track {
+:is(.volumen, .fader, .transiciones-segundos) input[type='range']::-moz-range-track {
   height: 6px;
   border-radius: 999px;
   background: var(--muelle-activo);
 }
 
-:is(.volumen, .fader) input[type='range']::-moz-range-progress {
+:is(.volumen, .fader, .transiciones-segundos) input[type='range']::-moz-range-progress {
   height: 6px;
   border-radius: 999px;
   background: var(--oro-sobre-oscuro);
 }
 
-:is(.volumen, .fader) input[type='range']::-webkit-slider-thumb {
+:is(.volumen, .fader, .transiciones-segundos) input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
@@ -379,7 +379,7 @@
   border: 3px solid var(--oro-sobre-oscuro);
 }
 
-:is(.volumen, .fader) input[type='range']::-moz-range-thumb {
+:is(.volumen, .fader, .transiciones-segundos) input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -387,13 +387,13 @@
   border: 3px solid var(--oro-sobre-oscuro);
 }
 
-:is(.volumen, .fader) input[type='range']:focus-visible {
+:is(.volumen, .fader, .transiciones-segundos) input[type='range']:focus-visible {
   outline: 2px solid var(--oro-sobre-oscuro);
   outline-offset: 2px;
   border-radius: var(--r-s);
 }
 
-:is(.volumen, .fader) input[type='range']:disabled {
+:is(.volumen, .fader, .transiciones-segundos) input[type='range']:disabled {
   opacity: 0.4;
   cursor: default;
 }

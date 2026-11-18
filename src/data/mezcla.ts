@@ -4,7 +4,7 @@ import { useReproduccion } from './reproduccion'
 import { esLocal, pistasDe, useDatos } from './store'
 import type { Pista } from './types'
 import { interpretarEnlace } from '../lib/enlaces'
-import { factorMaestro, useVolumen } from './volumen'
+import { factorMaestro, fundidosMs, useVolumen } from './volumen'
 
 // Mezcla (fase 2): capas de archivos propios que suenan a la vez que la música principal.
 // - Canal principal: el reproductor de siempre (useReproduccion). Las tarjetas normales con archivo van ahí.
@@ -54,7 +54,8 @@ interface Mezcla {
   lanzarEfecto: (pistaId: string) => void
   /** ⏸/▶ de un canal de ambiente (si falló, lo vuelve a intentar). */
   pausarReanudar: (id: string) => void
-  detenerAmbiente: (id: string) => void
+  /** Quita un ambiente con fundido de salida (o al instante con `instantaneo`, p. ej. si se borra su sonido). */
+  detenerAmbiente: (id: string, instantaneo?: boolean) => void
   volumenAmbiente: (id: string, v: number) => void
   silenciarAmbiente: (id: string) => void
   bucleAmbiente: (id: string) => void
@@ -191,7 +192,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
     if (!ahora) return // se detuvo mientras cargaba: no suena nada
     if (!url) return cambiarCanal(id, { estado: 'error', aviso: ERROR_ABRIR })
     const v = volAmbiente(ahora)
-    m().ambiente(id, url, segDe(pista), ahora.bucle, v.volumen, v.silenciado)
+    m().ambiente(id, pista.id, url, segDe(pista), ahora.bucle, v.volumen, v.silenciado, fundidosMs().entrada)
   }
 
   const iniciarEfecto = async (id: string, renovar = false) => {
@@ -277,8 +278,11 @@ export const useMezcla = create<Mezcla>()((set, get) => {
       m().alternarAmbiente(id)
     },
 
-    detenerAmbiente: (id) => {
-      m().quitarAmbiente(id)
+    detenerAmbiente: (id, instantaneo = false) => {
+      const c = canal(id)
+      if (c) apagandose.set(c.pistaId, { volumen: c.volumen, silenciado: c.silenciado })
+      // Sale de la mezcla al momento (la tarjeta deja de marcarse); el sonido se apaga con fundido y luego se suelta.
+      m().quitarAmbiente(id, instantaneo ? 0 : fundidosMs().salida)
       set((s) => ({ ambientes: s.ambientes.filter((c) => c.id !== id) }))
     },
 
@@ -378,7 +382,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
       }
       const c = canal(id)
       if (!c) return
-      if (estado === 'fin') return get().detenerAmbiente(id) // terminó sin bucle: deja libre el canal
+      if (estado === 'fin') return get().detenerAmbiente(id, true) // terminó sin bucle: deja libre el canal
       if (estado === 'error') {
         if (!c.reintentado) {
           cambiarCanal(id, { reintentado: true, estado: 'cargando' })
@@ -400,7 +404,11 @@ function aplicarVolumenes() {
   }
   const e = volEfectos()
   motor.volumenEfectos(e.volumen, e.silenciado)
+  motor.volumenSaliendo((pistaId) => volAmbiente(apagandose.get(pistaId) ?? { volumen: 0, silenciado: true }))
 }
+
+/** Volumen de cada ambiente que se está apagando (para que el maestro y el silencio le sigan afectando). */
+const apagandose = new Map<string, { volumen: number; silenciado: boolean }>()
 
 useVolumen.subscribe((s, antes) => {
   if (s.maestro !== antes.maestro || s.maestroSilenciado !== antes.maestroSilenciado || s.efecto !== antes.efecto) aplicarVolumenes()
@@ -411,7 +419,7 @@ useDatos.subscribe((s, antes) => {
   if (s.pistas === antes.pistas) return
   const vivas = new Set(s.pistas.map((p) => p.id))
   const mz = useMezcla.getState()
-  for (const c of mz.ambientes) if (!vivas.has(c.pistaId)) mz.detenerAmbiente(c.id)
+  for (const c of mz.ambientes) if (!vivas.has(c.pistaId)) mz.detenerAmbiente(c.id, true)
   const muertas = mz.efectos.filter((v) => !vivas.has(v.pistaId))
   if (muertas.length) {
     for (const v of muertas) motor?.cortarEfecto(v.id)

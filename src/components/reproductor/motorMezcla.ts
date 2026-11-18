@@ -29,51 +29,98 @@ interface Voz {
   url: string
 }
 
+interface VozAmbiente {
+  motor: MotorArchivo
+  /** Canal al que pertenece (cambia si se recupera mientras se apagaba). */
+  id: string
+  pistaId: string
+  url: string
+}
+
 export class MotorMezcla {
-  private ambientes = new Map<string, MotorArchivo>()
+  private ambientes = new Map<string, VozAmbiente>()
+  /** Ambientes que se están apagando con fundido: siguen sonando hasta terminar y entonces se liberan. */
+  private saliendo: VozAmbiente[] = []
   private voces: Voz[] = []
 
   constructor(private informar: InformeMezcla) {}
 
   // ── Ambientes ──
 
-  /** Pone (o vuelve a poner) un archivo en el canal de ambiente `id`. Si el canal no existe, lo crea. */
-  ambiente(id: string, url: string, seg: Segmento, bucle: boolean, volumen: number, silenciado: boolean) {
-    let m = this.ambientes.get(id)
-    if (!m) {
-      const motor = new MotorArchivo((e, a) => {
-        if (this.ambientes.get(id) === motor) this.informar('ambiente', id, e, a)
-      })
-      motor.alFin = () => {
-        if (this.ambientes.get(id) === motor) this.informar('ambiente', id, 'fin')
+  /**
+   * Pone (o vuelve a poner) un archivo en el canal de ambiente `id`, entrando con un fundido de `entradaMs`.
+   * Si ese mismo sonido se estaba apagando, se recupera (vuelve a subir desde donde esté): sin duplicarlo ni recargarlo.
+   */
+  ambiente(id: string, pistaId: string, url: string, seg: Segmento, bucle: boolean, volumen: number, silenciado: boolean, entradaMs = 0) {
+    let v = this.ambientes.get(id)
+    if (!v) {
+      const i = this.saliendo.findIndex((x) => x.pistaId === pistaId && x.url === url && x.motor.suena)
+      if (i >= 0) {
+        const recuperada = this.saliendo.splice(i, 1)[0]
+        recuperada.id = id
+        this.ambientes.set(id, recuperada)
+        recuperada.motor.fijarRepetir(bucle)
+        recuperada.motor.fijarVolumen(volumen, silenciado)
+        void recuperada.motor.fundir(1, entradaMs)
+        this.informar('ambiente', id, 'sonando', '')
+        return
       }
-      this.ambientes.set(id, motor)
-      m = motor
+      const voz: VozAmbiente = { motor: undefined as unknown as MotorArchivo, id, pistaId, url }
+      voz.motor = new MotorArchivo((e, a) => {
+        if (this.ambientes.get(voz.id) === voz) this.informar('ambiente', voz.id, e, a)
+      })
+      voz.motor.alFin = () => {
+        if (this.ambientes.get(voz.id) === voz) this.informar('ambiente', voz.id, 'fin')
+      }
+      this.ambientes.set(id, voz)
+      v = voz
     }
-    m.fijarRepetir(bucle)
-    m.fijarVolumen(volumen, silenciado)
-    void m.reproducir(url, seg)
+    v.url = url
+    v.motor.fijarRepetir(bucle)
+    v.motor.fijarVolumen(volumen, silenciado)
+    v.motor.entrarCon(entradaMs)
+    void v.motor.reproducir(url, seg)
   }
 
   alternarAmbiente(id: string) {
-    this.ambientes.get(id)?.alternar()
+    this.ambientes.get(id)?.motor.alternar()
   }
 
-  /** Detiene el canal y libera su archivo. */
-  quitarAmbiente(id: string) {
-    const m = this.ambientes.get(id)
-    if (!m) return
+  /** Quita el canal. Con `salidaMs` se apaga con fundido y se libera al terminar; sin él (o si no suena), al instante. */
+  quitarAmbiente(id: string, salidaMs = 0) {
+    const v = this.ambientes.get(id)
+    if (!v) return
     this.ambientes.delete(id)
-    m.alFin = undefined
-    m.liberar()
+    if (salidaMs <= 0 || !v.motor.suena) return this.soltar(v)
+    this.saliendo.push(v)
+    void v.motor.fundir(0, salidaMs).then((completo) => {
+      // Si se canceló (se recuperó el sonido o se paró todo), ya se ocupó quien lo canceló.
+      if (completo && this.saliendo.includes(v)) {
+        this.saliendo.splice(this.saliendo.indexOf(v), 1)
+        this.soltar(v)
+      }
+    })
+  }
+
+  private soltar(v: VozAmbiente) {
+    v.motor.alFin = undefined
+    v.motor.liberar()
   }
 
   bucleAmbiente(id: string, valor: boolean) {
-    this.ambientes.get(id)?.fijarRepetir(valor)
+    this.ambientes.get(id)?.motor.fijarRepetir(valor)
   }
 
   volumenAmbiente(id: string, volumen: number, silenciado: boolean) {
-    this.ambientes.get(id)?.fijarVolumen(volumen, silenciado)
+    this.ambientes.get(id)?.motor.fijarVolumen(volumen, silenciado)
+  }
+
+  /** El volumen nuevo (maestro, silencio) también llega a los ambientes que se están apagando. */
+  volumenSaliendo(volumen: (pistaId: string) => { volumen: number; silenciado: boolean }) {
+    for (const v of this.saliendo) {
+      const x = volumen(v.pistaId)
+      v.motor.fijarVolumen(x.volumen, x.silenciado)
+    }
   }
 
   // ── Efectos ──
@@ -134,19 +181,22 @@ export class MotorMezcla {
   }
 
   /** Detiene y libera todas las capas. */
+  /** Para y suelta TODO al instante (también lo que se estaba apagando). Es el botón de emergencia. */
   liberarTodo() {
     for (const id of [...this.ambientes.keys()]) this.quitarAmbiente(id)
+    for (const v of this.saliendo.splice(0)) this.soltar(v)
     this.liberarEfectos()
   }
 
   /** Para las pruebas: qué elementos de audio existen y cómo están. */
   diagnostico() {
-    const ver = (capa: Capa, id: string, m: MotorArchivo) => {
+    const ver = (capa: Capa | 'saliendo', id: string, m: MotorArchivo) => {
       const a = m.elemento
-      return { capa, id, src: a.getAttribute('src') ?? '', pausado: a.paused, t: a.currentTime, volumen: a.volume, silenciado: a.muted, bucle: m.repetir }
+      return { capa, id, src: a.getAttribute('src') ?? '', pausado: a.paused, t: a.currentTime, volumen: a.volume, silenciado: a.muted, bucle: m.repetir, nivel: m.nivel }
     }
     return [
-      ...[...this.ambientes.entries()].map(([id, m]) => ver('ambiente', id, m)),
+      ...[...this.ambientes.entries()].map(([id, v]) => ver('ambiente', id, v.motor)),
+      ...this.saliendo.map((v) => ver('saliendo', '', v.motor)),
       ...this.voces.map((v) => ver('efecto', v.id, v.motor)),
     ]
   }

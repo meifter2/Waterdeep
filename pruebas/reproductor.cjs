@@ -15,7 +15,7 @@ const { comprobar, fin } = comprobador();
   const errores = [];
   p.on('pageerror', (e) => errores.push(String(e)));
   await p.goto(URL);
-  await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('banda-sonora'); });
+  await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('banda-sonora'); localStorage.setItem('banda-sonora:mezcla', JSON.stringify({ transicion: 'instantaneo', entrada: 0, salida: 0 })); }); // fundidos: ver fundidos.cjs
   await p.reload();
   const audio = () => p.evaluate(() => { const a = window.__audioBandaSonora; return { t: a.currentTime, pausado: a.paused, vol: a.volume, mudo: a.muted, src: a.src } });
   const estado = () => p.locator('.reproductor-estado').innerText();

@@ -33,7 +33,7 @@ async function internet(r) {
   const errores = [];
   p.on('pageerror', (e) => errores.push(String(e)));
   await p.goto(URL);
-  await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('banda-sonora'); });
+  await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('banda-sonora'); localStorage.setItem('banda-sonora:mezcla', JSON.stringify({ transicion: 'instantaneo', entrada: 0, salida: 0 })); }); // fundidos: ver fundidos.cjs
   await p.reload();
 
   const estado = () =>

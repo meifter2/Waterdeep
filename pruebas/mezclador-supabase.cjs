@@ -80,7 +80,7 @@ async function servidor(r) {
   const errores = [];
   p.on('pageerror', (e) => errores.push(String(e)));
   await p.goto(URL);
-  await p.evaluate((s) => localStorage.setItem('sb-prueba-auth-token', s), JSON.stringify(sesion));
+  await p.evaluate((s) => { localStorage.setItem('sb-prueba-auth-token', s); localStorage.setItem('banda-sonora:mezcla', JSON.stringify({ transicion: 'instantaneo', entrada: 0, salida: 0 })); }, JSON.stringify(sesion)); // fundidos: al final
   await p.reload();
   await p.waitForSelector('.tarjeta');
 
@@ -151,19 +151,29 @@ async function servidor(r) {
   comprobar('Música: de dos cargas lentas seguidas solo suena la última', s.principal.src.includes('mercado') && !s.principal.pausado && (await p.locator('.reproductor-titulo').innerText()) === 'Mercado', s.principal.src);
   retrasoFirma = 0;
 
-  // ══ Cerrar sesión con todo sonando ══
+  // ══ Cerrar sesión con todo sonando y EN MITAD de fundidos (preajuste Suave) ══
+  await p.evaluate(() => localStorage.setItem('banda-sonora:mezcla', JSON.stringify({ transicion: 'suave', entrada: 3, salida: 3 })));
+  await p.reload();
+  await p.waitForSelector('.tarjeta');
+  await p.getByRole('button', { name: 'Reproducir Taberna', exact: true }).click();
+  await p.waitForFunction(() => window.__audioBandaSonora && !window.__audioBandaSonora.paused, null, { timeout: 8000 });
   await ambiente('Lluvia').click();
   await ambiente('Viento').click();
   await p.waitForFunction(() => window.__mezclaEstado().ambientes.filter((c) => c.estado === 'sonando').length === 2, null, { timeout: 8000 });
+  await ambiente('Viento').click(); // se apaga con fundido
+  await p.getByRole('button', { name: 'Reproducir Mercado', exact: true }).click(); // crossfade
+  await p.waitForFunction(() => window.__musicaDFY.diagnostico().filter((m) => !m.pausado && m.src).length === 2, null, { timeout: 8000 }).catch(() => {});
   await p.getByRole('button', { name: 'Lanzar efecto Puerta' }).click();
   await p.waitForTimeout(200);
   s = await estado();
-  comprobar('Antes de salir: música, dos ambientes y un efecto sonando', audibles(s) >= 4, String(audibles(s)));
+  const enCruce = await p.evaluate(() => window.__musicaDFY.diagnostico().filter((m) => !m.pausado && m.src).length);
+  comprobar('Antes de salir: dos músicas cruzándose, un ambiente, otro apagándose y un efecto', enCruce === 2 && s.voces.filter((v) => !v.pausado).length >= 3, `${enCruce} ${s.voces.length}`);
   await p.getByRole('button', { name: 'Salir' }).click();
   await p.waitForSelector('.entrada');
   await p.waitForTimeout(400);
   s = await estado();
   comprobar('Al cerrar sesión no queda nada sonando y se sueltan los archivos', audibles(s) === 0 && s.voces.length === 0 && s.amb.length === 0 && s.ef.length === 0, JSON.stringify(s));
+  comprobar('…tampoco las dos músicas del cruce', await p.evaluate(() => window.__musicaDFY.diagnostico().every((m) => m.pausado && !m.src)));
   comprobar('…y se cierra la sesión de verdad', peticiones.some((x) => x.startsWith('POST /auth/v1/logout')));
 
   comprobar('Sin errores de JavaScript', errores.length === 0, errores.join(' / '));

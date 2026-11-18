@@ -369,6 +369,89 @@
   color: var(--muelle-tinta-suave);
 }
 
+/* Transiciones: tres preajustes y el ajuste fino plegado. */
+.transiciones {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.transiciones-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+
+.transiciones-titulo {
+  font-weight: 700;
+  color: var(--muelle-tinta-suave);
+}
+
+.transiciones-opciones {
+  display: inline-flex;
+  border: 1px solid var(--muelle-activo);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.transiciones-opciones button {
+  min-height: 2.5rem;
+  padding: 0 0.85rem;
+  border: 0;
+  background: transparent;
+  color: var(--muelle-tinta);
+  font: inherit;
+  font-size: var(--t-s);
+  cursor: pointer;
+}
+
+.transiciones-opciones button + button {
+  border-left: 1px solid var(--muelle-activo);
+}
+
+.transiciones-opciones button[aria-pressed='true'] {
+  background: var(--oro-sobre-oscuro);
+  color: var(--muelle);
+  font-weight: 700;
+}
+
+.transiciones-ajuste summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 0.4rem;
+  transition: transform 0.15s ease;
+}
+
+.transiciones-ajuste[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.transiciones-ajuste summary {
+  list-style: none;
+  gap: 0;
+  cursor: pointer;
+  font-size: var(--t-s);
+  color: var(--muelle-tinta-suave);
+  min-height: 2rem;
+  display: flex;
+  align-items: center;
+}
+
+.transiciones-segundos {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr) 3.2rem;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.2rem 0;
+  font-size: var(--t-s);
+  color: var(--muelle-tinta);
+}
+
+.transiciones-segundos output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* «Permitir ambientes con YouTube» */
 .mezclador .casilla {
   margin: 0.2rem 0 0;
@@ -403,6 +486,17 @@
   }
   .canal .fader {
     flex-basis: 100%;
+  }
+  .transiciones-opciones {
+    width: 100%;
+  }
+  .transiciones-opciones button {
+    flex: 1;
+    min-height: 2.75rem;
+    padding: 0 0.4rem;
+  }
+  .transiciones-segundos {
+    grid-template-columns: 6.5rem minmax(0, 1fr) 3rem;
   }
   /* Para el dedo: 44 px. */
   .canal-boton,
