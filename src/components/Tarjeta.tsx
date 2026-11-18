@@ -17,7 +17,19 @@ export function nombrePista(p: Pista, r: Recurso | undefined, i: number): string
  * - Mezcla (fase 2): en Ambientes, una pista de archivo propio se activa/detiene en su canal (aria-pressed);
  *   en Efectos, cada pulsación la lanza una vez. Spotify y YouTube siguen en el canal principal.
  */
-export function Tarjeta({ elemento, alEditar }: { elemento: Elemento; alEditar: () => void }) {
+export function Tarjeta({
+  elemento,
+  alEditar,
+  asa,
+  moviendo = false,
+}: {
+  elemento: Elemento
+  alEditar: () => void
+  /** Props del asa de arrastre (sin asa mientras se busca: el orden filtrado no es el real). */
+  asa?: Record<string, unknown>
+  /** La tarjeta que se está moviendo: se dibuja como hueco donde caerá. */
+  moviendo?: boolean
+}) {
   // Ojo: un selector que devuelve una lista nueva provoca un bucle; se calcula aparte.
   const todas = useDatos((s) => s.pistas)
   const pistas = useMemo(() => pistasDe(todas, elemento.id), [todas, elemento.id])
@@ -83,6 +95,8 @@ export function Tarjeta({ elemento, alEditar }: { elemento: Elemento; alEditar: 
   return (
     <li
       className="tarjeta"
+      data-elemento={elemento.id}
+      data-moviendo={moviendo || undefined}
       data-actual={esActual || undefined}
       data-sonando={sonando || undefined}
       data-retrato={conRetrato || undefined}
@@ -135,9 +149,30 @@ export function Tarjeta({ elemento, alEditar }: { elemento: Elemento; alEditar: 
         </ul>
       )}
 
-      <button type="button" className="tarjeta-editar" onClick={alEditar} aria-label={`Editar ${elemento.nombre}`}>
-        Editar
-      </button>
+      <div className="tarjeta-acciones">
+        {asa && (
+          <button
+            type="button"
+            className="tarjeta-asa"
+            aria-label={`Mover ${elemento.nombre}`}
+            aria-describedby="ayuda-mover"
+            title="Arrastra para cambiar el orden (teclado: espacio y flechas)"
+            {...asa}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor">
+              <circle cx="9" cy="6" r="1.6" />
+              <circle cx="15" cy="6" r="1.6" />
+              <circle cx="9" cy="12" r="1.6" />
+              <circle cx="15" cy="12" r="1.6" />
+              <circle cx="9" cy="18" r="1.6" />
+              <circle cx="15" cy="18" r="1.6" />
+            </svg>
+          </button>
+        )}
+        <button type="button" className="tarjeta-editar" onClick={alEditar} aria-label={`Editar ${elemento.nombre}`}>
+          Editar
+        </button>
+      </div>
     </li>
   )
 }

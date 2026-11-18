@@ -47,6 +47,8 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, buscar, dialogo
 - **Pulsar tarjeta/chip = reproducir esa pista** (`reproducir`/`reproducirElemento`), nunca pausar. Si es la misma y suena de
   verdad, no se reinicia; si está en pausa, se reanuda; si Spotify cambió a otra, se vuelve a poner. Pausar/Reanudar/Detener
   solo en la barra. Órdenes atendidas UNA vez (`ordenAtendida`). Tarjeta = un botón; chips si hay varias pistas.
+- Orden de tarjetas (`components/ordenar.ts`): asa (único `touch-action:none`), puntero en la ventana, teclado (espacio,
+  flechas, Esc). `elementos.orden`: 0 = alfabético; `reordenar` numera 1..n, optimista, revierte si falla; nuevo ⇒ al final.
 - Barra (`Transporte.tsx`): ■ · ▶/❚❚ `principal()` · ⟲. ■ RECUERDA la pista (`parado`; ▶ la repite desde el inicio);
   `olvidar()` (borrar/salir) la olvida. `cargando` ⇒ ▶ desactivado. Connect: ■ solo pausa si suena lo de DFY.
 - Turnos («generacion») en los motores; `parado` ignora eventos tardíos; solo informa el activo (`activoRef`). Connect: cola,
@@ -72,20 +74,18 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, buscar, dialogo
   MP3 de escucha + `#freesound=ID`; `descripcion` = «Freesound #ID · «Título» · autor · CC BY 4.0 · página» (`creditoDe`).
   MP3 caducado ⇒ `urlDeRecurso(r, true)` pide el vigente por id y actualiza el enlace (mezcla y canal principal). Sin estado
   en memoria: el límite es el de Freesound (429 ⇒ Retry-After); caché `private`. Sin clave / modo local ⇒ mensaje claro.
-- Fundidos (F2B): `MotorArchivo` volumen real = volumen × factor (`fundir`, `entrarCon`; por tiempo, curvas de igual
-  potencia; detener cancela). Ambientes: entrada/salida con fundido; los que se apagan van a `saliendo` y se recuperan si se
-  vuelven a pulsar. Música propia: `MotorMusica` (2 reproductores: la anterior baja solo cuando la nueva SUENA; si la nueva
-  falla, la anterior sigue; nunca más de 2). Preajustes Instantáneo/Suave (3/3 s, por defecto)/Cinematográfico (6/8 s) o
-  segundos a mano (`transicion|entrada|salida` en `banda-sonora:mezcla`). Efectos, Detener todo, borrado, cierre de sesión y
-  Spotify/YouTube: SIEMPRE instantáneos. Pruebas que miden volúmenes fijan «instantaneo»; `fundidos.cjs` prueba los fundidos.
+- Fundidos (F2B): `MotorArchivo` volumen = volumen × factor (`fundir`/`entrarCon`, por tiempo, igual potencia). Ambientes con
+  entrada/salida (`saliendo`, se recuperan al volver a pulsar). Música propia: `MotorMusica` (2 reproductores; la anterior baja
+  cuando la nueva SUENA; si falla, sigue la anterior). Instantáneo/Suave (3/3 s, defecto)/Cinematográfico (6/8 s) o a mano
+  (`banda-sonora:mezcla`). Efectos, Detener todo, borrado, salir y Spotify/YouTube: SIEMPRE instantáneos. Pruebas que miden
+  volúmenes fijan «instantaneo».
 - Volumen: maestro × canal (música = `local`, YouTube incluido); `banda-sonora:mezcla` {maestro, ambiente, efecto}; silencios
   no se guardan; al recargar no suena nada. Borrar pista/sonido o cerrar sesión ⇒ se detiene y se suelta. `urlDe` renueva
   URLs firmadas pasadas 5 h o con `renovar` (la mezcla reintenta una vez). Pruebas: `window.__mezclaDFY|__mezclaEstado`.
 
 ## Comandos y pruebas
-- `npm run dev|build|preview` (4173) · `build:prueba`+`preview:prueba` (4174, Supabase simulado) · `build:spotify` (4175)
-- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente|transporte|mezclador|enlaces-audio|fundidos`
-  (4173) · `test:supabase|email|mezclador-supabase|buscar-sonidos` (4174; la última usa la función real con Freesound
+- `npm run dev|build|preview` (4173) · `build:prueba` (4174, Supabase simulado) · `build:spotify` (4175) · `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente|transporte|mezclador|enlaces-audio|fundidos`
+  (4173) · `test:supabase|email|mezclador-supabase|buscar-sonidos|ordenar` (4174; la última usa la función real con Freesound
   simulado) · `test:spotify` (4175) · `test:api-sonidos` (Node, sin servidor). Freesound REAL: sin verificar hasta tener clave.
 
 ## Git
@@ -97,4 +97,4 @@ Ramas: F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador`, F2B `fase-2-fundidos`. A
 |------|--------|
 | v3 (Supabase+Google+email, PWA, Connect), identidad DFY, F1 Biblioteca v4 + reproductor + controles | Publicadas en `main` (002 ejecutado) |
 | F2 Mezclador + ambientes por enlace + «Buscar sonidos» (Freesound) | Publicada en `main` (7c51514); Freesound real sin verificar (falta clave) |
-| F2B Fundidos y crossfade | En `fase-2-fundidos` (desde main), con simuladores; falta prueba manual |
+| F2B Fundidos + X en «Buscar sonidos» + reordenar tarjetas | En `fase-2-fundidos` (desde main), con simuladores; falta prueba manual |

@@ -12,7 +12,7 @@ import { Reproductor } from '../components/reproductor/Reproductor'
 import { Seccion } from '../components/Seccion'
 import { tocarElemento } from '../data/mezcla'
 import { almacenamientoDisponible } from '../data/storage'
-import { useDatos } from '../data/store'
+import { compararElementos, useDatos } from '../data/store'
 import { CARPETAS, type Elemento, type Tipo } from '../data/types'
 import { tomarCompartido, type Compartido as DatosCompartidos } from '../lib/compartir'
 import { interpretarEnlace } from '../lib/enlaces'
@@ -67,7 +67,7 @@ export function Biblioteca() {
         if (p.elemento_id === e.id) textos.push(p.etiqueta, recursos.find((r) => r.id === p.recurso_id)?.titulo ?? '')
       return textos.some((v) => v.toLocaleLowerCase('es').includes(q))
     }
-    const filtrados = elementos.filter(coincide).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+    const filtrados = elementos.filter(coincide).sort(compararElementos)
     return CARPETAS.map((carpeta) => ({ carpeta, lista: filtrados.filter((e) => e.tipo === carpeta.tipo) }))
   }, [elementos, pistas, recursos, q])
 
@@ -161,6 +161,9 @@ export function Biblioteca() {
       </header>
 
       <main className="biblioteca" aria-busy={carga === 'cargando'}>
+        <p id="ayuda-mover" className="sr">
+          Para cambiar el orden, arrastra el asa. Con el teclado: pulsa espacio, mueve con las flechas y pulsa espacio para soltar; Esc cancela.
+        </p>
         {error && (
           <div className="aviso" role="alert">
             <p>{error}</p>

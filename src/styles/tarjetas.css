@@ -229,3 +229,110 @@
 .bordes-sesion .tarjetas {
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 12.5rem), 1fr));
 }
+
+/* ── Reordenar (arrastrar y soltar) ── */
+.tarjeta-acciones {
+  position: absolute;
+  z-index: 1;
+  top: 0.35rem;
+  right: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.tarjeta-acciones .tarjeta-editar {
+  position: static;
+}
+
+.tarjeta[data-varias] .tarjeta-textos,
+.tarjeta .tarjeta-textos {
+  padding-right: 5.6rem;
+}
+
+/* El asa: única zona que no desplaza la página al tocarla (touch-action: none). */
+.tarjeta-asa {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-s);
+  background: transparent;
+  color: var(--tinta-suave);
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tarjeta-asa:hover {
+  border-color: var(--linea);
+  color: var(--tinta);
+}
+
+.tarjeta-asa:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 1px;
+}
+
+.tarjeta-asa[aria-pressed='true'] {
+  background: var(--verdin);
+  border-color: var(--verdin);
+  color: var(--verdin-tinta);
+}
+
+.tarjeta[data-actual] .tarjeta-asa {
+  color: var(--muelle-tinta-suave);
+}
+
+@media (pointer: coarse) {
+  .tarjeta-asa {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .tarjeta .tarjeta-textos {
+    padding-right: 6.4rem;
+  }
+}
+
+/* La tarjeta que se mueve deja un hueco punteado donde caerá. */
+.tarjeta[data-moviendo] {
+  border: 2px dashed var(--verdin);
+  background: var(--verdin-suave);
+}
+
+.tarjeta[data-moviendo] > :not(.tarjeta-acciones) {
+  opacity: 0.35;
+}
+
+.tarjetas[data-ordenando] {
+  cursor: grabbing;
+}
+
+/* Copia flotante que sigue al puntero mientras se arrastra. */
+.arrastre-fantasma {
+  position: fixed;
+  z-index: 30;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  border: 2px solid var(--verdin);
+  border-radius: var(--r-m);
+  background: var(--superficie-alta);
+  color: var(--tinta);
+  font-family: var(--f-titulo);
+  font-size: var(--t-l);
+  font-weight: 600;
+  box-shadow: 0 18px 36px -14px rgba(27, 42, 46, 0.55);
+  transform: rotate(-1.5deg) scale(1.02);
+  cursor: grabbing;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arrastre-fantasma {
+    transform: none;
+  }
+}

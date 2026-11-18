@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { repositorio, type Bucket } from './repositorio'
 import { interpretarEnlace } from '../lib/enlaces'
 import { enlaceFreesound, freesoundIdDe, resolverSonido } from '../lib/freesound'
-import { vacia, type Biblioteca, type Elemento, type Pista, type Recurso } from './types'
+import { vacia, type Biblioteca, type Elemento, type Pista, type Recurso, type Tipo } from './types'
 
 // Biblioteca del usuario en memoria. Las operaciones complejas (guardar un elemento con sus pistas)
 // están en guardar.ts; aquí, la carga, los borrados y las direcciones de archivos privados.
@@ -35,6 +35,8 @@ interface Estado extends Biblioteca {
   quitarPista: (id: string) => Promise<void>
   eliminarRecurso: (id: string) => Promise<void>
   actualizarRecurso: (id: string, cambios: Partial<Pick<Recurso, 'titulo' | 'descripcion'>>) => Promise<void>
+  /** Nuevo orden manual de una carpeta (ids en orden). Se guarda solo lo que cambia; si falla, se restaura y avisa. */
+  reordenar: (tipo: Tipo, ids: string[]) => Promise<boolean>
 }
 
 const mezclar = <T extends { id: string }>(lista: T[], nuevos: T[] = []) => {
@@ -156,6 +158,24 @@ export const useDatos = create<Estado>()((set, get) => ({
     }
   },
 
+  reordenar: async (tipo, ids) => {
+    const antes = get().elementos
+    const nuevos = new Map(ids.map((id, i) => [id, i + 1]))
+    const cambios = antes.filter((e) => e.tipo === tipo && nuevos.has(e.id) && e.orden !== nuevos.get(e.id))
+    if (!cambios.length) return true
+    // Optimista: el orden cambia al momento en pantalla (sin tocar lo que esté sonando).
+    set({ elementos: antes.map((e) => (e.tipo === tipo && nuevos.has(e.id) ? { ...e, orden: nuevos.get(e.id)! } : e)) })
+    try {
+      await Promise.all(cambios.map((e) => repositorio.actualizar('elementos', e.id, { orden: nuevos.get(e.id)! })))
+      return true
+    } catch {
+      // Lo que llegó a guardarse se devuelve a su valor para no dejar el orden a medias.
+      await Promise.allSettled(cambios.map((e) => repositorio.actualizar('elementos', e.id, { orden: e.orden })))
+      set({ elementos: antes, error: 'No se ha podido guardar el nuevo orden. Se ha restaurado el anterior: revisa la conexión e inténtalo de nuevo.' })
+      return false
+    }
+  },
+
   actualizarRecurso: async (id, cambios) => {
     const antes = get().recursos
     set({ recursos: antes.map((r) => (r.id === id ? { ...r, ...cambios } : r)) })
@@ -169,6 +189,18 @@ export const useDatos = create<Estado>()((set, get) => ({
 
 /** ¿Lo reproduce DFY con su propio reproductor de audio? (archivo subido o enlace de audio: puede ir a la mezcla) */
 export const esLocal = (r: Pick<Recurso, 'origen'> | null | undefined) => r?.origen === 'archivo' || r?.origen === 'url'
+
+/** Orden en pantalla de una carpeta: el manual (`orden`) y, a igualdad, por nombre (así lo existente no cambia). */
+export const compararElementos = (a: Elemento, b: Elemento) => a.orden - b.orden || a.nombre.localeCompare(b.nombre, 'es')
+
+/**
+ * Posición de un elemento nuevo: si la carpeta nunca se ha ordenado a mano (todo a 0), sigue el orden alfabético (0);
+ * si ya se ordenó, va al final.
+ */
+export function ordenNuevo(elementos: Elemento[], tipo: Tipo): number {
+  const max = Math.max(0, ...elementos.filter((e) => e.tipo === tipo).map((e) => e.orden))
+  return max > 0 ? max + 1 : 0
+}
 
 /** Pistas de un elemento, en su orden. */
 export const pistasDe = (pistas: Pista[], elementoId: string) =>

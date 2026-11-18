@@ -2,7 +2,7 @@ import { duracionAudio, extension, huella, tipoAudio, validarAudio } from '../li
 import { interpretarEnlace } from '../lib/enlaces'
 import { claveEnlace, recursoVacio } from './convertir'
 import { repositorio } from './repositorio'
-import { useDatos } from './store'
+import { ordenNuevo, useDatos } from './store'
 import { carpeta, type Biblioteca, type Elemento, type Pista, type Recurso, type Tipo } from './types'
 
 // Operaciones de varias filas: guardar un elemento con sus pistas, añadir un sonido compartido
@@ -123,9 +123,11 @@ export async function guardarElemento(b: Borrador, progreso: { elementoId?: stri
   let elemento: Elemento
   try {
     if (anterior) {
-      await repositorio.actualizar('elementos', anterior.id, datos)
-      elemento = { ...anterior, ...datos }
-    } else elemento = await repositorio.crear('elementos', { ...datos, orden: 0 })
+      // Si cambia de carpeta, entra en la nueva como un elemento nuevo (al final si esa carpeta está ordenada a mano).
+      const conOrden = anterior.tipo === datos.tipo ? datos : { ...datos, orden: ordenNuevo(est().elementos, datos.tipo) }
+      await repositorio.actualizar('elementos', anterior.id, conOrden)
+      elemento = { ...anterior, ...conOrden }
+    } else elemento = await repositorio.crear('elementos', { ...datos, orden: ordenNuevo(est().elementos, datos.tipo) })
   } catch (e) {
     if (b.retrato.accion === 'nuevo' && retrato_ruta) await repositorio.borrarArchivos('retratos', [retrato_ruta]).catch(() => {})
     throw e
@@ -170,7 +172,7 @@ export async function anadirSonido(o: {
   const recurso = await resolverRecurso(o.fuente, o.titulo)
   let el = o.elementoId ? est().elementos.find((e) => e.id === o.elementoId) : undefined
   if (!el) {
-    el = await repositorio.crear('elementos', { tipo: o.nuevo!.tipo, nombre: o.nuevo!.nombre.trim().slice(0, 120), descripcion: '', retrato_ruta: null, orden: 0 })
+    el = await repositorio.crear('elementos', { tipo: o.nuevo!.tipo, nombre: o.nuevo!.nombre.trim().slice(0, 120), descripcion: '', retrato_ruta: null, orden: ordenNuevo(est().elementos, o.nuevo!.tipo) })
     est().fusionar({ elementos: [el] })
   }
   const orden = est().pistas.filter((p) => p.elemento_id === el!.id).length
