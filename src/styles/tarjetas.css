@@ -41,7 +41,8 @@
 }
 
 .tarjeta[data-retrato] .tarjeta-tocar {
-  grid-template-columns: 4.5rem minmax(0, 1fr);
+  /* El retrato va fuera del flujo (ver abajo): aquí solo se le deja su sitio a la izquierda. */
+  padding-left: 4.5rem;
 }
 
 .tarjeta-tocar:focus-visible {
@@ -54,16 +55,30 @@
   background: color-mix(in srgb, var(--verdin) 8%, transparent);
 }
 
+/* Retrato: columna a la izquierda que ocupa TODA la altura de la tarjeta (también la fila de botones de pista),
+   sin huecos aunque la tarjeta crezca. Sigue dentro del botón: pulsarlo reproduce. */
 .tarjeta-retrato {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4.5rem;
   background: var(--verdin-suave);
-  min-height: 4.5rem;
+  border-right: 1px solid var(--linea);
+  overflow: hidden;
 }
 
 .tarjeta-retrato img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Recorte por arriba: en retratos e ilustraciones la cara suele estar en la parte superior. */
+  object-position: 50% 12%;
   display: block;
+}
+
+.tarjeta[data-actual] .tarjeta-retrato {
+  border-right-color: var(--muelle-activo);
 }
 
 .tarjeta-textos {
