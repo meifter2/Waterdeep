@@ -18,11 +18,26 @@ const casos: [string, string][] = [
   ['https://soundcloud.com/x/y', 'ERROR'],
   ['hola que tal', 'ERROR'],
   ['', 'ERROR'],
+  // Audio en internet (fase 2): https, extensión de audio; Dropbox pasa a raw=1
+  ['https://sonidos.example.com/ambientes/lluvia%20fuerte.mp3', 'url:https://sonidos.example.com/ambientes/lluvia%20fuerte.mp3|MP3|lluvia fuerte'],
+  ['https://cdn.example.org/taberna.ogg?v=2#t=10', 'url:https://cdn.example.org/taberna.ogg?v=2|OGG|taberna'],
+  ['https://x.example/a.OPUS', 'url:https://x.example/a.OPUS|OPUS|a'],
+  ['https://x.example/b.m4a', 'url:https://x.example/b.m4a|M4A|b'],
+  ['https://x.example/c.wav', 'url:https://x.example/c.wav|WAV|c'],
+  ['https://x.example/d.flac', 'url:https://x.example/d.flac|FLAC|d'],
+  ['sonidos.example.com/viento.mp3', 'url:https://sonidos.example.com/viento.mp3|MP3|viento'],
+  ['https://www.dropbox.com/scl/fi/abc123/tormenta.mp3?rlkey=xyz&dl=0', 'url:https://www.dropbox.com/scl/fi/abc123/tormenta.mp3?rlkey=xyz&raw=1|MP3|tormenta'],
+  ['http://sonidos.example.com/lluvia.mp3', 'ERROR'],
+  ['https://usuario:clave@sonidos.example.com/lluvia.mp3', 'ERROR'],
+  ['https://sonidos.example.com/lluvia.txt', 'ERROR'],
+  ['https://sonidos.example.com/lluvia', 'ERROR'],
+  ['https://sonidos.example.com/video.mp4', 'ERROR'],
+  ['https://sonidos.example.com/' + 'a'.repeat(500) + '.mp3', 'ERROR'],
 ]
 let fallos = 0
 for (const [entrada, esperado] of casos) {
   const r = interpretarEnlace(entrada)
-  const obtenido = typeof r === 'string' ? 'ERROR' : r.servicio === 'spotify' ? r.uri : `yt:${r.videoId ?? ''}${r.listaId ? '+' + r.listaId : ''}${r.inicio ? '@' + r.inicio : ''}`
+  const obtenido = typeof r === 'string' ? 'ERROR' : r.servicio === 'url' ? `url:${r.url}|${r.formato}|${r.nombre}` : r.servicio === 'spotify' ? r.uri : `yt:${r.videoId ?? ''}${r.listaId ? '+' + r.listaId : ''}${r.inicio ? '@' + r.inicio : ''}`
   const ok = obtenido === esperado
   if (!ok) fallos++
   console.log(ok ? 'OK ' : 'MAL', JSON.stringify(entrada).slice(0, 60), '→', obtenido, typeof r === 'string' ? `(${r.slice(0, 50)}…)` : '')

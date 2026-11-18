@@ -25,7 +25,8 @@
     "test:cambio-fuente": "node pruebas/cambio-fuente.cjs",
     "test:transporte": "node pruebas/transporte.cjs",
     "test:mezclador": "node pruebas/mezclador.cjs",
-    "test:mezclador-supabase": "node pruebas/mezclador-supabase.cjs"
+    "test:mezclador-supabase": "node pruebas/mezclador-supabase.cjs",
+    "test:enlaces-audio": "node pruebas/enlaces-audio.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",

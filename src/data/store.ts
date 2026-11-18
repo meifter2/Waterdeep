@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { repositorio, type Bucket } from './repositorio'
+import { interpretarEnlace } from '../lib/enlaces'
 import { vacia, type Biblioteca, type Elemento, type Pista, type Recurso } from './types'
 
 // Biblioteca del usuario en memoria. Las operaciones complejas (guardar un elemento con sus pistas)
@@ -27,6 +28,8 @@ interface Estado extends Biblioteca {
   fusionar: (p: Parcial) => void
   /** Dirección de un archivo privado. `renovar` pide una nueva aunque haya una guardada (p. ej. tras un error). */
   urlDe: (bucket: Bucket, ruta: string, renovar?: boolean) => Promise<string | null>
+  /** Dirección para reproducir un sonido propio: archivo subido (URL firmada) o enlace de audio (tal cual). */
+  urlDeRecurso: (r: Recurso, renovar?: boolean) => Promise<string | null>
   eliminarElemento: (id: string) => Promise<void>
   quitarPista: (id: string) => Promise<void>
   eliminarRecurso: (id: string) => Promise<void>
@@ -96,6 +99,14 @@ export const useDatos = create<Estado>()((set, get) => ({
     }
   },
 
+  urlDeRecurso: async (r, renovar = false) => {
+    if (r.origen === 'url') {
+      const e = interpretarEnlace(r.enlace)
+      return typeof e !== 'string' && e.servicio === 'url' ? e.url : null
+    }
+    return r.origen === 'archivo' && r.archivo_ruta ? get().urlDe('audio', r.archivo_ruta, renovar) : null
+  },
+
   eliminarElemento: async (id) => {
     const antes = { elementos: get().elementos, pistas: get().pistas }
     const el = antes.elementos.find((e) => e.id === id)
@@ -141,6 +152,9 @@ export const useDatos = create<Estado>()((set, get) => ({
     }
   },
 }))
+
+/** ¿Lo reproduce DFY con su propio reproductor de audio? (archivo subido o enlace de audio: puede ir a la mezcla) */
+export const esLocal = (r: Pick<Recurso, 'origen'> | null | undefined) => r?.origen === 'archivo' || r?.origen === 'url'
 
 /** Pistas de un elemento, en su orden. */
 export const pistasDe = (pistas: Pista[], elementoId: string) =>

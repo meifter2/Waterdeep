@@ -9,6 +9,7 @@ Ejecutar en **Supabase › SQL Editor › New query › pegar el archivo entero 
 |---|---|---|
 | `esquema.sql` | Tabla `canciones` (versión 3). | Sí |
 | `002-biblioteca.sql` | Tablas `elementos`, `recursos` y `pistas`; seguridad por usuario (RLS); buckets privados `audio` (50 MB por archivo) y `retratos` (5 MB); copia las `canciones` existentes sin modificarlas. | Sí: no duplica nada |
+| `003-enlaces-audio.sql` | Fase 2: admite sonidos que son un enlace https a un archivo de audio (MP3, OGG…) en streaming. Solo amplía una regla de `recursos`; no toca datos. | Sí |
 
 Comprobación tras ejecutar `002`: en **Table Editor** aparecen `elementos`, `recursos` y `pistas` con «RLS enabled»,
 y en **Storage** los buckets `audio` y `retratos`, ambos privados.

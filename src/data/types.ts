@@ -2,7 +2,8 @@
 // Recurso = un sonido de la biblioteca. Pista = un recurso usado en un elemento (tramo, bucle, etiqueta).
 
 export type Tipo = 'opening' | 'ending' | 'personaje' | 'lugar' | 'momento' | 'ambiente' | 'efecto'
-export type Origen = 'spotify' | 'youtube' | 'archivo'
+/** 'url' = enlace https directo a un archivo de audio (fase 2, requiere bd/003). */
+export type Origen = 'spotify' | 'youtube' | 'archivo' | 'url'
 
 export interface Elemento {
   id: string

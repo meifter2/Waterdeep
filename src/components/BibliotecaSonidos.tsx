@@ -7,7 +7,7 @@ import { modoLocal } from '../lib/supabase'
 import { BotonConfirmar } from './Confirmar'
 import { detalleRecurso } from './editor/FilaPista'
 
-const NOMBRE = { spotify: 'Spotify', youtube: 'YouTube', archivo: 'Archivo' } as const
+const NOMBRE = { spotify: 'Spotify', youtube: 'YouTube', archivo: 'Archivo', url: 'Enlace de audio' } as const
 const CUOTA_GRATIS = 1024 * 1024 * 1024
 
 /** Todos los sonidos del usuario, dónde se usan, y su borrado definitivo. */

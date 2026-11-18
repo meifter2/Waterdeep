@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { tocar, tocarElemento, useMezcla } from '../data/mezcla'
 import { useReproduccion } from '../data/reproduccion'
-import { pistasDe, useDatos } from '../data/store'
+import { esLocal, pistasDe, useDatos } from '../data/store'
 import type { Elemento, Pista, Recurso } from '../data/types'
 
 /** Nombre corto de una pista para su botón. */
@@ -30,7 +30,7 @@ export function Tarjeta({ elemento, alEditar }: { elemento: Elemento; alEditar: 
 
   const capa = elemento.tipo === 'ambiente' || elemento.tipo === 'efecto' ? elemento.tipo : null
   /** ¿Esta pista va a la mezcla? (archivo propio en Ambientes o Efectos) */
-  const enMezcla = (p: Pista) => !!capa && recursos.find((r) => r.id === p.recurso_id)?.origen === 'archivo'
+  const enMezcla = (p: Pista) => !!capa && esLocal(recursos.find((r) => r.id === p.recurso_id))
   const canalDe = (p: Pista) => (capa === 'ambiente' && enMezcla(p) ? ambientes.find((c) => c.pistaId === p.id) : undefined)
   const efectoSuena = (p: Pista) => capa === 'efecto' && enMezcla(p) && efectos.some((v) => v.pistaId === p.id)
 

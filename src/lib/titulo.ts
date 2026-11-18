@@ -4,6 +4,7 @@ import type { EnlaceMusical } from './enlaces'
 // Si falla o tarda, devuelve null y no pasa nada: es solo una sugerencia.
 
 export async function tituloDe(e: EnlaceMusical): Promise<string | null> {
+  if (e.servicio === 'url') return e.nombre || null // audio en internet: el nombre del archivo
   const url =
     e.servicio === 'spotify'
       ? `https://open.spotify.com/oembed?url=${encodeURIComponent(e.web)}`

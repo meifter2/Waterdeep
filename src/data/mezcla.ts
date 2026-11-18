@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { MAX_AMBIENTES, MAX_EFECTOS, MotorMezcla, type Capa, type EstadoCapa } from '../components/reproductor/motorMezcla'
 import { useReproduccion } from './reproduccion'
-import { pistasDe, useDatos } from './store'
+import { esLocal, pistasDe, useDatos } from './store'
 import type { Pista } from './types'
 import { factorMaestro, useVolumen } from './volumen'
 
@@ -93,10 +93,10 @@ const datosDe = (pistaId: string) => {
   return { pista, recurso, elemento }
 }
 
-/** ¿Dónde suena esta pista? Solo los archivos propios de Ambientes y Efectos van a la mezcla. */
+/** ¿Dónde suena esta pista? Solo el audio propio (archivo subido o enlace de audio) de Ambientes y Efectos va a la mezcla. */
 export function destinoDe(pistaId: string): Destino {
   const { recurso, elemento } = datosDe(pistaId)
-  if (recurso?.origen !== 'archivo' || !elemento) return 'principal'
+  if (!esLocal(recurso) || !elemento) return 'principal'
   return elemento.tipo === 'ambiente' ? 'ambiente' : elemento.tipo === 'efecto' ? 'efecto' : 'principal'
 }
 
@@ -120,7 +120,7 @@ function externaSonando() {
   const r = useReproduccion.getState()
   if (!r.pistaId || (r.estado !== 'sonando' && r.estado !== 'cargando' && r.estado !== 'otra')) return false
   const { recurso } = datosDe(r.pistaId)
-  if (!recurso || recurso.origen === 'archivo') return false
+  if (!recurso || esLocal(recurso)) return false
   useMezcla.setState({ aviso: AVISO_EXTERNA })
   return true
 }
@@ -136,8 +136,8 @@ export const useMezcla = create<Mezcla>()((set, get) => {
   const iniciarAmbiente = async (id: string, renovar = false) => {
     const c = canal(id)
     const { pista, recurso } = datosDe(c?.pistaId ?? '')
-    if (!c || !pista || !recurso?.archivo_ruta) return
-    const url = await useDatos.getState().urlDe('audio', recurso.archivo_ruta, renovar)
+    if (!c || !pista || !recurso) return
+    const url = await useDatos.getState().urlDeRecurso(recurso, renovar)
     const ahora = canal(id)
     if (!ahora) return // se detuvo mientras cargaba: no suena nada
     if (!url) return cambiarCanal(id, { estado: 'error', aviso: ERROR_ABRIR })
@@ -148,8 +148,8 @@ export const useMezcla = create<Mezcla>()((set, get) => {
   const iniciarEfecto = async (id: string, renovar = false) => {
     const voz = get().efectos.find((x) => x.id === id)
     const { pista, recurso } = datosDe(voz?.pistaId ?? '')
-    if (!voz || !pista || !recurso?.archivo_ruta) return
-    const url = await useDatos.getState().urlDe('audio', recurso.archivo_ruta, renovar)
+    if (!voz || !pista || !recurso) return
+    const url = await useDatos.getState().urlDeRecurso(recurso, renovar)
     if (!get().efectos.some((x) => x.id === id)) return // cortado mientras cargaba
     if (!url) {
       set((s) => ({ efectos: s.efectos.filter((x) => x.id !== id), aviso: ERROR_ABRIR }))

@@ -13,7 +13,7 @@ export interface FilaBorrador extends BorradorPista {
   detalle: string
 }
 
-const NOMBRE_ORIGEN: Record<Origen, string> = { spotify: 'Spotify', youtube: 'YouTube', archivo: 'Archivo' }
+const NOMBRE_ORIGEN: Record<Origen, string> = { spotify: 'Spotify', youtube: 'YouTube', archivo: 'Archivo', url: 'Enlace de audio' }
 
 /** Una pista dentro del editor: título, etiqueta, tramo, bucle y orden. */
 export function FilaPista({

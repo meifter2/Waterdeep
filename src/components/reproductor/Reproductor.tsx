@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useReproduccion, type EstadoReproduccion } from '../../data/reproduccion'
 import { useDatos } from '../../data/store'
-import { describirEnlace, interpretarEnlace, nombreServicio, type EnlaceMusical } from '../../lib/enlaces'
+import { describirEnlace, interpretarEnlace, nombreServicio, type EnlaceMusical, type EnlaceSpotify, type EnlaceYoutube } from '../../lib/enlaces'
 import { ErrorSpotify } from '../../lib/spotifyApi'
 import { useSpotify } from '../../lib/spotifyAuth'
 import { describirTramo } from '../../lib/tiempo'
@@ -135,13 +135,14 @@ export function Reproductor() {
       ultima.current = { pistaId: p.id, activo: destino }
     }
 
-    if (r.origen === 'archivo') {
+    if (r.origen === 'archivo' || r.origen === 'url') {
+      // Archivo subido o enlace directo de audio: los reproduce el mismo motor (streaming).
       const esMisma = misma('archivo')
       setEnlace(null)
       setActivo('archivo')
       pararOtros('archivo')
       marcar('archivo')
-      void datos.urlDe('audio', r.archivo_ruta!).then((url) => {
+      void datos.urlDeRecurso(r).then((url) => {
         if (!vigente()) return // se ha pulsado otra tarjeta mientras se preparaba
         if (!url) informar('error', 'No se ha podido abrir el archivo. Revisa la conexión y vuelve a pulsar.')
         else void archivo?.reproducir(url, seg, esMisma)
@@ -150,14 +151,14 @@ export function Reproductor() {
     }
 
     const e = interpretarEnlace(r.enlace)
-    if (typeof e === 'string') {
-      informar('error', e)
+    if (typeof e === 'string' || e.servicio === 'url') {
+      informar('error', typeof e === 'string' ? e : 'Este sonido no se puede reproducir.')
       return
     }
     // Spotify y YouTube no se mezclan: al empezar, se detienen ambientes y efectos (sin audio oculto).
     useMezcla.getState().detenerCapas(`Ambientes y efectos detenidos: ${nombreServicio(e.servicio)} no se mezcla con otros sonidos.`)
     setEnlace(e)
-    const usarRespaldo = (en: EnlaceMusical) => {
+    const usarRespaldo = (en: EnlaceSpotify | EnlaceYoutube) => {
       setRespaldo(urlRespaldo(en, seg.inicio))
       informar('pausa', `El reproductor de ${nombreServicio(en.servicio)} no ha cargado del todo. Pulsa ▶ en él para empezar.`)
     }
@@ -227,6 +228,8 @@ export function Reproductor() {
   const fuente =
     recurso?.origen === 'archivo'
       ? 'archivo propio'
+      : recurso?.origen === 'url'
+        ? 'enlace de audio'
       : enlace
         ? describirEnlace(enlace) + (activo === 'connect' && dispositivo ? ` en ${dispositivo}` : '')
         : ''

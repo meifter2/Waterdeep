@@ -37,8 +37,8 @@ export class MotorArchivo {
       this.informar(
         'error',
         codigo === 4
-          ? 'No se puede reproducir este archivo: el formato no es compatible o el enlace ha caducado. Recarga la página.'
-          : 'No se ha podido cargar el archivo. Revisa la conexión.',
+          ? 'No se puede reproducir este audio: el formato no es compatible o el enlace ya no funciona (ha caducado, ya no existe o su web no permite usarlo desde otras páginas).'
+          : 'No se ha podido cargar el audio. Revisa la conexión.',
       )
     })
     this.audio = a
@@ -72,7 +72,8 @@ export class MotorArchivo {
       return
     }
     this.seg = seg
-    if (a.src !== url) {
+    // Distinta dirección, o la misma que falló antes (reintento): se vuelve a pedir al servidor.
+    if (a.src !== url || a.error) {
       a.src = url
       await new Promise<void>((resolver, rechazar) => {
         const ok = () => (limpiar(), resolver())

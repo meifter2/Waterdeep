@@ -51,6 +51,7 @@ async function servidor(r) {
   peticiones.push(linea);
   if (fallar && metodo === fallar.metodo && u.pathname.startsWith(fallar.ruta)) {
     if (fallar.modo === 'red') return r.abort('failed');
+    if (fallar.cuerpo) return r.fulfill({ status: fallar.modo, json: fallar.cuerpo });
     return r.fulfill({ status: fallar.modo, json: { message: 'fallo simulado' } });
   }
   const t = u.pathname.match(/^\/rest\/v1\/(\w+)/)?.[1];
@@ -205,6 +206,34 @@ async function servidor(r) {
   await p.waitForTimeout(400);
   comprobar('Borrar sonido: fila y archivo', !tablas.recursos.some((x) => x.origen === 'archivo') && ![...archivos.keys()].some((k) => k.startsWith('audio/')));
   await p.getByRole('button', { name: 'Cerrar' }).click();
+
+  // 12) Enlace de audio (fase 2): se guarda como origen 'url', sin subir nada a Storage
+  await ctx.route('https://sonidos.dfy.test/**', (r) => r.fulfill({ status: 200, body: wav(4), headers: { 'content-type': 'audio/wav', 'accept-ranges': 'none' } }));
+  const subidasAntes = archivos.size;
+  const abrirPegar = async () => {
+    await p.getByRole('button', { name: 'Pegar enlace' }).click();
+    await p.waitForSelector('dialog[open] #co-enlace');
+    await p.fill('#co-enlace', 'https://sonidos.dfy.test/bosque.wav');
+    await p.locator('label.chip-carpeta', { hasText: 'Ambiente' }).click();
+    await p.fill('#co-nombre', 'Bosque web');
+  };
+  // Sin ejecutar bd/003 en Supabase: la base de datos rechaza el origen nuevo y la app explica qué hacer.
+  fallar = { metodo: 'POST', ruta: '/rest/v1/recursos', modo: 400, cuerpo: { code: '23514', message: 'new row for relation "recursos" violates check constraint "recursos_origen_check"' } };
+  await abrirPegar();
+  await p.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await p.waitForSelector('dialog[open] .aviso[role=alert]', { timeout: 8000 });
+  comprobar('Enlace de audio sin bd/003: explica qué SQL ejecutar', (await p.locator('dialog[open] .aviso[role=alert]').innerText()).includes('bd/003-enlaces-audio.sql'));
+  fallar = null;
+  await p.getByRole('button', { name: 'Guardar', exact: true }).click();
+  await p.waitForSelector('dialog[open]', { state: 'detached', timeout: 10000 });
+  const recUrl = cuerpos('recursos').at(-1);
+  comprobar('Enlace de audio con bd/003: recurso «url» con su enlace y duración', recUrl.origen === 'url' && recUrl.enlace === 'https://sonidos.dfy.test/bosque.wav' && recUrl.archivo_ruta === null && Math.abs(recUrl.duracion_ms - 4000) < 100, JSON.stringify(recUrl));
+  comprobar('…sin subir nada a Storage ni enviar user_id', archivos.size === subidasAntes && !('user_id' in recUrl));
+  const firmasAntes = peticiones.filter((x) => x.startsWith('POST /storage/v1/object/sign/audio')).length;
+  await p.getByRole('button', { name: 'Activar ambiente Bosque web' }).click();
+  await p.waitForFunction(() => window.__mezclaDFY && window.__mezclaDFY.diagnostico().some((v) => v.capa === 'ambiente' && !v.pausado && v.src.startsWith('https://sonidos.dfy.test/')), null, { timeout: 8000 });
+  comprobar('…y suena en la mezcla directamente desde su web (sin URL firmada)', peticiones.filter((x) => x.startsWith('POST /storage/v1/object/sign/audio')).length === firmasAntes);
+  await p.getByRole('button', { name: 'Detener ambiente Bosque web' }).click();
 
   // 11) Salir
   await p.getByRole('button', { name: 'Salir' }).click();

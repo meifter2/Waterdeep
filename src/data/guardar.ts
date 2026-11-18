@@ -9,7 +9,8 @@ import { carpeta, type Biblioteca, type Elemento, type Pista, type Recurso, type
 // e importar copias. Cada paso que se completa se refleja al momento en la app; si uno falla,
 // se lanza el error con un mensaje claro y lo ya guardado queda bien reflejado.
 
-export type FuenteNueva = { tipo: 'enlace'; enlace: string } | { tipo: 'archivo'; archivo: File }
+/** Enlace (Spotify, YouTube o audio en internet; de este último se puede saber ya la duración) o archivo para subir. */
+export type FuenteNueva = { tipo: 'enlace'; enlace: string; duracion_ms?: number | null } | { tipo: 'archivo'; archivo: File }
 
 export interface BorradorPista {
   /** Pista ya guardada (si se está editando). */
@@ -46,7 +47,13 @@ export async function resolverRecurso(f: FuenteNueva, titulo: string): Promise<R
     if (!clave || typeof e === 'string') throw new Error(typeof e === 'string' ? e : 'Enlace no válido.')
     const ya = est().recursos.find((r) => r.origen !== 'archivo' && claveEnlace(r.enlace) === clave)
     if (ya) return ya
-    const { id: _id, ...datos } = recursoVacio({ origen: e.servicio, enlace: f.enlace.trim(), titulo: titulo.slice(0, 200) })
+    const { id: _id, ...datos } = recursoVacio({
+      origen: e.servicio,
+      // Enlace de audio: se guarda ya normalizado (p. ej. Dropbox con raw=1).
+      enlace: e.servicio === 'url' ? e.url : f.enlace.trim(),
+      titulo: (titulo || (e.servicio === 'url' ? e.nombre : '')).slice(0, 200),
+      duracion_ms: e.servicio === 'url' ? (f.duracion_ms ?? null) : null,
+    })
     const r = await repositorio.crear('recursos', datos)
     est().fusionar({ recursos: [r] })
     return r

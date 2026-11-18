@@ -14,6 +14,7 @@ import { almacenamientoDisponible } from '../data/storage'
 import { useDatos } from '../data/store'
 import { CARPETAS, type Elemento, type Tipo } from '../data/types'
 import { tomarCompartido, type Compartido as DatosCompartidos } from '../lib/compartir'
+import { interpretarEnlace } from '../lib/enlaces'
 import { useSpotify } from '../lib/spotifyAuth'
 import { modoLocal } from '../lib/supabase'
 
@@ -26,7 +27,7 @@ export function Biblioteca() {
   const [busqueda, setBusqueda] = useState('')
   const [edicion, setEdicion] = useState<Edicion>(null)
   const [dialogo, setDialogo] = useState<'copias' | 'sonidos' | null>(null)
-  const [compartido, setCompartido] = useState<DatosCompartidos | null>(null)
+  const [compartido, setCompartido] = useState<(DatosCompartidos & { pegado?: boolean }) | null>(null)
   const [hecho, setHecho] = useState('')
   const buscador = useRef<HTMLInputElement>(null)
 
@@ -68,6 +69,18 @@ export function Biblioteca() {
     const filtrados = elementos.filter(coincide).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
     return CARPETAS.map((carpeta) => ({ carpeta, lista: filtrados.filter((e) => e.tipo === carpeta.tipo) }))
   }, [elementos, pistas, recursos, q])
+
+  // «Pegar enlace»: lee el portapapeles (si el navegador lo permite) y abre la ventana con el enlace ya puesto.
+  const pegarEnlace = async () => {
+    let texto = ''
+    try {
+      texto = (await navigator.clipboard?.readText?.())?.trim() ?? ''
+    } catch {
+      /* sin permiso: se abre la ventana vacía para pegarlo a mano */
+    }
+    const util = texto && typeof interpretarEnlace(texto) !== 'string' ? texto : ''
+    setCompartido({ enlace: util, texto: '', pegado: true })
+  }
 
   const alTeclear = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -128,6 +141,9 @@ export function Biblioteca() {
               </span>
             </div>
           )}
+          <button type="button" className="boton" onClick={() => void pegarEnlace()} title="Añade un sonido de Spotify, YouTube o un audio de internet copiando su enlace">
+            Pegar enlace
+          </button>
           <Instalar />
           <ConexionSpotify />
           <button type="button" className="boton" onClick={() => setDialogo('sonidos')}>
@@ -192,7 +208,7 @@ export function Biblioteca() {
 
       {edicion && <EditorElemento elemento={edicion.elemento} tipoInicial={edicion.tipo} alCerrar={() => setEdicion(null)} alGuardar={setHecho} />}
       {compartido && (
-        <Compartido enlaceInicial={compartido.enlace} textoInicial={compartido.texto} alCerrar={() => setCompartido(null)} alGuardar={setHecho} />
+        <Compartido enlaceInicial={compartido.enlace} textoInicial={compartido.texto} pegado={compartido.pegado} alCerrar={() => setCompartido(null)} alGuardar={setHecho} />
       )}
       {dialogo === 'copias' && <Copias alCerrar={() => setDialogo(null)} />}
       {dialogo === 'sonidos' && <BibliotecaSonidos alCerrar={() => setDialogo(null)} />}

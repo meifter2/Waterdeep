@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { MAX_AMBIENTES, useMezcla, type CanalAmbiente } from '../../data/mezcla'
 import { useReproduccion } from '../../data/reproduccion'
-import { useDatos } from '../../data/store'
+import { esLocal, useDatos } from '../../data/store'
 import { useVolumen } from '../../data/volumen'
 
 // Panel de mezcla (fase 2). No es modal: se abre encima de la biblioteca sin parar nada,
@@ -121,8 +121,16 @@ function CanalMusica() {
   const v = useVolumen()
   const hay = !!pistaId && !!pista
   const suena = estado === 'sonando' || estado === 'cargando'
-  const externa = recurso && recurso.origen !== 'archivo'
-  const fuente = !recurso ? '' : recurso.origen === 'archivo' ? 'Archivo propio' : recurso.origen === 'spotify' ? 'Spotify, fuera de la mezcla' : 'YouTube, fuera de la mezcla'
+  const externa = recurso && !esLocal(recurso)
+  const fuente = !recurso
+    ? ''
+    : recurso.origen === 'archivo'
+      ? 'Archivo propio'
+      : recurso.origen === 'url'
+        ? 'Enlace de audio'
+        : recurso.origen === 'spotify'
+          ? 'Spotify, fuera de la mezcla'
+          : 'YouTube en su reproductor, fuera de la mezcla'
   return (
     <section className="mezclador-grupo" aria-labelledby="grupo-musica">
       <h3 id="grupo-musica">Música</h3>
@@ -157,7 +165,7 @@ function Ambientes() {
         Ambientes <span className="mezclador-cuenta">{ambientes.length} de {MAX_AMBIENTES}</span>
       </h3>
       {ambientes.length === 0 ? (
-        <p className="mezclador-vacio">Pulsa una tarjeta de Ambientes con un archivo propio y sonará aquí, en bucle, a la vez que la música.</p>
+        <p className="mezclador-vacio">Pulsa una tarjeta de Ambientes con un archivo propio o un enlace de audio y sonará aquí, en bucle, a la vez que la música.</p>
       ) : (
         <ul className="canales">
           {ambientes.map((c) => (

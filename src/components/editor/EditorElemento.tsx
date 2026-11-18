@@ -22,9 +22,10 @@ export function ultimaCarpeta(): Tipo {
 }
 
 function admiteTramo(r: Pick<Recurso, 'origen' | 'enlace'>): boolean {
-  if (r.origen === 'archivo') return true
+  if (r.origen === 'archivo' || r.origen === 'url') return true
   const e = interpretarEnlace(r.enlace)
   if (typeof e === 'string') return false
+  if (e.servicio === 'url') return true
   return e.servicio === 'spotify' ? e.tipo === 'track' || e.tipo === 'episode' : !!e.videoId
 }
 
@@ -93,7 +94,7 @@ export function EditorElemento({
     const base = { etiqueta: filas.length === 0 ? c.etiqueta : '', bucle: c.bucle }
     if ('recurso' in a) setFilas((l) => [...l, filaDesdeRecurso(a.recurso, base)])
     else {
-      const origen = a.nueva.tipo === 'archivo' ? 'archivo' : (interpretarEnlace(a.nueva.enlace) as { servicio: 'spotify' | 'youtube' }).servicio
+      const origen = a.nueva.tipo === 'archivo' ? 'archivo' : (interpretarEnlace(a.nueva.enlace) as { servicio: 'spotify' | 'youtube' | 'url' }).servicio
       const enlace = a.nueva.tipo === 'enlace' ? a.nueva.enlace : ''
       setFilas((l) => [
         ...l,

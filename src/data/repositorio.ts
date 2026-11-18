@@ -37,6 +37,8 @@ function traducir(error: { code?: string; message?: string }): ErrorDatos {
   const m = `${error.code ?? ''} ${error.message ?? ''}`
   if (/PGRST205|42P01|does not exist|schema cache/i.test(m))
     return new ErrorDatos('Falta preparar la base de datos: ejecuta bd/002-biblioteca.sql en Supabase (SQL Editor) y recarga.')
+  if (/23514|recursos_origen_check|recursos_url_https_check/i.test(m))
+    return new ErrorDatos('Para guardar enlaces de audio falta un paso en la base de datos: ejecuta bd/003-enlaces-audio.sql en Supabase (SQL Editor).')
   if (/JWT|401|permission|42501/i.test(m)) return new ErrorDatos('Tu sesión ha caducado o no tienes permiso. Sal y vuelve a entrar.')
   return new ErrorDatos('No se ha podido guardar. Revisa la conexión e inténtalo de nuevo.')
 }

@@ -1,4 +1,4 @@
-// Valida bd/esquema.sql + bd/002-biblioteca.sql en Postgres real (PGlite, WASM) con un
+// Valida bd/esquema.sql + bd/002-biblioteca.sql + bd/003-enlaces-audio.sql en Postgres real (PGlite, WASM) con un
 // «Supabase mínimo» simulado: auth.users, auth.uid(), roles anon/authenticated y Storage.
 // No sustituye a probar en Supabase, pero comprueba sintaxis, migración, idempotencia, RLS y claves.
 import { PGlite } from '@electric-sql/pglite'
@@ -77,6 +77,21 @@ comprobar('Repetir esquema.sql (original) sigue funcionando', !(await falla(sql(
 comprobar('Recurso de archivo sin ruta: rechazado', await falla(`insert into public.recursos (user_id, origen, titulo) values ('${A}', 'archivo', 'x')`))
 comprobar('Tramo con fin antes del inicio: rechazado', await falla(`insert into public.pistas (user_id, elemento_id, recurso_id, inicio_ms, fin_ms)
   select '${A}', e.id, r.id, 5000, 1000 from public.elementos e, public.recursos r where e.user_id = '${A}' and r.user_id = '${A}' limit 1`))
+
+// ── 003: enlaces directos de audio ──
+const urlOk = `insert into public.recursos (user_id, origen, titulo, enlace) values ('${A}', 'url', 'Lluvia', 'https://sonidos.example/lluvia.mp3')`
+comprobar('Antes de 003, un enlace de audio se rechaza', await falla(urlOk))
+const antes003 = [await cuenta('public.elementos'), await cuenta('public.recursos'), await cuenta('public.pistas')]
+await db.exec(sql('bd/003-enlaces-audio.sql'))
+await db.exec(sql('bd/003-enlaces-audio.sql'))
+comprobar('003 se puede repetir y no toca ninguna fila', JSON.stringify(antes003) === JSON.stringify([await cuenta('public.elementos'), await cuenta('public.recursos'), await cuenta('public.pistas')]))
+comprobar('Con 003, un enlace https de audio se guarda', !(await falla(urlOk)))
+comprobar('Enlace de audio http (no seguro): rechazado', await falla(`insert into public.recursos (user_id, origen, enlace) values ('${A}', 'url', 'http://sonidos.example/a.mp3')`))
+comprobar('Enlace de audio sin enlace: rechazado', await falla(`insert into public.recursos (user_id, origen) values ('${A}', 'url')`))
+comprobar('Enlace de audio con archivo en Storage: rechazado', await falla(`insert into public.recursos (user_id, origen, enlace, archivo_ruta) values ('${A}', 'url', 'https://s.example/a.mp3', '${A}/a.mp3')`))
+comprobar('Un origen desconocido sigue rechazado', await falla(`insert into public.recursos (user_id, origen, enlace) values ('${A}', 'otro', 'https://s.example/a.mp3')`))
+comprobar('Tras 003, archivo sin ruta sigue rechazado', await falla(`insert into public.recursos (user_id, origen, titulo) values ('${A}', 'archivo', 'x')`))
+await db.exec(`delete from public.recursos where origen = 'url'`)
 
 // ── RLS como usuario A ──
 await comoUsuario(A)

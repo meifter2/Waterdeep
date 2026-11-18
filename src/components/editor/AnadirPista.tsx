@@ -5,6 +5,7 @@ import type { Recurso } from '../../data/types'
 import { ErrorArchivo, validarAudio } from '../../lib/archivos'
 import { AYUDA_ENLACE, describirEnlace, interpretarEnlace } from '../../lib/enlaces'
 import { tituloDe } from '../../lib/titulo'
+import { comprobarAudio } from '../../lib/audioRemoto'
 import type { FuenteNueva } from '../../data/guardar'
 
 type Modo = 'enlace' | 'archivo' | 'biblioteca'
@@ -33,9 +34,21 @@ export function AnadirPista({ alAnadir }: { alAnadir: (a: Anadido) => void }) {
       setMensaje({ ok: true, texto: `«${ya.titulo || 'Ese sonido'}» ya estaba en tu biblioteca: se reutiliza.` })
     } else {
       setBuscando(true)
+      // Audio en internet: antes de añadirlo se comprueba que el navegador puede abrirlo (y se lee su duración).
+      let duracion_ms: number | null = null
+      if (interpretado.servicio === 'url') {
+        setMensaje({ ok: true, texto: 'Comprobando el enlace…' })
+        try {
+          duracion_ms = (await comprobarAudio(interpretado.url)).duracion_ms
+        } catch (e) {
+          setBuscando(false)
+          setMensaje({ ok: false, texto: e instanceof Error ? e.message : 'No se ha podido abrir el enlace.' })
+          return
+        }
+      }
       const titulo = (await tituloDe(interpretado)) ?? ''
       setBuscando(false)
-      alAnadir({ nueva: { tipo: 'enlace', enlace: enlace.trim() }, titulo })
+      alAnadir({ nueva: { tipo: 'enlace', enlace: enlace.trim(), duracion_ms }, titulo })
       setMensaje({ ok: true, texto: 'Añadida. Se guardará al pulsar «Guardar».' })
     }
     setEnlace('')
@@ -86,7 +99,7 @@ export function AnadirPista({ alAnadir }: { alAnadir: (a: Anadido) => void }) {
       {modo === 'enlace' && (
         <div className="anadir-fila">
           <div className="campo">
-            <label htmlFor="nuevo-enlace">Enlace de Spotify o YouTube</label>
+            <label htmlFor="nuevo-enlace">Enlace de Spotify, YouTube o audio</label>
             <input
               id="nuevo-enlace"
               value={enlace}
@@ -103,7 +116,7 @@ export function AnadirPista({ alAnadir }: { alAnadir: (a: Anadido) => void }) {
             </p>
           </div>
           <button type="button" className="boton" disabled={!interpretado || !!errorEnlace || buscando} onClick={() => void anadirEnlace()}>
-            {buscando ? 'Añadiendo…' : 'Añadir enlace'}
+            {buscando ? (interpretado && typeof interpretado !== 'string' && interpretado.servicio === 'url' ? 'Comprobando…' : 'Añadiendo…') : 'Añadir enlace'}
           </button>
         </div>
       )}

@@ -1,6 +1,6 @@
-// Reconoce enlaces de Spotify y YouTube y los traduce a lo que necesita cada reproductor.
+// Reconoce enlaces de Spotify, YouTube y archivos de audio en internet, y los traduce a lo que necesita cada reproductor.
 
-export type Servicio = 'spotify' | 'youtube'
+export type Servicio = 'spotify' | 'youtube' | 'url'
 
 export interface EnlaceSpotify {
   servicio: 'spotify'
@@ -21,14 +21,29 @@ export interface EnlaceYoutube {
   web: string
 }
 
-export type EnlaceMusical = EnlaceSpotify | EnlaceYoutube
+/** Enlace directo a un archivo de audio (MP3, OGG…) que el navegador reproduce en streaming. */
+export interface EnlaceAudio {
+  servicio: 'url'
+  /** Dirección que se reproduce (https). */
+  url: string
+  /** Formato según la extensión: «MP3», «OGG»… */
+  formato: string
+  /** Nombre del archivo, sin extensión (para proponer el título). */
+  nombre: string
+  web: string
+}
+
+export type EnlaceMusical = EnlaceSpotify | EnlaceYoutube | EnlaceAudio
+
+/** Extensiones de audio que los navegadores reproducen. */
+const EXTENSIONES_AUDIO = ['mp3', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'wav', 'flac', 'weba']
 
 const TIPOS_SPOTIFY = ['track', 'playlist', 'album', 'episode', 'show', 'artist'] as const
 const ID_SPOTIFY = /^[A-Za-z0-9]{22}$/
 const ID_YOUTUBE = /^[A-Za-z0-9_-]{11}$/
 
 export const AYUDA_ENLACE =
-  'Pega un enlace de Spotify (canción, lista o álbum) o de YouTube. En Spotify: «Compartir» › «Copiar enlace».'
+  'Pega un enlace de Spotify, de YouTube o de un archivo de audio en internet (https://…/lluvia.mp3). En Spotify: «Compartir» › «Copiar enlace».'
 
 /** Devuelve el enlace interpretado, o un texto de error que explica qué falla. */
 export function interpretarEnlace(texto: string): EnlaceMusical | string {
@@ -71,7 +86,31 @@ export function interpretarEnlace(texto: string): EnlaceMusical | string {
     )
   }
 
-  return 'Solo se admiten enlaces de Spotify o YouTube. ' + AYUDA_ENLACE
+  return audioDirecto(url) ?? 'Solo se admiten enlaces de Spotify, de YouTube o de un archivo de audio (MP3, OGG, M4A, WAV, OPUS o FLAC). ' + AYUDA_ENLACE
+}
+
+/** Enlace directo a un audio. Dropbox: el enlace de compartir se convierte en el del archivo (raw=1). */
+function audioDirecto(url: URL): EnlaceAudio | string | null {
+  const ultimo = url.pathname.split('/').pop() ?? ''
+  let archivo = ultimo
+  try {
+    archivo = decodeURIComponent(ultimo)
+  } catch {
+    /* nombre con % sueltos: se usa tal cual */
+  }
+  const ext = archivo.includes('.') ? archivo.split('.').pop()!.toLowerCase() : ''
+  if (!EXTENSIONES_AUDIO.includes(ext)) return null
+  if (url.protocol !== 'https:') return 'El enlace del audio tiene que empezar por https:// (los navegadores bloquean el audio no seguro).'
+  if (url.username || url.password) return 'El enlace no puede llevar usuario ni contraseña.'
+  const host = url.hostname.replace(/^www\./, '')
+  if (host === 'dropbox.com' || host === 'dl.dropboxusercontent.com') {
+    url.searchParams.delete('dl')
+    url.searchParams.set('raw', '1')
+  }
+  url.hash = ''
+  const limpio = url.toString()
+  if (limpio.length > 500) return 'El enlace es demasiado largo (máximo 500 caracteres).'
+  return { servicio: 'url', url: limpio, formato: ext === 'oga' ? 'OGG' : ext.toUpperCase(), nombre: archivo.replace(/\.[^.]+$/, '').slice(0, 200), web: limpio }
 }
 
 function spotify(tipo: string, id: string): EnlaceSpotify | null {
@@ -101,11 +140,12 @@ function segundos(t: string): number | undefined {
 }
 
 export function nombreServicio(s: Servicio): string {
-  return s === 'spotify' ? 'Spotify' : 'YouTube'
+  return s === 'spotify' ? 'Spotify' : s === 'youtube' ? 'YouTube' : 'enlace de audio'
 }
 
 /** «canción de Spotify», «lista de YouTube»… */
 export function describirEnlace(e: EnlaceMusical): string {
+  if (e.servicio === 'url') return `audio ${e.formato} en internet`
   if (e.servicio === 'youtube') return e.listaId && !e.videoId ? 'lista de YouTube' : 'vídeo de YouTube'
   const tipo = { track: 'canción', playlist: 'lista', album: 'álbum', episode: 'episodio', show: 'pódcast', artist: 'artista' }[e.tipo]
   return `${tipo} de Spotify`
