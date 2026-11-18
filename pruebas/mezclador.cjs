@@ -264,7 +264,7 @@ const cerca = (a, b) => Math.abs(a - b) < 0.011;
   log = await logDesde(n);
   comprobar('11. Spotify con ambientes sonando: se abre en la app de Spotify y DFY no la reproduce', (await abiertos()).at(-1) === PUERTO && !log.some((l) => l.startsWith('spotify:')), log.join(' / '));
   comprobar('11. …el ambiente sigue, la música anterior se detiene y se avisa de pulsar ▶ en Spotify', ambSonando(s) === 'Lluvia' && s.principal.pausado && (await avisoBarra()).includes('pulsa ▶ allí'));
-  comprobar('11. …la tarjeta lo anuncia antes de pulsarla', (await musica('Puerto').getAttribute('title')) === 'Hay ambientes sonando: se abrirá en la app de Spotify');
+  comprobar('11. …la tarjeta lo anuncia antes de pulsarla', (await musica('Puerto').getAttribute('title')).startsWith('Hay ambientes sonando: se abrirá en la app de Spotify'));
 
   // Sin capas sonando, la tarjeta de Spotify funciona como siempre (en DFY).
   await btn('Detener todo').click();

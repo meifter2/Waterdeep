@@ -161,8 +161,18 @@ function paginaSpotify(pistaId: string): string | null {
 /** Abre una página de Spotify fuera de DFY (pestaña nueva o, en el móvil, la app de Spotify). */
 const abrirFuera = (url: string) => void window.open(url, '_blank', 'noopener,noreferrer')
 
-const AVISO_ABIERTA = (nombre: string) =>
-  `${nombre ? `«${nombre}»` : 'La canción'} se abre en Spotify (si no empieza sola, pulsa ▶ allí). DFY no la controla: los ambientes y efectos siguen aquí.`
+const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`
+
+/** Aviso del tramo que Spotify externo NO puede aplicar (sus enlaces de canciones no admiten un minuto de inicio). */
+export function avisoTramoExterno(pistaId: string): string {
+  const { pista } = datosDe(pistaId)
+  if (!pista || (!pista.inicio_ms && pista.fin_ms == null)) return ''
+  const tramo = pista.inicio_ms ? `el inicio en ${mmss(pista.inicio_ms)}` : `el final en ${mmss(pista.fin_ms!)}`
+  return ` Ojo: fuera de DFY empieza desde el principio; ${tramo} que tiene configurado no se puede aplicar.`
+}
+
+const AVISO_ABIERTA = (nombre: string, pistaId: string) =>
+  `${nombre ? `«${nombre}»` : 'La canción'} se abre en Spotify (si no empieza sola, pulsa ▶ allí). DFY no la controla: los ambientes y efectos siguen aquí.${avisoTramoExterno(pistaId)}`
 
 /**
  * Tarjeta de Spotify con ambientes o efectos sonando: en vez de reproducirla DFY (lo que la mezclaría), se abre en la
@@ -172,7 +182,7 @@ function abrirEnSpotify(pistaId: string, url: string) {
   const r = useReproduccion.getState()
   if (r.pistaId && r.estado !== 'parado') r.detener()
   abrirFuera(url)
-  useMezcla.setState({ aviso: AVISO_ABIERTA(datosDe(pistaId).elemento?.nombre ?? ''), pendiente: null })
+  useMezcla.setState({ aviso: AVISO_ABIERTA(datosDe(pistaId).elemento?.nombre ?? '', pistaId), pendiente: null })
 }
 
 const segDe = (p: Pista) => ({ inicio: p.inicio_ms, fin: p.fin_ms })
@@ -352,13 +362,14 @@ export const useMezcla = create<Mezcla>()((set, get) => {
       const capa = get().pendiente
       const r = useReproduccion.getState()
       const url = r.pistaId ? paginaSpotify(r.pistaId) : null
-      const nombre = r.pistaId ? (datosDe(r.pistaId).elemento?.nombre ?? '') : ''
+      const pistaSpotify = r.pistaId ?? ''
+      const nombre = pistaSpotify ? (datosDe(pistaSpotify).elemento?.nombre ?? '') : ''
       set({ pendiente: null })
       if (!url) return
       r.detener() // Connect: solo pausa si suena la canción de DFY
       abrirFuera(url)
       if (capa) tocar(capa)
-      set({ aviso: AVISO_ABIERTA(nombre) })
+      set({ aviso: AVISO_ABIERTA(nombre, pistaSpotify) })
     },
     abrirPanel: (abierto) => set((s) => ({ panel: abierto ?? !s.panel })),
 

@@ -1,7 +1,6 @@
 # CLAUDE.md — DFY · «El sonido de tus aventuras» (antes «Banda sonora»)
 
 > Contexto para Claude Code. Breve (≤100 líneas). Actualizar al cerrar cada fase.
-
 ## Resumen
 **DFY** = D (D20) + FY (Spotify). «El sonido de tus aventuras». Icono: D20 dorado con ondas (`public/iconos/dfy*`). Antes «Banda sonora».
 Mesa de sonido del máster de D&D: 7 carpetas (Opening, Ending, Personajes, Lugares, Momentos, Ambientes, Efectos); elementos
@@ -26,8 +25,7 @@ Solo servidor (Vercel, Production+Preview; NUNCA con `VITE_`): `FREESOUND_API_KE
   `audio` (50 MB) y `retratos` (5 MB) con políticas por carpeta `<uid>/…` + copia de `canciones` (marca `migrado_de`).
 - `003-enlaces-audio.sql` (F2, idempotente, YA EJECUTADO por el usuario: NO volver a pedirlo): admite `origen = 'url'`
   (enlace https). Si faltara, guardar un enlace daría el aviso «ejecuta bd/003…» (23514).
-- FK compuestas (id, user_id): mismo dueño. Borrar elemento borra sus pistas. Cliente NUNCA envía `user_id`. URLs firmadas 6 h.
-- Este entorno NO llega a supabase.co ni a freesound.org: SQL con PGlite (`pruebas/sql.test.mjs`) y app con simuladores.
+- FK (id, user_id): mismo dueño. Cliente NUNCA envía `user_id`. Sin red a supabase.co/freesound.org: SQL con PGlite, app con simuladores.
 
 ## Estructura (`api/sonidos.ts` = función de Vercel)
 ```
@@ -51,9 +49,10 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, buscar, dialogo
   flechas, Esc). `elementos.orden`: 0 = alfabético; `reordenar` numera 1..n, optimista, revierte si falla; nuevo ⇒ al final.
 - Barra (`Transporte.tsx`): ■ · ▶/❚❚ `principal()` · ⟲. ■ RECUERDA la pista (`parado`; ▶ la repite desde el inicio);
   `olvidar()` (borrar/salir) la olvida. `cargando` ⇒ ▶ desactivado. Connect: ■ solo pausa si suena lo de DFY.
-- Turnos («generacion») en los motores; `parado` ignora eventos tardíos; solo informa el activo (`activoRef`). Connect: cola,
-  sondeo 4 s ⇒ `otra`. Volumen «local» (`banda-sonora:volumen`) y «spotify» (REAL del dispositivo, nunca forzado).
-- Tramos: archivo exacto; YouTube start/endSeconds; Spotify aprox.; Connect ±1 s. Spotify iframe ≤30 s (Brave/Safari/móvil).
+- Turnos en los motores; `parado` ignora eventos tardíos; solo informa el activo. Connect: cola, sondeo 4 s ⇒ `otra`; volumen REAL.
+- Tramos: archivo exacto; YouTube start/endSeconds; Spotify aprox.; iframe ≤30 s (Brave/Safari/móvil). «Misma pista» exige mismo tramo.
+  Connect: `position_ms` + comprobación a 1,5 s ⇒ `irA` (seek) si quedó antes del inicio (solo si suena lo de DFY). Integrado:
+  `startAt` + hasta 3 `seek`. Externo: sin inicio posible ⇒ aviso (`avisoTramoExterno`). Prueba: `spotify-inicio` (4175).
 
 ## Mezcla (F2, `data/mezcla.ts` + `motorMezcla.ts` + `Mezclador.tsx`)
 - Un HTMLAudioElement por voz (`MotorArchivo`; NO Web Audio: streaming, URLs firmadas sin CORS). iPhone ignora el volumen.
@@ -68,7 +67,7 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, buscar, dialogo
   oficial (open.spotify.com; puede pedir ▶; DFY no la controla). Con Spotify de DFY sonando la capa no suena: aviso + «Abrir la
   canción en Spotify y seguir» (`pasarASpotify`). `otra` ⇒ bloquea (■ la suelta). YouTube bloquea salvo «Permitir ambientes con
   YouTube» (`youtubeConCapas`, apagado por defecto, en `banda-sonora:mezcla`). Elegir/reanudar externa ⇒ `detenerCapas`.
-- Freesound («Buscar sonidos»): navegador → `/api/sonidos` (sesión Supabase verificada en `/auth/v1/user`, Origin/Sec-Fetch,
+- Freesound («Buscar sonidos», X fija): navegador → `/api/sonidos` (sesión Supabase en `/auth/v1/user`, Origin/Sec-Fetch,
   parámetros acotados, clave en `Authorization: Token`, nunca reenvía textos de Freesound) → API v2. Licencias filtradas en el
   servidor por URL: CC0 y BY; BY-NC solo con casilla y marcado «Solo uso no comercial». Se guarda como `url`: enlace =
   MP3 de escucha + `#freesound=ID`; `descripcion` = «Freesound #ID · «Título» · autor · CC BY 4.0 · página» (`creditoDe`).
@@ -97,4 +96,5 @@ Ramas: F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador`, F2B `fase-2-fundidos`. A
 |------|--------|
 | v3 (Supabase+Google+email, PWA, Connect), identidad DFY, F1 Biblioteca v4 + reproductor + controles | Publicadas en `main` (002 ejecutado) |
 | F2 Mezclador + ambientes por enlace + «Buscar sonidos» (Freesound) | Publicada en `main` (7c51514); Freesound real sin verificar (falta clave) |
-| F2B Fundidos + X en «Buscar sonidos» + reordenar tarjetas | Publicada en `main`; falta prueba manual en producción |
+| F2B Fundidos + X en «Buscar sonidos» + reordenar tarjetas | Publicada en `main` (433155b); falta prueba manual en producción |
+| Corrección: inicio/tramo de Spotify (Connect, integrado, externo) | En `fase-2-fundidos`, sin integrar en `main` |

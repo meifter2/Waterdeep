@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { abririaEnSpotify, tocar, tocarElemento, useMezcla } from '../data/mezcla'
+import { abririaEnSpotify, avisoTramoExterno, tocar, tocarElemento, useMezcla } from '../data/mezcla'
 import { useReproduccion } from '../data/reproduccion'
 import { esLocal, pistasDe, useDatos } from '../data/store'
 import type { Elemento, Pista, Recurso } from '../data/types'
@@ -107,7 +107,11 @@ export function Tarjeta({
         className="tarjeta-tocar"
         onClick={() => (pistas.length ? tocarElemento(elemento.id) : alEditar())}
         aria-pressed={capa === 'ambiente' && principalEnMezcla ? !!canalPrincipal : undefined}
-        title={principal && abririaEnSpotify(principal.id) ? 'Hay ambientes sonando: se abrirá en la app de Spotify' : undefined}
+        title={
+          principal && abririaEnSpotify(principal.id)
+            ? `Hay ambientes sonando: se abrirá en la app de Spotify.${avisoTramoExterno(principal.id)}`
+            : undefined
+        }
         data-capa={principalEnMezcla ? capa : undefined}
         aria-label={!pistas.length ? `Añadir sonido a ${elemento.nombre}` : accion(principal, varias ? `${elemento.nombre}: ${nombrePrincipal}` : elemento.nombre)}
       >

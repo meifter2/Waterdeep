@@ -4,6 +4,7 @@ import {
   elegirDispositivo,
   estadoActual,
   fijarVolumenSpotify,
+  irA,
   modoRepetir,
   pausar,
   reanudar,
@@ -21,6 +22,8 @@ import type { Informe, Segmento } from './motor'
 
 const SONDEO_MS = 4000
 const COMPROBAR_MS = 1500
+/** Si Spotify empieza más de esto antes del inicio pedido, se corrige con un salto (seek). */
+const MARGEN_INICIO_MS = 2000
 const VOLUMEN_CADA_MS = 350
 
 export interface InfoVolumen {
@@ -110,12 +113,12 @@ export class MotorSpotifyConnect {
     this.aplicarRepetir()
     this.programarCorte(g, seg.inicio ?? 0)
     this.empezarSondeo(g)
-    // Spotify acepta la orden antes de sonar: se comprueba que de verdad suena lo pedido.
+    // Spotify acepta la orden antes de sonar: se comprueba que de verdad suena lo pedido… y DESDE DONDE se pidió.
     this.comprobacion = window.setTimeout(() => {
       void estadoActual()
-        .then((s) => {
+        .then(async (s) => {
           if (!this.vigente(g)) return
-          if (s && s.sonando && suenaEsto(s, e)) return
+          if (s && s.sonando && suenaEsto(s, e)) return this.asegurarInicio(g, e, s.progreso)
           this.sonando = false
           this.informar('pausa', s && s.uri && !suenaEsto(s, e) ? AVISO_OTRA : AVISO_NO_EMPIEZA)
         })
@@ -214,6 +217,17 @@ export class MotorSpotifyConnect {
     modoRepetir(modo, this.dispositivo?.id).catch(() => {})
   }
 
+  /**
+   * Algunos dispositivos ignoran `position_ms` y empiezan en 0:00. Si Spotify suena con la canción de DFY pero muy
+   * antes del inicio pedido, se salta allí con la operación oficial (seek). Nunca a una canción que DFY ya no controla.
+   */
+  private async asegurarInicio(g: number, e: EnlaceSpotify, progreso: number | null) {
+    const inicio = this.seg.inicio
+    if (!inicio || !this.suelta || progreso == null || progreso >= inicio - MARGEN_INICIO_MS) return
+    await irA(inicio, this.dispositivo?.id).catch(() => {})
+    if (this.vigente(g) && this.actual === e) this.programarCorte(g, inicio)
+  }
+
   /** Fin del tramo (aproximado). Antes de actuar, comprueba que Spotify sigue con ESTA canción. */
   private programarCorte(g: number, posicion: number) {
     window.clearTimeout(this.corte)
@@ -222,10 +236,24 @@ export class MotorSpotifyConnect {
       if (!this.vigente(g) || !this.sonando || !this.dispositivo || !this.actual) return
       const s = await estadoActual().catch(() => null)
       if (!this.vigente(g) || !s || !suenaEsto(s, this.actual)) return
-      if (this.repetir)
-        reproducirEn(this.dispositivo, this.actual, this.seg.inicio)
-          .then(() => this.vigente(g) && this.programarCorte(g, this.seg.inicio ?? 0))
+      if (this.repetir) {
+        const actual = this.actual
+        reproducirEn(this.dispositivo, actual, this.seg.inicio)
+          .then(() => {
+            if (!this.vigente(g)) return
+            this.programarCorte(g, this.seg.inicio ?? 0)
+            // También al repetir el tramo: si vuelve a 0:00, se corrige (solo si sigue sonando esta canción).
+            window.setTimeout(() => {
+              if (!this.vigente(g)) return
+              void estadoActual()
+                .then((s) => {
+                  if (this.vigente(g) && s && s.sonando && suenaEsto(s, actual)) void this.asegurarInicio(g, actual, s.progreso)
+                })
+                .catch(() => {})
+            }, COMPROBAR_MS)
+          })
           .catch(() => {})
+      }
       else
         pausar(this.dispositivo.id)
           .then(() => {

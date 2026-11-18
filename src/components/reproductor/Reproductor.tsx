@@ -57,7 +57,7 @@ export function Reproductor() {
   // Sonido de Freesound cuyo MP3 falla: se vuelve a pedir su enlace a la API (una vez por pulsación).
   const reintentarArchivo = useRef<((aviso?: string) => boolean) | null>(null)
   // Última pista pedida (para saber si se vuelve a pulsar la misma).
-  const ultima = useRef<{ pistaId: string; activo: Activo } | null>(null)
+  const ultima = useRef<{ pistaId: string; activo: Activo; tramo: string } | null>(null)
 
   // Crea los motores una sola vez.
   useEffect(() => {
@@ -145,9 +145,12 @@ export function Reproductor() {
     setRespaldo(null)
     reintentarArchivo.current = null
 
-    const misma = (destino: Activo) => previa?.pistaId === p.id && previa.activo === destino
+    // «La misma pista» exige también el MISMO tramo: si se cambió el inicio o el fin de esa tarjeta,
+    // se vuelve a poner desde el inicio nuevo (antes se reanudaba y el inicio nuevo se ignoraba).
+    const tramo = `${seg.inicio ?? ''}-${seg.fin ?? ''}`
+    const misma = (destino: Activo) => previa?.pistaId === p.id && previa.activo === destino && previa.tramo === tramo
     const marcar = (destino: Activo) => {
-      ultima.current = { pistaId: p.id, activo: destino }
+      ultima.current = { pistaId: p.id, activo: destino, tramo }
     }
 
     if (r.origen === 'archivo' || r.origen === 'url') {

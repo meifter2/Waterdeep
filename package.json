@@ -30,7 +30,8 @@
     "test:api-sonidos": "node pruebas/api-sonidos.test.ts",
     "test:buscar-sonidos": "node pruebas/buscar-sonidos.cjs",
     "test:fundidos": "node pruebas/fundidos.cjs",
-    "test:ordenar": "node pruebas/ordenar.cjs"
+    "test:ordenar": "node pruebas/ordenar.cjs",
+    "test:spotify-inicio": "node pruebas/spotify-inicio.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",

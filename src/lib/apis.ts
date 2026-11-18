@@ -22,7 +22,8 @@ export interface SpotifyPlayback {
 export interface SpotifyIFrameAPI {
   createController(
     el: HTMLElement,
-    opciones: { uri: string; width?: string | number; height?: string | number },
+    /** startAt: segundo en el que debe empezar al reproducir (opción oficial del iFrame API). */
+    opciones: { uri: string; width?: string | number; height?: string | number; startAt?: number },
     listo: (c: SpotifyController) => void,
   ): void
 }

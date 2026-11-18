@@ -5,19 +5,25 @@ window.onSpotifyIframeApiReady({ createController(el, opts, cb) {
   f.style.cssText='background:#1db954;color:#000;height:80px;display:flex;align-items:center;padding:0 1rem;font:14px sans-serif';
   el.replaceWith(f);
   const L = {ready:[], playback_update:[]}; const emit=(e,d)=>L[e].forEach(fn=>fn(d));
-  let uri = opts.uri, paused = true;
+  // pos: posición simulada. Como en el reproductor real, loadUri/startAt pueden NO aplicarse (empieza en 0);
+  // window.__spotifyIgnoraSeek = n ignora los n primeros saltos; window.__spotifyTictac emite la posición cada 300 ms.
+  let uri = opts.uri, paused = true, pos = 0, tic = 0;
+  const actualizar = () => emit('playback_update',{data:{isPaused:paused,isBuffering:false,duration:dur(),position:pos}});
+  const tictac = () => { clearInterval(tic); if (window.__spotifyTictac) tic = setInterval(() => { if (!paused) { pos = Math.min(dur(), pos + 300); actualizar() } }, 300) };
   const dur = () => uri.includes('previewPreview') ? 30000 : 200000;
   f.textContent = 'Spotify simulado: ' + uri;
   const c = {
     addListener(e, fn){ L[e].push(fn) },
-    loadUri(u, v, inicio){ uri=u; f.textContent='Spotify simulado: '+u; __log.push('spotify:loadUri '+u+(inicio ? ' @'+inicio : '')); paused=true; setTimeout(()=>emit('ready'), 80) },
-    play(){ __log.push('spotify:play '+uri); paused=false; emit('playback_update',{data:{isPaused:false,isBuffering:false,duration:dur(),position:0}}) },
+    loadUri(u, v, inicio){ uri=u; pos=0; f.textContent='Spotify simulado: '+u; __log.push('spotify:loadUri '+u+(inicio ? ' @'+inicio : '')); paused=true; setTimeout(()=>emit('ready'), 80) },
+    play(){ __log.push('spotify:play '+uri); paused=false; tictac(); emit('playback_update',{data:{isPaused:false,isBuffering:false,duration:dur(),position:pos}}) },
     pause(){ __log.push('spotify:pause'); paused=true; const ev = () => emit('playback_update',{data:{isPaused:true,isBuffering:false,duration:dur(),position:1000}}); if (window.__eventosTardios) setTimeout(ev, 250); else ev() },
-    togglePlay(){ paused ? c.play() : c.pause() }, seek(sg){ __log.push('spotify:seek '+sg) }, resume(){ c.play() }, destroy(){},
+    togglePlay(){ paused ? c.play() : c.pause() },
+    seek(sg){ __log.push('spotify:seek '+sg); if (window.__spotifyIgnoraSeek > 0) { window.__spotifyIgnoraSeek--; return } pos = sg*1000; if (window.__spotifyTictac) actualizar() },
+    resume(){ c.play() }, destroy(){ clearInterval(tic) },
     _terminar(){ emit('playback_update',{data:{isPaused:false,isBuffering:false,duration:dur(),position:dur()-200}}); emit('playback_update',{data:{isPaused:true,isBuffering:false,duration:dur(),position:0}}) },
   };
   window.__spotify = c;
-  __log.push('spotify:create ' + uri); cb(c); setTimeout(()=>emit('ready'), 80);
+  __log.push('spotify:create ' + uri + (opts.startAt ? ' startAt=' + opts.startAt : '')); cb(c); setTimeout(()=>emit('ready'), 80);
 }});`;
 exports.YOUTUBE = `
 window.__log = window.__log || [];

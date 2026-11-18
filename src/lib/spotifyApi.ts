@@ -112,6 +112,10 @@ export async function reproducirEn(d: Dispositivo, e: EnlaceSpotify, inicioMs: n
   await llamar(conDispositivo('/me/player/play', d.id), { method: 'PUT', body: JSON.stringify(cuerpo) })
 }
 
+/** Salta a una posición de lo que suena (operación oficial «seek»). */
+export const irA = (posicionMs: number, id?: string) =>
+  llamar(conDispositivo(`/me/player/seek?position_ms=${Math.max(0, Math.round(posicionMs))}`, id), { method: 'PUT' })
+
 export const pausar = (id?: string) => llamar(conDispositivo('/me/player/pause', id), { method: 'PUT' })
 export const reanudar = (id?: string) => llamar(conDispositivo('/me/player/play', id), { method: 'PUT' })
 export const modoRepetir = (modo: 'track' | 'context' | 'off', id?: string) =>

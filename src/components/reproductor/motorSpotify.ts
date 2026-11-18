@@ -20,6 +20,12 @@ const AVISO_PREVIEW = esMovil
       ? 'Spotify solo da 30 segundos porque no recibe tu sesión. Pulsa «Conectar Spotify» arriba para oírla completa en tu app de Spotify.'
       : 'Spotify solo da 30 segundos porque no recibe tu sesión. Inicia sesión en open.spotify.com en este navegador, permite las cookies de terceros para esta página y recárgala.'
 const AVISO_BLOQUEO = 'El navegador no ha dejado empezar la música. Pulsa ▶ en el reproductor de Spotify.'
+const AVISO_INICIO_PREVIEW = (inicio: string) =>
+  `Spotify solo da aquí una muestra de 30 segundos, que no llega a ${inicio}: suena desde el principio de la muestra. Conecta Spotify para respetar el inicio.`
+/** Intentos de saltar al inicio del tramo (el reproductor a veces ignora el primero mientras arranca). */
+const INTENTOS_INICIO = 3
+const ESPERA_INTENTO_MS = 900
+const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, '0')}`
 
 export class MotorSpotify {
   repetir = true
@@ -29,7 +35,10 @@ export class MotorSpotify {
   private ultimaPos = 0
   private tipo: EnlaceSpotify['tipo'] = 'track'
   private seg: Segmento = { inicio: null, fin: null }
-  private inicioAplicado = false
+  private intentosInicio = 0
+  private ultimoIntento = 0
+  /** Cuándo se pidió la canción: solo se corrige el inicio al empezar (no si luego el usuario mueve la barra). */
+  private pedidaEn = 0
   private avisoPreviewDado = false
   private temporizadores: number[] = []
   private uriActual = ''
@@ -60,7 +69,9 @@ export class MotorSpotify {
     this.seg = seg
     this.pendiente = true
     this.haSonado = false
-    this.inicioAplicado = !seg.inicio
+    this.intentosInicio = 0
+    this.ultimoIntento = 0
+    this.pedidaEn = Date.now()
     this.ultimaPos = 0
     this.avisoPreviewDado = false
     const inicioSeg = seg.inicio ? seg.inicio / 1000 : undefined
@@ -69,7 +80,8 @@ export class MotorSpotify {
       this.ctrl = await new Promise<SpotifyController>((resolver) => {
         const el = document.createElement('div')
         this.host.replaceChildren(el)
-        api.createController(el, { uri: e.uri, width: '100%', height: 80 }, resolver)
+        // startAt (oficial): donde debe empezar al reproducir. Por si el reproductor lo ignora, se comprueba después.
+        api.createController(el, { uri: e.uri, width: '100%', height: 80, ...(inicioSeg ? { startAt: inicioSeg } : {}) }, resolver)
       })
       this.escuchar(this.ctrl)
     } else {
@@ -108,11 +120,21 @@ export class MotorSpotify {
       this.pausado = isPaused
       if (this.parado) return
 
-      // Inicio del tramo: si Spotify empezó antes de lo pedido, se salta una vez (aprox. ±1 s).
-      if (!isPaused && !this.inicioAplicado && this.seg.inicio && position < this.seg.inicio - 1500) {
-        this.inicioAplicado = true
-        c.seek(this.seg.inicio / 1000)
-        return
+      // Inicio del tramo: si Spotify empezó antes de lo pedido, se salta allí (aprox. ±1 s). Si el salto se pierde
+      // mientras el reproductor arranca, se reintenta (hasta 3 veces). En una muestra de 30 s que no llega, se avisa.
+      if (!isPaused && this.seg.inicio && position < this.seg.inicio - 1500) {
+        if (duration > 0 && duration <= 30500 && this.seg.inicio >= duration - 500) {
+          if (this.intentosInicio < INTENTOS_INICIO) {
+            this.intentosInicio = INTENTOS_INICIO
+            this.avisoPreviewDado = true
+            this.informar('sonando', AVISO_INICIO_PREVIEW(mmss(this.seg.inicio)))
+          }
+        } else if (this.intentosInicio < INTENTOS_INICIO && Date.now() - this.ultimoIntento > ESPERA_INTENTO_MS && Date.now() - this.pedidaEn < 15000) {
+          this.intentosInicio++
+          this.ultimoIntento = Date.now()
+          c.seek(this.seg.inicio / 1000)
+          return
+        }
       }
       // Fin del tramo (aproximado: Spotify informa de la posición cada poco).
       if (!isPaused && this.seg.fin != null && position >= this.seg.fin) {
