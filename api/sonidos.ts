@@ -107,13 +107,20 @@ function normalizar(s: Record<string, unknown>): SonidoLibre | null {
   }
 }
 
-/** Petición desde otra web: se rechaza (la app siempre llama desde su propio dominio). */
+/**
+ * Petición desde otra web: se rechaza (la app siempre llama desde su propio dominio).
+ * En Vercel la dirección interna de la función puede no coincidir con el dominio público, así que el Origin
+ * se compara con el host de la URL y con las cabeceras Host / X-Forwarded-Host.
+ */
 function deOtraWeb(req: Request): boolean {
-  if (req.headers.get('sec-fetch-site') === 'cross-site') return true
+  const sitio = req.headers.get('sec-fetch-site')
+  if (sitio === 'cross-site') return true
+  if (sitio === 'same-origin') return false
   const origen = req.headers.get('origin')
   if (!origen) return false
   try {
-    return new URL(origen).host !== new URL(req.url).host
+    const propios = [new URL(req.url).host, req.headers.get('host'), req.headers.get('x-forwarded-host')].filter(Boolean)
+    return !propios.includes(new URL(origen).host)
   } catch {
     return true
   }

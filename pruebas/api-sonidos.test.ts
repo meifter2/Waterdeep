@@ -65,6 +65,12 @@ x = await pedir('q=rain', { authorization: `Bearer ${TOKEN}`, 'sec-fetch-site': 
 comprobar('Otra web (Sec-Fetch-Site): 403', x.r.status === 403)
 x = await pedir('q=rain', { authorization: `Bearer ${TOKEN}`, origin: 'https://dfy.example' })
 comprobar('Misma web con Origin: se atiende', x.r.status !== 403)
+x = await pedir('q=rain', { authorization: `Bearer ${TOKEN}`, origin: 'https://master-waterdeep.vercel.app', 'x-forwarded-host': 'master-waterdeep.vercel.app' })
+comprobar('Producción: Origin público distinto de la URL interna de la función, pero igual a X-Forwarded-Host: se atiende', x.r.status !== 403)
+x = await pedir('q=rain', { authorization: `Bearer ${TOKEN}`, origin: 'https://master-waterdeep.vercel.app', 'sec-fetch-site': 'same-origin' })
+comprobar('Producción: el navegador declara same-origin: se atiende', x.r.status !== 403)
+x = await pedir('q=rain', { authorization: `Bearer ${TOKEN}`, origin: 'https://malo.example', 'x-forwarded-host': 'master-waterdeep.vercel.app' })
+comprobar('Producción: Origin de otra web con X-Forwarded-Host propio: 403', x.r.status === 403)
 for (const malo of ['q=', 'q=' + 'a'.repeat(101), 'q=rain&pagina=0', 'q=rain&pagina=21', 'q=rain&duracion=raro', 'id=abc', 'id=12345678901'])
   comprobar(`Parámetros inválidos (${malo.slice(0, 20)}): 400`, (await pedir(malo)).r.status === 400)
 

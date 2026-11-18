@@ -25,8 +25,8 @@ Solo servidor (Vercel, Production+Preview; NUNCA con `VITE_`): `FREESOUND_API_KE
 - `esquema.sql` (v3, ya ejecutado por el usuario): tabla `canciones`. NO borrarla (la usa la versión publicada).
 - `002-biblioteca.sql` (v4, idempotente, solo añade): `elementos`, `recursos`, `pistas` + RLS + buckets privados
   `audio` (50 MB) y `retratos` (5 MB) con políticas por carpeta `<uid>/…` + copia de `canciones` (marca `migrado_de`).
-- `003-enlaces-audio.sql` (F2, idempotente, PENDIENTE de ejecutar): admite `origen = 'url'` (enlace https). Sin él, guardar
-  un enlace de audio en Supabase falla con aviso «ejecuta bd/003…» (23514); el modo local no lo necesita.
+- `003-enlaces-audio.sql` (F2, idempotente, YA EJECUTADO por el usuario: NO volver a pedirlo): admite `origen = 'url'`
+  (enlace https). Si faltara, guardar un enlace daría el aviso «ejecuta bd/003…» (23514).
 - Pistas con FK compuestas (id, user_id) ⇒ mismo dueño garantizado. Borrar elemento ⇒ borra sus pistas, no recursos.
 - El cliente NUNCA envía `user_id` (default `auth.uid()`). Archivos: URL firmada 6 h.
 - Este entorno NO llega a supabase.co ni a freesound.org: SQL con PGlite (`pruebas/sql.test.mjs`) y app con simuladores.

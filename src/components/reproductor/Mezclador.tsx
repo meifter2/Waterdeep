@@ -56,7 +56,15 @@ export function Mezclador() {
   }, [])
 
   useEffect(() => {
-    if (abierto) panel.current?.focus()
+    if (!abierto) return
+    panel.current?.focus()
+    // Esc cierra el panel aunque el foco haya salido de él (p. ej. al desactivarse «Detener todo» tras pulsarlo),
+    // salvo que haya una ventana (diálogo) abierta encima: entonces Esc es para ella.
+    const alPulsar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !document.querySelector('dialog[open]')) useMezcla.getState().abrirPanel(false)
+    }
+    window.addEventListener('keydown', alPulsar)
+    return () => window.removeEventListener('keydown', alPulsar)
   }, [abierto])
 
   if (!abierto) return null
@@ -67,9 +75,6 @@ export function Mezclador() {
       className="mezclador"
       aria-labelledby="mezclador-titulo"
       tabIndex={-1}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') useMezcla.getState().abrirPanel(false)
-      }}
     >
       <Cabecera />
       <CanalMusica />
