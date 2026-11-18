@@ -6,8 +6,7 @@
 **DFY** = D (D20) + FY (Spotify). «El sonido de tus aventuras». Icono: D20 dorado con ondas (`public/iconos/dfy*`). Antes «Banda sonora».
 Mesa de sonido del máster de D&D: 7 carpetas (Opening, Ending, Personajes, Lugares, Momentos, Ambientes, Efectos); elementos
 con retrato y pistas (Spotify, YouTube, archivos propios, enlaces https a audio o Freesound; etiqueta, tramo, bucle), sin duplicar sonidos.
-Cuentas Google o email+contraseña (Supabase Auth + RLS). Spotify Connect opcional (Premium). PWA con «compartir» en Android.
-Sin variables de Supabase ⇒ «modo local» (localStorage + IndexedDB).
+Cuentas Google o email (Supabase Auth + RLS). Connect opcional (Premium). PWA. Sin variables de Supabase ⇒ «modo local».
 Roadmap (NO empezar sin pedirlo): F2B fundidos · F3 sesión/escenas · F4 biblioteca de solo lectura para jugadores (solo lo publicado).
 
 ## Usuario y forma de trabajar
@@ -66,13 +65,14 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, dialogos, edito
 - «Audio propio» = `esLocal`: archivo subido o enlace `url` (https + extensión de audio; Dropbox ⇒ raw=1; se comprueba al
   añadir con `comprobarAudio`, que lee la duración). `urlDeRecurso` da la dirección. «Pegar enlace» + «Guardar y reproducir».
 - YouTube (normas: reproductor visible ≥200×200, sin tapar, sin aislar/modificar su audio, uno a la vez): un vídeo largo
-  en Ambientes suena en el reproductor PRINCIPAL visible (bucle, volumen oficial). NUNCA se le superponen capas locales.
+  en Ambientes suena en el reproductor PRINCIPAL visible (bucle, volumen oficial). Capas encima: solo con el interruptor.
 - Enrutado `tocar(pista)`: archivo propio en Ambientes ⇒ canal de ambiente (pulsar activa/detiene; en pausa reanuda;
   con error reintenta), máx. 3, el 4.º se rechaza con aviso · en Efectos ⇒ voz que suena una vez (máx. 6, se corta la
   más antigua; antirrebote 80 ms) · resto (y todo Spotify/YouTube) ⇒ canal principal. Quitado mientras carga ⇒ no suena.
-- Política externa: elegir/reanudar Spotify o YouTube como música ⇒ `detenerCapas`. Ambiente/efecto con Spotify/YouTube
-  `sonando|cargando|otra` ⇒ NO se corta la música ni se lanza la capa; aviso «Para combinar ambientes y efectos, utiliza música
-  en archivo propio.» (`externaSonando`). En pausa/detenida sí se lanza. Elegir música en archivo sustituye a la externa.
+- Política externa: Spotify NUNCA se mezcla en DFY (su política). Tarjeta de Spotify con capas sonando ⇒ se abre en la app
+  oficial (open.spotify.com; puede pedir ▶; DFY no la controla). Con Spotify de DFY sonando la capa no suena: aviso + «Abrir la
+  canción en Spotify y seguir» (`pasarASpotify`). `otra` ⇒ bloquea (■ la suelta). YouTube bloquea salvo «Permitir ambientes con
+  YouTube» (`youtubeConCapas`, apagado por defecto, en `banda-sonora:mezcla`). Elegir/reanudar externa ⇒ `detenerCapas`.
 - Freesound («Buscar sonidos»): navegador → `/api/sonidos` (sesión Supabase verificada en `/auth/v1/user`, Origin/Sec-Fetch,
   parámetros acotados, clave en `Authorization: Token`, nunca reenvía textos de Freesound) → API v2. Licencias filtradas en el
   servidor por URL: CC0 y BY; BY-NC solo con casilla y marcado «Solo uso no comercial». Se guarda como `url`: enlace =
@@ -88,9 +88,9 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, dialogos, edito
 - `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente|transporte|mezclador|enlaces-audio`
   (4173) · `test:supabase|email|mezclador-supabase|buscar-sonidos` (4174; la última usa la función real con Freesound
   simulado) · `test:spotify` (4175) · `test:api-sonidos` (Node, sin servidor). Freesound REAL: sin verificar hasta tener clave.
-- Vercel publica cada push a `main`; ramas ⇒ vista previa (variables «Preview»; Google no vuelve a ellas ⇒ usar email).
 
 ## Git
+Vercel publica cada push a `main`; ramas ⇒ vista previa (variables «Preview»; Google no vuelve a ellas ⇒ usar email).
 F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador` (se conservan). A `main` SOLO con permiso. Recuperación: pre-F1 `fa42f32`, pre-F2 `38ad9ec`.
 
 ## Estado

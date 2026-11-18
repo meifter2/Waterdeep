@@ -28,12 +28,14 @@ const limitar = (v: unknown, defecto: number) => {
   return Number.isFinite(n) ? Math.min(100, Math.max(0, Math.round(n))) : defecto
 }
 
-function leerMezcla(): { maestro: number; ambiente: number; efecto: number } {
+type PrefMezcla = { maestro: number; ambiente: number; efecto: number; youtubeConCapas: boolean }
+
+function leerMezcla(): PrefMezcla {
   try {
     const d = JSON.parse(almacenamientoSeguro.getItem(CLAVE_MEZCLA) ?? 'null')
-    return { maestro: limitar(d?.maestro, 100), ambiente: limitar(d?.ambiente, 60), efecto: limitar(d?.efecto, 80) }
+    return { maestro: limitar(d?.maestro, 100), ambiente: limitar(d?.ambiente, 60), efecto: limitar(d?.efecto, 80), youtubeConCapas: d?.youtubeConCapas === true }
   } catch {
-    return { maestro: 100, ambiente: 60, efecto: 80 }
+    return { maestro: 100, ambiente: 60, efecto: 80, youtubeConCapas: false }
   }
 }
 
@@ -67,11 +69,14 @@ interface Volumen {
   fijarMaestro: (v: number) => void
   alternarSilencioMaestro: () => void
   fijarPreferencia: (tipo: 'ambiente' | 'efecto', v: number) => void
+  /** «Permitir ambientes con YouTube» (desactivado por defecto): ambientes y efectos pueden sonar con un vídeo visible. */
+  youtubeConCapas: boolean
+  alternarYoutubeConCapas: () => void
 }
 
 const guardar = (local: number, silenciado: boolean) => almacenamientoSeguro.setItem(CLAVE, JSON.stringify({ local, silenciado }))
-const guardarMezcla = (d: { maestro: number; ambiente: number; efecto: number }) =>
-  almacenamientoSeguro.setItem(CLAVE_MEZCLA, JSON.stringify({ maestro: d.maestro, ambiente: d.ambiente, efecto: d.efecto }))
+const guardarMezcla = (d: PrefMezcla) =>
+  almacenamientoSeguro.setItem(CLAVE_MEZCLA, JSON.stringify({ maestro: d.maestro, ambiente: d.ambiente, efecto: d.efecto, youtubeConCapas: d.youtubeConCapas }))
 
 export const useVolumen = create<Volumen>()((set, get) => ({
   ...leer(),
@@ -119,6 +124,10 @@ export const useVolumen = create<Volumen>()((set, get) => ({
   alternarSilencioMaestro: () => set((s) => ({ maestroSilenciado: !s.maestroSilenciado })),
   fijarPreferencia: (tipo, v) => {
     set({ [tipo]: limitar(v, 60) } as Pick<Volumen, typeof tipo>)
+    guardarMezcla(get())
+  },
+  alternarYoutubeConCapas: () => {
+    set((s) => ({ youtubeConCapas: !s.youtubeConCapas }))
     guardarMezcla(get())
   },
 }))

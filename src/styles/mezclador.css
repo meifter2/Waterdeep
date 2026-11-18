@@ -369,6 +369,23 @@
   color: var(--muelle-tinta-suave);
 }
 
+/* «Permitir ambientes con YouTube» */
+.mezclador .casilla {
+  margin: 0.2rem 0 0;
+  color: var(--muelle-tinta);
+  font-weight: 600;
+}
+
+.mezclador .casilla input {
+  accent-color: var(--oro-sobre-oscuro);
+}
+
+.mezclador-nota {
+  font-size: var(--t-xs);
+  color: var(--muelle-tinta-suave);
+  max-width: 46ch;
+}
+
 /* Móvil: hoja a todo el ancho, encima de la barra. */
 @media (max-width: 640px) {
   .mezclador {

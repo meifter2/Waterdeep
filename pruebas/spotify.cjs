@@ -160,7 +160,7 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   await p.waitForTimeout(500);
   let c = await capas();
   comprobar('Mezcla con Spotify «con otra canción»: ambiente y efecto no la paran ni la cambian', pausasApi() === nPo && plays().length === nPl && sp.sonando && sp.uri.includes('otraCancionDeFuera'));
-  comprobar('…no suena ninguna capa encima y se avisa', c.amb === 0 && c.ef === 0 && c.suenan === 0 && c.aviso === 'Para combinar ambientes y efectos, utiliza música en archivo propio.', JSON.stringify(c));
+  comprobar('…no suena ninguna capa encima y se avisa', c.amb === 0 && c.ef === 0 && c.suenan === 0 && c.aviso.startsWith('Para combinar ambientes y efectos, utiliza música en archivo propio') && c.aviso.includes('pulsa ■'), JSON.stringify(c));
   await p.getByRole('button', { name: 'Reproducir Ending Waterdeep' }).click();
   await p.waitForTimeout(600);
   comprobar('…y al pulsar la tarjeta la recupera', sp.uri === B && (await estado()).startsWith('Sonando'));
@@ -172,6 +172,24 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   await p.waitForTimeout(500);
   c = await capas();
   comprobar('Mezcla con Spotify Connect sonando: no pausa Spotify y no lanza la capa', pausasApi() === nPo && plays().length === nPl && sp.sonando && sp.uri === B && c.amb === 0 && c.ef === 0 && c.suenan === 0 && (await estado()).startsWith('Sonando'));
+  // «Abrir la canción en Spotify y seguir»: DFY pausa SU canción, abre su página en Spotify y lanza el ambiente.
+  await p.evaluate(() => { window.__abiertos = []; window.open = (u) => { window.__abiertos.push(String(u)); return null; }; });
+  nPo = pausasApi(); nPl = plays().length;
+  await p.getByRole('button', { name: 'Abrir la canción en Spotify y seguir' }).click();
+  await p.waitForFunction(() => window.__mezclaEstado().ambientes.some((x) => x.estado === 'sonando'), null, { timeout: 8000 }).catch(() => {});
+  c = await capas();
+  const pagina = (uri) => `https://open.spotify.com/track/${uri.split(':')[2]}`;
+  comprobar('Connect → app de Spotify: pausa la canción de DFY, abre su página y el ambiente suena', pausasApi() === nPo + 1 && plays().length === nPl && (await p.evaluate(() => window.__abiertos)).at(-1) === pagina(B) && c.amb === 1 && (await estado()).startsWith('Detenido'));
+  // Con el ambiente sonando, otra tarjeta de Spotify se abre en la app: Connect no recibe ninguna orden.
+  nPo = pausasApi(); nPl = plays().length;
+  await p.getByRole('button', { name: 'Reproducir Persecución' }).click();
+  await p.waitForTimeout(500);
+  comprobar('Con ambientes sonando, una tarjeta de Spotify se abre en la app y Connect no recibe órdenes', plays().length === nPl && pausasApi() === nPo && (await p.evaluate(() => window.__abiertos)).at(-1) === pagina(C) && (await capas()).amb === 1);
+  // Se vuelve al estado de antes (sin capas y la canción de DFY sonando) para seguir con las pruebas de Connect.
+  await p.getByRole('button', { name: 'Detener ambiente Tormenta' }).click();
+  await p.waitForFunction(() => window.__mezclaEstado().efectos.length === 0 && window.__mezclaEstado().ambientes.length === 0, null, { timeout: 5000 });
+  await p.getByRole('button', { name: 'Reproducir Ending Waterdeep' }).click();
+  await p.waitForFunction(() => document.querySelector('.reproductor-estado')?.textContent.startsWith('Sonando'), null, { timeout: 5000 });
   // Misma tarjeta con la canción ya sonando: no la reinicia
   const antesMisma = plays().length;
   await p.getByRole('button', { name: 'Reproducir Ending Waterdeep' }).click();

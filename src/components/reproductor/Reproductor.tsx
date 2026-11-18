@@ -174,7 +174,9 @@ export function Reproductor() {
       return
     }
     // Spotify y YouTube no se mezclan: al empezar, se detienen ambientes y efectos (sin audio oculto).
-    useMezcla.getState().detenerCapas(`Ambientes y efectos detenidos: ${nombreServicio(e.servicio)} no se mezcla con otros sonidos.`)
+    // Excepción: YouTube con «Permitir ambientes con YouTube» activado (el vídeo sigue visible y sin tocar).
+    if (!(e.servicio === 'youtube' && useVolumen.getState().youtubeConCapas))
+      useMezcla.getState().detenerCapas(`Ambientes y efectos detenidos: ${nombreServicio(e.servicio)} no se mezcla con otros sonidos.`)
     setEnlace(e)
     const usarRespaldo = (en: EnlaceSpotify | EnlaceYoutube) => {
       setRespaldo(urlRespaldo(en, seg.inicio))
@@ -220,7 +222,12 @@ export function Reproductor() {
     if (!activo) return
     const motor = motores.current[activo]
     // Reanudar Spotify/YouTube también aparta las capas locales (no se superponen).
-    if (orden.tipo === 'alternar' && activo !== 'archivo' && useReproduccion.getState().estado === 'pausa')
+    if (
+      orden.tipo === 'alternar' &&
+      activo !== 'archivo' &&
+      useReproduccion.getState().estado === 'pausa' &&
+      !(activo === 'youtube' && useVolumen.getState().youtubeConCapas)
+    )
       useMezcla.getState().detenerCapas(`Ambientes y efectos detenidos: ${activo === 'youtube' ? 'YouTube' : 'Spotify'} no se mezcla con otros sonidos.`)
     if (orden.tipo === 'alternar') motor?.alternar()
     else {
@@ -232,12 +239,14 @@ export function Reproductor() {
 
   // Avisos de la mezcla (límite de ambientes, Spotify/YouTube apartados…): visibles en la barra y se van solos.
   const avisoMezcla = useMezcla((s) => s.aviso)
+  const pendienteSpotify = useMezcla((s) => s.pendiente)
   const limpiarAvisoMezcla = useMezcla((s) => s.limpiarAviso)
   useEffect(() => {
     if (!avisoMezcla) return
-    const t = setTimeout(limpiarAvisoMezcla, 7000)
+    // Con el botón «Abrir en Spotify y seguir», el aviso se queda más tiempo.
+    const t = setTimeout(limpiarAvisoMezcla, pendienteSpotify ? 15000 : 7000)
     return () => clearTimeout(t)
-  }, [avisoMezcla, limpiarAvisoMezcla])
+  }, [avisoMezcla, pendienteSpotify, limpiarAvisoMezcla])
 
   const hayPista = pistaId !== null
   // El marco (vídeo de YouTube, reproductor de Spotify) solo se muestra mientras hay algo cargado.
@@ -301,6 +310,11 @@ export function Reproductor() {
           {avisoMezcla && (
             <p className="reproductor-aviso" role="status" data-mezcla>
               {avisoMezcla}
+              {pendienteSpotify && (
+                <button type="button" className="boton boton-pequeno" onClick={() => useMezcla.getState().pasarASpotify()}>
+                  Abrir la canción en Spotify y seguir
+                </button>
+              )}
               <button type="button" className="enlace" onClick={limpiarAvisoMezcla}>
                 Cerrar aviso
               </button>

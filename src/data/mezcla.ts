@@ -3,6 +3,7 @@ import { MAX_AMBIENTES, MAX_EFECTOS, MotorMezcla, type Capa, type EstadoCapa } f
 import { useReproduccion } from './reproduccion'
 import { esLocal, pistasDe, useDatos } from './store'
 import type { Pista } from './types'
+import { interpretarEnlace } from '../lib/enlaces'
 import { factorMaestro, useVolumen } from './volumen'
 
 // Mezcla (fase 2): capas de archivos propios que suenan a la vez que la música principal.
@@ -45,6 +46,8 @@ interface Mezcla {
   efectos: VozEfecto[]
   efectosSilenciados: boolean
   aviso: string
+  /** Capa que no pudo sonar por Spotify (puesto por DFY): «Abrir la canción en Spotify y seguir» la lanza. */
+  pendiente: string | null
   panel: boolean
 
   alternarAmbiente: (pistaId: string) => void
@@ -65,6 +68,8 @@ interface Mezcla {
   /** Al cerrar sesión: detiene y suelta todo. */
   vaciar: () => void
   limpiarAviso: () => void
+  /** Pasa la canción de Spotify que puso DFY a la app de Spotify (DFY la pausa y abre su página) y lanza la capa pendiente. */
+  pasarASpotify: () => void
   abrirPanel: (abierto?: boolean) => void
   informar: (capa: Capa, id: string, estado: EstadoCapa, aviso?: string) => void
 }
@@ -110,23 +115,63 @@ const volEfectos = () => {
 }
 
 export const AVISO_EXTERNA = 'Para combinar ambientes y efectos, utiliza música en archivo propio.'
+const AVISO_SPOTIFY = 'Para combinar ambientes y efectos, utiliza música en archivo propio o abre la canción en la app de Spotify.'
+const AVISO_OTRA = 'Para combinar ambientes y efectos, utiliza música en archivo propio. Spotify está con otra canción: si quieres que DFY la suelte, pulsa ■ en la barra.'
+const AVISO_YOUTUBE = 'Para combinar ambientes y efectos, utiliza música en archivo propio o activa «Permitir ambientes con YouTube» en la mezcla.'
 
 /**
- * ¿Hay música externa sonando que impide lanzar una capa local? Sonando o cargando Spotify/YouTube, o Spotify
- * con otra canción puesta desde fuera (`otra`, puede estar sonando). Si es así, avisa y devuelve true: la capa
- * no se lanza y la música externa NO se toca. En pausa o detenida no molesta.
+ * ¿Hay música externa sonando que impide lanzar una capa local? Spotify sonando o cargando (o con otra canción puesta
+ * desde fuera, `otra`) y YouTube sonando o cargando, salvo que el usuario haya activado «Permitir ambientes con YouTube».
+ * En pausa o detenida no molesta. Spotify NUNCA se mezcla dentro de DFY (su política lo prohíbe).
  */
 export function musicaExternaSonando() {
   const r = useReproduccion.getState()
   if (!r.pistaId || (r.estado !== 'sonando' && r.estado !== 'cargando' && r.estado !== 'otra')) return false
   const { recurso } = datosDe(r.pistaId)
-  return !!recurso && !esLocal(recurso)
+  if (!recurso || esLocal(recurso)) return false
+  return !(recurso.origen === 'youtube' && useVolumen.getState().youtubeConCapas)
 }
 
-function externaSonando() {
+/** Si la música externa impide la capa, avisa (y recuerda la capa para «Abrir en Spotify y seguir») y devuelve true. */
+function externaSonando(pistaId: string) {
   if (!musicaExternaSonando()) return false
-  useMezcla.setState({ aviso: AVISO_EXTERNA })
+  const r = useReproduccion.getState()
+  const origen = datosDe(r.pistaId ?? '').recurso?.origen
+  if (origen === 'youtube') useMezcla.setState({ aviso: AVISO_YOUTUBE, pendiente: null })
+  else if (r.estado === 'otra') useMezcla.setState({ aviso: AVISO_OTRA, pendiente: null })
+  else useMezcla.setState({ aviso: AVISO_SPOTIFY, pendiente: pistaId })
   return true
+}
+
+/** ¿Suenan ahora ambientes o efectos de la mezcla? */
+const capasSonando = () => {
+  const s = useMezcla.getState()
+  return s.efectos.length > 0 || s.ambientes.some((c) => c.estado === 'sonando' || c.estado === 'cargando')
+}
+
+/** Página de Spotify de una pista (open.spotify.com/…), o null si no es de Spotify. */
+function paginaSpotify(pistaId: string): string | null {
+  const { recurso } = datosDe(pistaId)
+  if (recurso?.origen !== 'spotify') return null
+  const e = interpretarEnlace(recurso.enlace)
+  return typeof e !== 'string' && e.servicio === 'spotify' ? e.web : null
+}
+
+/** Abre una página de Spotify fuera de DFY (pestaña nueva o, en el móvil, la app de Spotify). */
+const abrirFuera = (url: string) => void window.open(url, '_blank', 'noopener,noreferrer')
+
+const AVISO_ABIERTA = (nombre: string) =>
+  `${nombre ? `«${nombre}»` : 'La canción'} se abre en Spotify (si no empieza sola, pulsa ▶ allí). DFY no la controla: los ambientes y efectos siguen aquí.`
+
+/**
+ * Tarjeta de Spotify con ambientes o efectos sonando: en vez de reproducirla DFY (lo que la mezclaría), se abre en la
+ * app oficial de Spotify. Lo que sonaba en el canal principal de DFY se detiene, como al elegir cualquier otra canción.
+ */
+function abrirEnSpotify(pistaId: string, url: string) {
+  const r = useReproduccion.getState()
+  if (r.pistaId && r.estado !== 'parado') r.detener()
+  abrirFuera(url)
+  useMezcla.setState({ aviso: AVISO_ABIERTA(datosDe(pistaId).elemento?.nombre ?? ''), pendiente: null })
 }
 
 const segDe = (p: Pista) => ({ inicio: p.inicio_ms, fin: p.fin_ms })
@@ -168,6 +213,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
     efectos: [],
     efectosSilenciados: false,
     aviso: '',
+    pendiente: null,
     panel: false,
 
     alternarAmbiente: (pistaId) => {
@@ -183,7 +229,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
         set({ aviso: `Ya suenan ${MAX_AMBIENTES} ambientes. Detén uno para añadir otro.` })
         return
       }
-      if (externaSonando()) return
+      if (externaSonando(pistaId)) return
       const nuevo: CanalAmbiente = {
         id: nuevoId('a'),
         pistaId,
@@ -195,7 +241,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
         aviso: '',
         reintentado: false,
       }
-      set((s) => ({ ambientes: [...s.ambientes, nuevo], aviso: s.aviso.startsWith('Ya suenan') || s.aviso === AVISO_EXTERNA ? '' : s.aviso }))
+      set((s) => ({ ambientes: [...s.ambientes, nuevo], aviso: s.aviso.startsWith('Ya suenan') || s.aviso.startsWith(AVISO_EXTERNA.slice(0, -1)) ? '' : s.aviso }))
       void iniciarAmbiente(nuevo.id)
     },
 
@@ -206,7 +252,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
       ultimoEfecto = { pistaId, t: ahora }
       const { pista } = datosDe(pistaId)
       if (!pista) return
-      if (externaSonando()) return
+      if (externaSonando(pistaId)) return
       let efectos = get().efectos
       if (efectos.length >= MAX_EFECTOS) {
         // Demasiadas voces: se corta la más antigua.
@@ -221,7 +267,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
     pausarReanudar: (id) => {
       const c = canal(id)
       if (!c) return
-      if ((c.estado === 'error' || c.estado === 'pausa') && externaSonando()) return // volver a sonar: misma regla
+      if ((c.estado === 'error' || c.estado === 'pausa') && externaSonando(c.pistaId)) return // volver a sonar: misma regla
       if (c.estado === 'error') {
         cambiarCanal(id, { estado: 'cargando', aviso: '', reintentado: false })
         void iniciarAmbiente(id, true)
@@ -296,7 +342,20 @@ export const useMezcla = create<Mezcla>()((set, get) => {
       set({ ambientes: [], efectos: [], efectosSilenciados: false, aviso: '', panel: false })
     },
 
-    limpiarAviso: () => set({ aviso: '' }),
+    limpiarAviso: () => set({ aviso: '', pendiente: null }),
+
+    pasarASpotify: () => {
+      const capa = get().pendiente
+      const r = useReproduccion.getState()
+      const url = r.pistaId ? paginaSpotify(r.pistaId) : null
+      const nombre = r.pistaId ? (datosDe(r.pistaId).elemento?.nombre ?? '') : ''
+      set({ pendiente: null })
+      if (!url) return
+      r.detener() // Connect: solo pausa si suena la canción de DFY
+      abrirFuera(url)
+      if (capa) tocar(capa)
+      set({ aviso: AVISO_ABIERTA(nombre) })
+    },
     abrirPanel: (abierto) => set((s) => ({ panel: abierto ?? !s.panel })),
 
     informar: (capa, id, estado, aviso) => {
@@ -377,10 +436,16 @@ useDatos.subscribe((s, antes) => {
 /** Reproduce una pista donde le corresponde: canal principal, ambiente (activar/detener) o efecto. */
 export function tocar(pistaId: string) {
   const destino = destinoDe(pistaId)
-  if (destino === 'ambiente') useMezcla.getState().alternarAmbiente(pistaId)
-  else if (destino === 'efecto') useMezcla.getState().lanzarEfecto(pistaId)
+  if (destino === 'ambiente') return useMezcla.getState().alternarAmbiente(pistaId)
+  if (destino === 'efecto') return useMezcla.getState().lanzarEfecto(pistaId)
+  // Spotify con ambientes o efectos sonando: se abre en la app de Spotify (DFY no la mezcla). Si no, como siempre.
+  const spotify = capasSonando() ? paginaSpotify(pistaId) : null
+  if (spotify) abrirEnSpotify(pistaId, spotify)
   else useReproduccion.getState().reproducir(pistaId)
 }
+
+/** ¿Esta tarjeta de Spotify se abriría ahora en la app de Spotify? (para avisarlo en la propia tarjeta) */
+export const abririaEnSpotify = (pistaId: string) => capasSonando() && !!paginaSpotify(pistaId)
 
 /** Igual, con la pista principal (la primera) de un elemento. Devuelve false si no tiene. */
 export function tocarElemento(elementoId: string) {

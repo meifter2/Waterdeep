@@ -153,6 +153,14 @@ function CanalMusica() {
           )}
         </div>
       </div>
+      <label className="casilla">
+        <input type="checkbox" checked={v.youtubeConCapas} onChange={v.alternarYoutubeConCapas} />
+        Permitir ambientes con YouTube
+      </label>
+      <p className="mezclador-nota">
+        Desactivado por defecto. El vídeo sigue visible y sin tocar, y nunca suenan dos a la vez. Las normas de YouTube no aclaran
+        este caso: actívalo bajo tu criterio.
+      </p>
     </section>
   )
 }

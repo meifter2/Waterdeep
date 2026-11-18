@@ -13,6 +13,8 @@ const cerca = (a, b) => Math.abs(a - b) < 0.011;
   await ctx.route('https://open.spotify.com/embed/iframe-api/v1', (r) => r.fulfill({ contentType: 'text/javascript', body: SPOTIFY }));
   await ctx.route('https://www.youtube.com/iframe_api', (r) => r.fulfill({ contentType: 'text/javascript', body: YOUTUBE }));
   await ctx.route(/oembed/, (r) => r.fulfill({ json: {} }));
+  // «Abrir en Spotify» abre una pestaña: aquí solo se anota a dónde.
+  await ctx.addInitScript(() => { window.__abiertos = []; window.open = (u) => { window.__abiertos.push(String(u)); return null; }; });
   const p = await ctx.newPage();
   const errores = [];
   p.on('pageerror', (e) => errores.push(String(e)));
@@ -202,7 +204,7 @@ const cerca = (a, b) => Math.abs(a - b) < 0.011;
   comprobar('9. Músicas seguidas: suena la última y el ambiente no se toca', (await p.locator('.reproductor-titulo').innerText()) === 'Taberna' && !s.principal.pausado && ambSonando(s) === 'Lluvia');
 
   // ══ 11. Mezcla local y Spotify/YouTube: no se superponen, y una capa nunca corta la música externa ══
-  const AVISO = 'Para combinar ambientes y efectos, utiliza música en archivo propio.';
+  const AVISO = 'Para combinar ambientes y efectos, utiliza música en archivo propio';
   const avisoBarra = async () => ((await p.locator('.reproductor-aviso[data-mezcla]').count()) ? p.locator('.reproductor-aviso[data-mezcla]').innerText() : '');
   const logDesde = async (n) => (await p.evaluate(() => window.__log)).slice(n);
   const nLog = () => p.evaluate(() => window.__log.length);
@@ -252,12 +254,26 @@ const cerca = (a, b) => Math.abs(a - b) < 0.011;
   await esperarAmb('Lluvia');
   comprobar('11. …y entonces el ambiente se combina con ella', !(await estado()).principal.pausado);
 
-  // Spotify integrado: misma regla.
+  // ══ Spotify con ambientes sonando: la tarjeta abre la canción en la app oficial (DFY nunca la mezcla) ══
+  const PUERTO = 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT';
+  const abiertos = () => p.evaluate(() => window.__abiertos);
+  n = await nLog();
+  await musica('Puerto').click();
+  await p.waitForTimeout(400);
+  s = await estado();
+  log = await logDesde(n);
+  comprobar('11. Spotify con ambientes sonando: se abre en la app de Spotify y DFY no la reproduce', (await abiertos()).at(-1) === PUERTO && !log.some((l) => l.startsWith('spotify:')), log.join(' / '));
+  comprobar('11. …el ambiente sigue, la música anterior se detiene y se avisa de pulsar ▶ en Spotify', ambSonando(s) === 'Lluvia' && s.principal.pausado && (await avisoBarra()).includes('pulsa ▶ allí'));
+  comprobar('11. …la tarjeta lo anuncia antes de pulsarla', (await musica('Puerto').getAttribute('title')) === 'Hay ambientes sonando: se abrirá en la app de Spotify');
+
+  // Sin capas sonando, la tarjeta de Spotify funciona como siempre (en DFY).
+  await btn('Detener todo').click();
+  await p.waitForTimeout(200);
+  const abiertosAntes = (await abiertos()).length;
   await musica('Puerto').click();
   await p.waitForFunction(() => (window.__log || []).some((l) => l.startsWith('spotify:play')), null, { timeout: 8000 });
   await p.waitForTimeout(300);
-  s = await estado();
-  comprobar('11. Elegir Spotify aparta las capas locales', s.amb.length === 0 && audiblesOcultos(s) === 0 && (await avisoBarra()).includes('Spotify no se mezcla'));
+  comprobar('11. Sin ambientes, Spotify suena en DFY como siempre', (await abiertos()).length === abiertosAntes && (await p.locator('.reproductor-estado').innerText()).startsWith('Sonando'));
   n = await nLog();
   await efecto('Puerta').click();
   await p.waitForTimeout(200);
@@ -265,10 +281,55 @@ const cerca = (a, b) => Math.abs(a - b) < 0.011;
   await p.waitForTimeout(400);
   s = await estado();
   log = await logDesde(n);
-  comprobar('11. Efecto o ambiente con Spotify sonando: Spotify sigue y la capa no suena', !log.includes('spotify:pause') && (await p.locator('.reproductor-estado').innerText()).startsWith('Sonando') && s.ef.length === 0 && s.amb.length === 0 && (await avisoBarra()).includes(AVISO), log.join(' / '));
+  comprobar('11. Efecto o ambiente con Spotify de DFY sonando: Spotify sigue y la capa no suena', !log.includes('spotify:pause') && (await p.locator('.reproductor-estado').innerText()).startsWith('Sonando') && s.ef.length === 0 && s.amb.length === 0 && (await avisoBarra()).includes(AVISO), log.join(' / '));
+  comprobar('11. …y el aviso ofrece pasar la canción a la app de Spotify', await btn('Abrir la canción en Spotify y seguir').isVisible());
+  n = await nLog();
+  await btn('Abrir la canción en Spotify y seguir').click();
+  await esperarAmb('Conversaciones');
+  log = await logDesde(n);
+  comprobar('11. «Abrir en Spotify y seguir»: DFY pausa su canción, abre la app y lanza el ambiente', log.includes('spotify:pause') && (await abiertos()).at(-1) === PUERTO && (await p.locator('.reproductor-estado').innerText()).startsWith('Detenido'), log.join(' / '));
   comprobar('11. Los controles de volumen siguen intactos', (await p.locator('.boton-mezcla').isEnabled()) && (await p.locator('#volumen').isVisible()));
   await btn('Detener todo').click();
   await p.waitForTimeout(200);
+
+  // ══ «Permitir ambientes con YouTube» (desactivado por defecto) ══
+  const interruptor = p.getByLabel('Permitir ambientes con YouTube');
+  comprobar('11b. El interruptor de YouTube empieza desactivado', !(await interruptor.isChecked()));
+  await interruptor.check();
+  await ambiente('Lluvia').click();
+  await esperarAmb('Lluvia');
+  n = await nLog();
+  await musica('Nomad').click();
+  await p.waitForFunction((k) => (window.__log || []).slice(k).some((l) => l.startsWith('yt:')), n, { timeout: 8000 });
+  await p.waitForTimeout(400);
+  s = await estado();
+  comprobar('11b. Activado: al poner YouTube, el ambiente sigue sonando', ambSonando(s) === 'Lluvia' && (await p.locator('.reproductor-estado').innerText()).startsWith('Sonando'));
+  n = await nLog();
+  await efecto('Puerta').click();
+  await ambiente('Conversaciones').click();
+  await esperarAmb('Lluvia,Conversaciones');
+  s = await estado();
+  log = await logDesde(n);
+  comprobar('11b. …y se pueden añadir efectos y ambientes sin tocar el vídeo', s.ef.length >= 1 && s.amb.length === 2 && !log.some((l) => /^yt:(stop|pause|silencio)/.test(l)), log.join(' / '));
+  const yt = await p.locator('.marco-youtube').boundingBox();
+  const panelYt = await p.locator('#mezclador').boundingBox();
+  const tapa = panelYt && yt && !(panelYt.x + panelYt.width <= yt.x || yt.x + yt.width <= panelYt.x || panelYt.y + panelYt.height <= yt.y || yt.y + yt.height <= panelYt.y);
+  comprobar('11b. Normas: el vídeo sigue visible, de al menos 200 × 200 y sin nada encima', !!yt && yt.width >= 200 && yt.height >= 200 && !tapa && (await p.locator('.marco-youtube').isVisible()), JSON.stringify(yt));
+  comprobar('11b. Normas: un único reproductor de YouTube en la página', (await p.locator('.marco-youtube > *').count()) === 1 && (await p.locator('iframe[src*="youtube"]').count()) === 0);
+  await p.reload();
+  await p.waitForSelector('.tarjeta');
+  await p.locator('.boton-mezcla').click();
+  comprobar('11b. El interruptor se recuerda al recargar (y no suena nada solo)', (await p.getByLabel('Permitir ambientes con YouTube').isChecked()) && (await estado()).voces.length === 0);
+  await p.getByLabel('Permitir ambientes con YouTube').uncheck();
+  await musica('Nomad').click();
+  await p.waitForFunction(() => (window.__log || []).some((l) => l.startsWith('yt:play')), null, { timeout: 8000 });
+  await p.waitForTimeout(300);
+  await ambiente('Lluvia').click();
+  await p.waitForTimeout(400);
+  comprobar('11b. Desactivado: YouTube vuelve a no mezclarse y el aviso explica el interruptor', (await estado()).amb.length === 0 && (await avisoBarra()).includes('Permitir ambientes con YouTube'));
+  await btn('Detener todo').click();
+  await p.waitForTimeout(200);
+  await btn('Cerrar la mezcla').click();
 
   // ══ 12. Borrar un sonido que está sonando ══
   await ambiente('Lluvia').click();
