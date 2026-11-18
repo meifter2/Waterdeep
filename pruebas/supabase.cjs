@@ -200,7 +200,7 @@ async function servidor(r) {
   comprobar('Eliminar elemento: borra su retrato y conserva el sonido', peticiones.some((x) => x.startsWith(`BORRAR retratos ${UID}/`)) && tablas.recursos.some((x) => x.origen === 'archivo'));
 
   // 10) Borrar el sonido desde la biblioteca: borra la fila y el archivo
-  await p.getByRole('button', { name: 'Sonidos' }).click();
+  await p.getByRole('button', { name: 'Sonidos', exact: true }).click();
   await p.locator('.biblioteca-lista li', { hasText: 'Archivo' }).getByRole('button', { name: 'Borrar' }).click();
   await p.getByRole('button', { name: 'Borrar definitivamente' }).click();
   await p.waitForTimeout(400);

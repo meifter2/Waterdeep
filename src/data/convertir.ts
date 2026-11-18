@@ -17,7 +17,7 @@ export function claveEnlace(enlace: string): string | null {
   const e = interpretarEnlace(enlace)
   if (typeof e === 'string') return null
   if (e.servicio === 'spotify') return e.uri
-  if (e.servicio === 'url') return `url:${e.url}`
+  if (e.servicio === 'url') return e.freesoundId ? `freesound:${e.freesoundId}` : `url:${e.url}`
   return e.videoId ? `youtube:video:${e.videoId}` : `youtube:lista:${e.listaId}`
 }
 
@@ -48,7 +48,7 @@ export function desdeCanciones(lista: CancionAntigua[]): Biblioteca {
     if (!clave) continue
     let r = porClave.get(clave)
     if (!r) {
-      r = recursoVacio({ origen: clave.startsWith('spotify:') ? 'spotify' : clave.startsWith('url:') ? 'url' : 'youtube', enlace: c.enlace.trim(), titulo: (c.nota ?? '').slice(0, 200) })
+      r = recursoVacio({ origen: clave.startsWith('spotify:') ? 'spotify' : clave.startsWith('url:') || clave.startsWith('freesound:') ? 'url' : 'youtube', enlace: c.enlace.trim(), titulo: (c.nota ?? '').slice(0, 200) })
       porClave.set(clave, r)
       b.recursos.push(r)
     }

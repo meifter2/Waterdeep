@@ -1,3 +1,4 @@
+import { AVISO_NC, creditoDe } from '../lib/freesound'
 import { useEffect, useRef, useState } from 'react'
 import { useReproduccion } from '../data/reproduccion'
 import { useDatos } from '../data/store'
@@ -62,7 +63,7 @@ export function BibliotecaSonidos({ alCerrar }: { alCerrar: () => void }) {
                 <div className="campo">
                   <label htmlFor={`rec-${r.id}`}>
                     {NOMBRE[r.origen]}
-                    {r.origen === 'archivo' && <span className="fila-detalle"> {detalleRecurso(r)}</span>}
+                    {(r.origen === 'archivo' || r.origen === 'url') && <span className="fila-detalle"> {detalleRecurso(r)}</span>}
                   </label>
                   <input
                     id={`rec-${r.id}`}
@@ -73,6 +74,7 @@ export function BibliotecaSonidos({ alCerrar }: { alCerrar: () => void }) {
                   />
                 </div>
                 <p className="biblioteca-usos">{usado.length ? `Se usa en: ${usado.join(', ')}` : 'Sin usar'}</p>
+                <Credito recurso={r} />
                 <BotonConfirmar
                   className="boton boton-peligro boton-pequeno"
                   etiqueta="Borrar"
@@ -94,5 +96,20 @@ export function BibliotecaSonidos({ alCerrar }: { alCerrar: () => void }) {
         </div>
       </div>
     </dialog>
+  )
+}
+
+/** Crédito completo de un sonido de Freesound: título original, autor, licencia y enlace a su página. */
+function Credito({ recurso }: { recurso: Recurso }) {
+  const c = creditoDe(recurso)
+  if (!c) return null
+  return (
+    <p className="biblioteca-credito" data-nc={c.nc || undefined}>
+      {c.titulo ? `«${c.titulo}» de ${c.autor}` : 'Sonido de Freesound'} · {c.licencia || 'licencia sin datos'}
+      {c.nc && <strong className="licencia-nc"> · {AVISO_NC}</strong>} ·{' '}
+      <a href={c.pagina} target="_blank" rel="noopener noreferrer">
+        Ver en Freesound
+      </a>
+    </p>
   )
 }

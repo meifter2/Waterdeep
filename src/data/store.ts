@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { repositorio, type Bucket } from './repositorio'
 import { interpretarEnlace } from '../lib/enlaces'
+import { enlaceFreesound, freesoundIdDe, resolverSonido } from '../lib/freesound'
 import { vacia, type Biblioteca, type Elemento, type Pista, type Recurso } from './types'
 
 // Biblioteca del usuario en memoria. Las operaciones complejas (guardar un elemento con sus pistas)
@@ -102,7 +103,20 @@ export const useDatos = create<Estado>()((set, get) => ({
   urlDeRecurso: async (r, renovar = false) => {
     if (r.origen === 'url') {
       const e = interpretarEnlace(r.enlace)
-      return typeof e !== 'string' && e.servicio === 'url' ? e.url : null
+      const actual = typeof e !== 'string' && e.servicio === 'url' ? e.url : null
+      // Sonido de Freesound que ha fallado: su MP3 de escucha puede haber cambiado. Se pide el vigente por su id.
+      const id = freesoundIdDe(r.enlace)
+      if (!renovar || id == null) return actual
+      try {
+        const s = await resolverSonido(id)
+        if (s.preview === actual) return actual
+        const enlace = enlaceFreesound(s)
+        set((st) => ({ recursos: st.recursos.map((x) => (x.id === r.id ? { ...x, enlace } : x)) }))
+        await repositorio.actualizar('recursos', r.id, { enlace }).catch(() => {})
+        return s.preview
+      } catch {
+        return actual
+      }
     }
     return r.origen === 'archivo' && r.archivo_ruta ? get().urlDe('audio', r.archivo_ruta, renovar) : null
   },

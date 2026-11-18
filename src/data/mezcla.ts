@@ -116,11 +116,15 @@ export const AVISO_EXTERNA = 'Para combinar ambientes y efectos, utiliza música
  * con otra canción puesta desde fuera (`otra`, puede estar sonando). Si es así, avisa y devuelve true: la capa
  * no se lanza y la música externa NO se toca. En pausa o detenida no molesta.
  */
-function externaSonando() {
+export function musicaExternaSonando() {
   const r = useReproduccion.getState()
   if (!r.pistaId || (r.estado !== 'sonando' && r.estado !== 'cargando' && r.estado !== 'otra')) return false
   const { recurso } = datosDe(r.pistaId)
-  if (!recurso || esLocal(recurso)) return false
+  return !!recurso && !esLocal(recurso)
+}
+
+function externaSonando() {
+  if (!musicaExternaSonando()) return false
   useMezcla.setState({ aviso: AVISO_EXTERNA })
   return true
 }

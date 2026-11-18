@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { BorradorPista } from '../../data/guardar'
 import { ETIQUETAS_SUGERIDAS, type Origen } from '../../data/types'
 import { escribirTiempo, formatearBytes, leerTiempo } from '../../lib/tiempo'
+import { AVISO_NC, creditoDe } from '../../lib/freesound'
 
 export interface FilaBorrador extends BorradorPista {
   /** Clave estable para React. */
@@ -124,7 +125,20 @@ export function tramoInvalido(f: Pick<BorradorPista, 'inicio_ms' | 'fin_ms'>): s
   return ''
 }
 
-export function detalleRecurso(r: { origen: Origen; archivo_bytes: number | null; duracion_ms: number | null; archivo_nombre: string }): string {
+export function detalleRecurso(r: {
+  origen: Origen
+  archivo_bytes: number | null
+  duracion_ms: number | null
+  archivo_nombre: string
+  enlace?: string
+  descripcion?: string
+}): string {
+  if (r.origen === 'url') {
+    // Sonido de Freesound: el crédito (autor y licencia) siempre a la vista.
+    const c = creditoDe({ origen: r.origen, enlace: r.enlace ?? '', descripcion: r.descripcion ?? '' })
+    if (c) return [`Freesound: ${c.autor || 'autor sin datos'}`, c.licencia || 'licencia sin datos', c.nc ? AVISO_NC : ''].filter(Boolean).join(' · ')
+    return r.duracion_ms ? escribirTiempo(r.duracion_ms) : ''
+  }
   if (r.origen !== 'archivo') return ''
   return [r.archivo_nombre, r.duracion_ms ? escribirTiempo(r.duracion_ms) : '', formatearBytes(r.archivo_bytes)].filter(Boolean).join(', ')
 }

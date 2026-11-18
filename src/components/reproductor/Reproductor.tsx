@@ -14,6 +14,7 @@ import { ControlVolumen } from './ControlVolumen'
 import { Transporte } from './Transporte'
 import { useVolumen } from '../../data/volumen'
 import { useMezcla } from '../../data/mezcla'
+import { freesoundIdDe } from '../../lib/freesound'
 import { BotonMezcla, Mezclador } from './Mezclador'
 
 const TEXTO_ESTADO: Record<EstadoReproduccion, string> = {
@@ -53,6 +54,8 @@ export function Reproductor() {
   const [enlace, setEnlace] = useState<EnlaceMusical | null>(null)
   const [respaldo, setRespaldo] = useState<string | null>(null)
   const [dispositivo, setDispositivo] = useState('')
+  // Sonido de Freesound cuyo MP3 falla: se vuelve a pedir su enlace a la API (una vez por pulsación).
+  const reintentarArchivo = useRef<((aviso?: string) => boolean) | null>(null)
   // Última pista pedida (para saber si se vuelve a pulsar la misma).
   const ultima = useRef<{ pistaId: string; activo: Activo } | null>(null)
 
@@ -68,7 +71,11 @@ export function Reproductor() {
     if (hostYoutube.current && !m.youtube) m.youtube = new MotorYoutube(hostYoutube.current, inf('youtube'))
     m.connect ??= new MotorSpotifyConnect(inf('connect'), setDispositivo, (v) => useVolumen.getState().informarSpotify(v))
     if (!m.archivo) {
-      m.archivo = new MotorArchivo(inf('archivo'))
+      m.archivo = new MotorArchivo((e, a) => {
+        if (activoRef.current !== 'archivo') return
+        if (e === 'error' && reintentarArchivo.current?.(a)) return
+        informar(e, a)
+      })
       ;(window as unknown as { __audioBandaSonora?: HTMLAudioElement }).__audioBandaSonora = m.archivo.elemento
     }
     // Al desaparecer el reproductor (cerrar sesión), nada puede seguir sonando por detrás: antes el MP3
@@ -129,6 +136,7 @@ export function Reproductor() {
       if (menos !== 'archivo') archivo?.detener()
     }
     setRespaldo(null)
+    reintentarArchivo.current = null
 
     const misma = (destino: Activo) => previa?.pistaId === p.id && previa.activo === destino
     const marcar = (destino: Activo) => {
@@ -144,8 +152,18 @@ export function Reproductor() {
       marcar('archivo')
       void datos.urlDeRecurso(r).then((url) => {
         if (!vigente()) return // se ha pulsado otra tarjeta mientras se preparaba
-        if (!url) informar('error', 'No se ha podido abrir el archivo. Revisa la conexión y vuelve a pulsar.')
-        else void archivo?.reproducir(url, seg, esMisma)
+        if (!url) return informar('error', 'No se ha podido abrir el archivo. Revisa la conexión y vuelve a pulsar.')
+        if (r.origen === 'url' && freesoundIdDe(r.enlace) != null)
+          reintentarArchivo.current = (aviso) => {
+            reintentarArchivo.current = null
+            void datos.urlDeRecurso(r, true).then((nueva) => {
+              if (!vigente()) return
+              if (nueva && nueva !== url) void archivo?.reproducir(nueva, seg)
+              else informar('error', aviso)
+            })
+            return true
+          }
+        void archivo?.reproducir(url, seg, esMisma)
       })
       return
     }

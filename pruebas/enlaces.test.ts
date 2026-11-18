@@ -27,6 +27,9 @@ const casos: [string, string][] = [
   ['https://x.example/d.flac', 'url:https://x.example/d.flac|FLAC|d'],
   ['sonidos.example.com/viento.mp3', 'url:https://sonidos.example.com/viento.mp3|MP3|viento'],
   ['https://www.dropbox.com/scl/fi/abc123/tormenta.mp3?rlkey=xyz&dl=0', 'url:https://www.dropbox.com/scl/fi/abc123/tormenta.mp3?rlkey=xyz&raw=1|MP3|tormenta'],
+  // Freesound: se conserva solo la marca #freesound=ID (para volver a pedir el MP3 si cambia)
+  ['https://cdn.freesound.org/previews/123/123456_789-hq.mp3#freesound=123456', 'url:https://cdn.freesound.org/previews/123/123456_789-hq.mp3|MP3|123456_789-hq#123456'],
+  ['https://cdn.freesound.org/previews/1/1_2-hq.mp3#otra=cosa', 'url:https://cdn.freesound.org/previews/1/1_2-hq.mp3|MP3|1_2-hq'],
   ['http://sonidos.example.com/lluvia.mp3', 'ERROR'],
   ['https://usuario:clave@sonidos.example.com/lluvia.mp3', 'ERROR'],
   ['https://sonidos.example.com/lluvia.txt', 'ERROR'],
@@ -37,7 +40,7 @@ const casos: [string, string][] = [
 let fallos = 0
 for (const [entrada, esperado] of casos) {
   const r = interpretarEnlace(entrada)
-  const obtenido = typeof r === 'string' ? 'ERROR' : r.servicio === 'url' ? `url:${r.url}|${r.formato}|${r.nombre}` : r.servicio === 'spotify' ? r.uri : `yt:${r.videoId ?? ''}${r.listaId ? '+' + r.listaId : ''}${r.inicio ? '@' + r.inicio : ''}`
+  const obtenido = typeof r === 'string' ? 'ERROR' : r.servicio === 'url' ? `url:${r.url}|${r.formato}|${r.nombre}${r.freesoundId ? '#' + r.freesoundId : ''}` : r.servicio === 'spotify' ? r.uri : `yt:${r.videoId ?? ''}${r.listaId ? '+' + r.listaId : ''}${r.inicio ? '@' + r.inicio : ''}`
   const ok = obtenido === esperado
   if (!ok) fallos++
   console.log(ok ? 'OK ' : 'MAL', JSON.stringify(entrada).slice(0, 60), '→', obtenido, typeof r === 'string' ? `(${r.slice(0, 50)}…)` : '')

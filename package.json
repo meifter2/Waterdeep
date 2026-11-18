@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && tsc -p tsconfig.api.json && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && tsc -p tsconfig.api.json",
     "test:enlaces": "node pruebas/enlaces.test.ts",
     "test:musica": "node pruebas/musica.cjs",
     "build:prueba": "VITE_SUPABASE_URL=https://prueba.supabase.co VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_prueba vite build --outDir dist-prueba",
@@ -26,7 +26,9 @@
     "test:transporte": "node pruebas/transporte.cjs",
     "test:mezclador": "node pruebas/mezclador.cjs",
     "test:mezclador-supabase": "node pruebas/mezclador-supabase.cjs",
-    "test:enlaces-audio": "node pruebas/enlaces-audio.cjs"
+    "test:enlaces-audio": "node pruebas/enlaces-audio.cjs",
+    "test:api-sonidos": "node pruebas/api-sonidos.test.ts",
+    "test:buscar-sonidos": "node pruebas/buscar-sonidos.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",

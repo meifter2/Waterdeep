@@ -10,7 +10,9 @@ import { carpeta, type Biblioteca, type Elemento, type Pista, type Recurso, type
 // se lanza el error con un mensaje claro y lo ya guardado queda bien reflejado.
 
 /** Enlace (Spotify, YouTube o audio en internet; de este último se puede saber ya la duración) o archivo para subir. */
-export type FuenteNueva = { tipo: 'enlace'; enlace: string; duracion_ms?: number | null } | { tipo: 'archivo'; archivo: File }
+export type FuenteNueva =
+  | { tipo: 'enlace'; enlace: string; duracion_ms?: number | null; descripcion?: string }
+  | { tipo: 'archivo'; archivo: File }
 
 export interface BorradorPista {
   /** Pista ya guardada (si se está editando). */
@@ -49,8 +51,10 @@ export async function resolverRecurso(f: FuenteNueva, titulo: string): Promise<R
     if (ya) return ya
     const { id: _id, ...datos } = recursoVacio({
       origen: e.servicio,
-      // Enlace de audio: se guarda ya normalizado (p. ej. Dropbox con raw=1).
-      enlace: e.servicio === 'url' ? e.url : f.enlace.trim(),
+      // Enlace de audio: se guarda ya normalizado (Dropbox con raw=1; Freesound con su #freesound=ID).
+      enlace: e.servicio === 'url' ? e.web : f.enlace.trim(),
+      // Créditos (p. ej. de Freesound): autor, licencia y página de origen.
+      descripcion: (f.descripcion ?? '').slice(0, 500),
       titulo: (titulo || (e.servicio === 'url' ? e.nombre : '')).slice(0, 200),
       duracion_ms: e.servicio === 'url' ? (f.duracion_ms ?? null) : null,
     })
@@ -189,7 +193,7 @@ export async function importarBiblioteca(b: Biblioteca): Promise<{ elementos: nu
   let omitidos = 0
   for (const r of b.recursos) {
     if (r.origen !== 'archivo') {
-      mapa.set(r.id, (await resolverRecurso({ tipo: 'enlace', enlace: r.enlace }, r.titulo)).id)
+      mapa.set(r.id, (await resolverRecurso({ tipo: 'enlace', enlace: r.enlace, descripcion: r.descripcion, duracion_ms: r.duracion_ms }, r.titulo)).id)
       continue
     }
     // Un archivo propio solo se puede enlazar si ya está en esta cuenta (misma huella o ruta).

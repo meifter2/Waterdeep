@@ -30,7 +30,10 @@ export interface EnlaceAudio {
   formato: string
   /** Nombre del archivo, sin extensión (para proponer el título). */
   nombre: string
+  /** Lo que se guarda: la dirección + «#freesound=ID» si viene de Freesound. */
   web: string
+  /** Id del sonido en Freesound (para volver a pedir su MP3 si el enlace cambia). */
+  freesoundId?: number
 }
 
 export type EnlaceMusical = EnlaceSpotify | EnlaceYoutube | EnlaceAudio
@@ -107,10 +110,20 @@ function audioDirecto(url: URL): EnlaceAudio | string | null {
     url.searchParams.delete('dl')
     url.searchParams.set('raw', '1')
   }
+  // Se conserva solo la marca de Freesound (#freesound=ID); el resto del fragmento se quita.
+  const freesound = /^#freesound=(\d{1,10})$/.exec(url.hash)?.[1]
   url.hash = ''
   const limpio = url.toString()
-  if (limpio.length > 500) return 'El enlace es demasiado largo (máximo 500 caracteres).'
-  return { servicio: 'url', url: limpio, formato: ext === 'oga' ? 'OGG' : ext.toUpperCase(), nombre: archivo.replace(/\.[^.]+$/, '').slice(0, 200), web: limpio }
+  const web = freesound ? `${limpio}#freesound=${freesound}` : limpio
+  if (web.length > 500) return 'El enlace es demasiado largo (máximo 500 caracteres).'
+  return {
+    servicio: 'url',
+    url: limpio,
+    formato: ext === 'oga' ? 'OGG' : ext.toUpperCase(),
+    nombre: archivo.replace(/\.[^.]+$/, '').slice(0, 200),
+    web,
+    ...(freesound ? { freesoundId: Number(freesound) } : {}),
+  }
 }
 
 function spotify(tipo: string, id: string): EnlaceSpotify | null {

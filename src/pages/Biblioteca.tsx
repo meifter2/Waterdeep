@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { BibliotecaSonidos } from '../components/BibliotecaSonidos'
+import { BuscarSonidos } from '../components/BuscarSonidos'
 import { Compartido } from '../components/Compartido'
 import { ConexionSpotify } from '../components/ConexionSpotify'
 import { Copias } from '../components/Copias'
@@ -26,7 +27,7 @@ export function Biblioteca() {
   const errorSpotify = useSpotify((s) => s.error)
   const [busqueda, setBusqueda] = useState('')
   const [edicion, setEdicion] = useState<Edicion>(null)
-  const [dialogo, setDialogo] = useState<'copias' | 'sonidos' | null>(null)
+  const [dialogo, setDialogo] = useState<'copias' | 'sonidos' | 'buscar' | null>(null)
   const [compartido, setCompartido] = useState<(DatosCompartidos & { pegado?: boolean }) | null>(null)
   const [hecho, setHecho] = useState('')
   const buscador = useRef<HTMLInputElement>(null)
@@ -146,6 +147,9 @@ export function Biblioteca() {
           </button>
           <Instalar />
           <ConexionSpotify />
+          <button type="button" className="boton" onClick={() => setDialogo('buscar')} title="Ambientes y efectos libres de Freesound, sin descargar nada">
+            Buscar sonidos
+          </button>
           <button type="button" className="boton" onClick={() => setDialogo('sonidos')}>
             Sonidos
           </button>
@@ -212,6 +216,7 @@ export function Biblioteca() {
       )}
       {dialogo === 'copias' && <Copias alCerrar={() => setDialogo(null)} />}
       {dialogo === 'sonidos' && <BibliotecaSonidos alCerrar={() => setDialogo(null)} />}
+      {dialogo === 'buscar' && <BuscarSonidos alCerrar={() => setDialogo(null)} alGuardar={setHecho} />}
     </div>
   )
 }

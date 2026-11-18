@@ -1,6 +1,6 @@
 # Propuesta: ambientes mezclables tan fáciles como pegar un enlace de YouTube
 
-Estado: **análisis y propuesta, sin implementar**. Rama `fase-2-mezclador`. Supabase sin cambios (usa `origen = 'url'` de `bd/003`).
+Estado: **1.ª versión implementada (Freesound, sección 4)** en `fase-2-mezclador`, probada con simuladores; falta probarla con una clave real. Supabase sin cambios (usa `origen = 'url'` de `bd/003`).
 
 ## 1. Qué permite YouTube (condiciones oficiales)
 
