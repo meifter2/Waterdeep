@@ -148,11 +148,11 @@ async function servidor(r) {
   comprobar('Pista con inicio 1 s y bucle (ambiente)', cuerpos('pistas').at(-1).inicio_ms === 1000 && cuerpos('pistas').at(-1).bucle === true);
   await p.screenshot({ path: CAPTURAS + 'supabase.png' });
 
-  // 5) Reproducir el archivo privado con URL firmada
-  await p.getByRole('button', { name: 'Reproducir Lluvia' }).click();
-  await p.waitForFunction(() => window.__audioBandaSonora && !window.__audioBandaSonora.paused, null, { timeout: 8000 });
-  comprobar('Reproduce el archivo con una URL firmada temporal', peticiones.some((x) => x.startsWith('POST /storage/v1/object/sign/audio')) && (await p.evaluate(() => window.__audioBandaSonora.src)).includes('/object/sign/audio/'));
-  await p.getByRole('button', { name: 'Detener' }).click();
+  // 5) Reproducir el archivo privado con URL firmada (fase 2: un ambiente con archivo suena en la mezcla)
+  await p.getByRole('button', { name: 'Activar ambiente Lluvia' }).click();
+  await p.waitForFunction(() => window.__mezclaDFY && window.__mezclaDFY.diagnostico().some((v) => v.capa === 'ambiente' && !v.pausado), null, { timeout: 8000 });
+  comprobar('Reproduce el archivo con una URL firmada temporal', peticiones.some((x) => x.startsWith('POST /storage/v1/object/sign/audio')) && (await p.evaluate(() => window.__mezclaDFY.diagnostico()[0].src)).includes('/object/sign/audio/'));
+  await p.getByRole('button', { name: 'Detener ambiente Lluvia' }).click();
 
   // 6) Fallo de red a mitad de un guardado: avisa, no se pierde lo guardado y el reintento no duplica
   fallar = { metodo: 'POST', ruta: '/rest/v1/pistas', modo: 'red' };

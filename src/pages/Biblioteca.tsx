@@ -9,7 +9,7 @@ import { Instalar } from '../components/Instalar'
 import { Migracion } from '../components/Migracion'
 import { Reproductor } from '../components/reproductor/Reproductor'
 import { Seccion } from '../components/Seccion'
-import { useReproduccion } from '../data/reproduccion'
+import { tocarElemento } from '../data/mezcla'
 import { almacenamientoDisponible } from '../data/storage'
 import { useDatos } from '../data/store'
 import { CARPETAS, type Elemento, type Tipo } from '../data/types'
@@ -22,7 +22,6 @@ type Edicion = { elemento: Elemento | null; tipo: Tipo } | null
 /** Pantalla principal: carpetas con sus tarjetas y el reproductor abajo. */
 export function Biblioteca() {
   const { elementos, recursos, pistas, carga, error, limpiarError } = useDatos()
-  const reproducirElemento = useReproduccion((s) => s.reproducirElemento)
   const errorSpotify = useSpotify((s) => s.error)
   const [busqueda, setBusqueda] = useState('')
   const [edicion, setEdicion] = useState<Edicion>(null)
@@ -73,7 +72,7 @@ export function Biblioteca() {
   const alTeclear = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       const primero = porCarpeta.flatMap((g) => g.lista).find((el) => pistas.some((p) => p.elemento_id === el.id))
-      if (primero) reproducirElemento(primero.id)
+      if (primero) tocarElemento(primero.id)
     }
     if (e.key === 'Escape') setBusqueda('')
   }

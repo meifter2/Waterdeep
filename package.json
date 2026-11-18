@@ -23,7 +23,9 @@
     "test:identidad": "node pruebas/identidad.cjs",
     "test:reproductor": "node pruebas/reproductor.cjs",
     "test:cambio-fuente": "node pruebas/cambio-fuente.cjs",
-    "test:transporte": "node pruebas/transporte.cjs"
+    "test:transporte": "node pruebas/transporte.cjs",
+    "test:mezclador": "node pruebas/mezclador.cjs",
+    "test:mezclador-supabase": "node pruebas/mezclador-supabase.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.119.0",

@@ -23,9 +23,10 @@ const { comprobar, fin } = comprobador();
   const log = () => p.evaluate(() => window.__log || []);
   const sonando = () => p.waitForFunction(() => window.__audioBandaSonora && !window.__audioBandaSonora.paused, null, { timeout: 8000 });
 
-  await crearElemento(p, { tipo: 'ambiente', nombre: 'Lluvia', sonidos: [{ archivo: { name: 'lluvia.wav', mimeType: 'audio/wav', buffer: wav(6) } }] });
-  await crearElemento(p, { tipo: 'ambiente', nombre: 'Taberna', sonidos: [{ archivo: { name: 'taberna.wav', mimeType: 'audio/wav', buffer: wav(5) } }] });
-  await crearElemento(p, { tipo: 'efecto', nombre: 'Puerta', sonidos: [{ archivo: { name: 'puerta.wav', mimeType: 'audio/wav', buffer: wav(3) } }] });
+  // Canal principal: en carpetas normales (desde la fase 2, Ambientes y Efectos con archivo van a la mezcla).
+  await crearElemento(p, { tipo: 'lugar', nombre: 'Lluvia', sonidos: [{ archivo: { name: 'lluvia.wav', mimeType: 'audio/wav', buffer: wav(6) } }] });
+  await crearElemento(p, { tipo: 'lugar', nombre: 'Taberna', sonidos: [{ archivo: { name: 'taberna.wav', mimeType: 'audio/wav', buffer: wav(5) } }] });
+  await crearElemento(p, { tipo: 'momento', nombre: 'Puerta', sonidos: [{ archivo: { name: 'puerta.wav', mimeType: 'audio/wav', buffer: wav(3) } }] });
   await crearElemento(p, { tipo: 'personaje', nombre: 'Nomad', sonidos: [{ enlace: 'https://youtu.be/dQw4w9WgXcQ', etiqueta: 'Tema principal' }] });
 
   // ── Control de volumen siempre visible ──

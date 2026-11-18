@@ -13,6 +13,8 @@ import { MotorYoutube } from './motorYoutube'
 import { ControlVolumen } from './ControlVolumen'
 import { Transporte } from './Transporte'
 import { useVolumen } from '../../data/volumen'
+import { useMezcla } from '../../data/mezcla'
+import { BotonMezcla, Mezclador } from './Mezclador'
 
 const TEXTO_ESTADO: Record<EstadoReproduccion, string> = {
   parado: 'Detenido',
@@ -69,15 +71,27 @@ export function Reproductor() {
       m.archivo = new MotorArchivo(inf('archivo'))
       ;(window as unknown as { __audioBandaSonora?: HTMLAudioElement }).__audioBandaSonora = m.archivo.elemento
     }
+    // Al desaparecer el reproductor (cerrar sesión), nada puede seguir sonando por detrás: antes el MP3
+    // seguía, porque la orden «detener» llegaba cuando el componente ya no estaba.
+    return () => {
+      activoRef.current = null
+      m.archivo?.liberar()
+      m.youtube?.detener()
+      m.spotify?.detener()
+      m.connect?.detener()
+    }
   }, [informar])
 
-  // Volumen de DFY (archivos y YouTube): se aplica al instante y se mantiene al cambiar de pista o fuente.
+  // Volumen de DFY (archivos y YouTube) × maestro de la mezcla: se aplica al instante y se mantiene al cambiar de pista o fuente.
   const volLocal = useVolumen((s) => s.local)
   const silenciado = useVolumen((s) => s.silenciado)
+  const maestro = useVolumen((s) => s.maestro)
+  const maestroSilenciado = useVolumen((s) => s.maestroSilenciado)
   useEffect(() => {
-    motores.current.archivo?.fijarVolumen(volLocal / 100, silenciado)
-    motores.current.youtube?.fijarVolumen(volLocal, silenciado)
-  }, [volLocal, silenciado])
+    const factor = maestro / 100
+    motores.current.archivo?.fijarVolumen((volLocal / 100) * factor, silenciado || maestroSilenciado)
+    motores.current.youtube?.fijarVolumen(Math.round(volLocal * factor), silenciado || maestroSilenciado)
+  }, [volLocal, silenciado, maestro, maestroSilenciado])
 
   // Volumen del dispositivo de Spotify conectado.
   const pedidoSpotify = useVolumen((s) => s.pedidoSpotify)
@@ -140,6 +154,8 @@ export function Reproductor() {
       informar('error', e)
       return
     }
+    // Spotify y YouTube no se mezclan: al empezar, se detienen ambientes y efectos (sin audio oculto).
+    useMezcla.getState().detenerCapas(`Ambientes y efectos detenidos: ${nombreServicio(e.servicio)} no se mezcla con otros sonidos.`)
     setEnlace(e)
     const usarRespaldo = (en: EnlaceMusical) => {
       setRespaldo(urlRespaldo(en, seg.inicio))
@@ -184,6 +200,9 @@ export function Reproductor() {
     ordenAtendida.current = orden.n
     if (!activo) return
     const motor = motores.current[activo]
+    // Reanudar Spotify/YouTube también aparta las capas locales (no se superponen).
+    if (orden.tipo === 'alternar' && activo !== 'archivo' && useReproduccion.getState().estado === 'pausa')
+      useMezcla.getState().detenerCapas(`Ambientes y efectos detenidos: ${activo === 'youtube' ? 'YouTube' : 'Spotify'} no se mezcla con otros sonidos.`)
     if (orden.tipo === 'alternar') motor?.alternar()
     else {
       motor?.detener()
@@ -191,6 +210,15 @@ export function Reproductor() {
       ultima.current = null
     }
   }, [orden, activo])
+
+  // Avisos de la mezcla (límite de ambientes, Spotify/YouTube apartados…): visibles en la barra y se van solos.
+  const avisoMezcla = useMezcla((s) => s.aviso)
+  const limpiarAvisoMezcla = useMezcla((s) => s.limpiarAviso)
+  useEffect(() => {
+    if (!avisoMezcla) return
+    const t = setTimeout(limpiarAvisoMezcla, 7000)
+    return () => clearTimeout(t)
+  }, [avisoMezcla, limpiarAvisoMezcla])
 
   const hayPista = pistaId !== null
   // El marco (vídeo de YouTube, reproductor de Spotify) solo se muestra mientras hay algo cargado.
@@ -232,6 +260,7 @@ export function Reproductor() {
 
       <div className="reproductor-controles">
         <Transporte />
+        <BotonMezcla />
         {enlace && hayPista && (
           <a className="reproductor-abrir" href={enlace.web} target="_blank" rel="noopener noreferrer">
             Abrir en {nombreServicio(enlace.servicio)}
@@ -241,11 +270,24 @@ export function Reproductor() {
 
       <ControlVolumen fuente={activo === 'connect' ? 'spotify' : activo === 'spotify' ? 'spotify-integrado' : 'local'} />
 
-      {aviso && (
-        <p className="reproductor-aviso" role="status">
-          {aviso}
-        </p>
+      {(aviso || avisoMezcla) && (
+        <div className="reproductor-avisos">
+          {aviso && (
+            <p className="reproductor-aviso" role="status">
+              {aviso}
+            </p>
+          )}
+          {avisoMezcla && (
+            <p className="reproductor-aviso" role="status" data-mezcla>
+              {avisoMezcla}
+              <button type="button" className="enlace" onClick={limpiarAvisoMezcla}>
+                Cerrar aviso
+              </button>
+            </p>
+          )}
+        </div>
       )}
+      <Mezclador />
     </section>
   )
 }

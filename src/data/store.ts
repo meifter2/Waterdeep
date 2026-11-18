@@ -25,7 +25,8 @@ interface Estado extends Biblioteca {
   limpiarError: () => void
   /** Inserta o sustituye filas (por id) y quita pistas. */
   fusionar: (p: Parcial) => void
-  urlDe: (bucket: Bucket, ruta: string) => Promise<string | null>
+  /** Dirección de un archivo privado. `renovar` pide una nueva aunque haya una guardada (p. ej. tras un error). */
+  urlDe: (bucket: Bucket, ruta: string, renovar?: boolean) => Promise<string | null>
   eliminarElemento: (id: string) => Promise<void>
   quitarPista: (id: string) => Promise<void>
   eliminarRecurso: (id: string) => Promise<void>
@@ -37,6 +38,10 @@ const mezclar = <T extends { id: string }>(lista: T[], nuevos: T[] = []) => {
   const ids = new Set(nuevos.map((n) => n.id))
   return [...lista.filter((x) => !ids.has(x.id)), ...nuevos]
 }
+
+// Las direcciones firmadas caducan a las 6 h: se piden de nuevo pasadas 5 h.
+const VIGENCIA_MS = 5 * 3600 * 1000
+const pedidas = new Map<string, number>()
 
 const mensaje = (e: unknown, porDefecto: string) => (e instanceof Error && e.message ? e.message : porDefecto)
 
@@ -61,7 +66,10 @@ export const useDatos = create<Estado>()((set, get) => ({
     }
   },
 
-  vaciar: () => set({ ...vacia(), carga: 'pendiente', error: '', urls: {} }),
+  vaciar: () => {
+    pedidas.clear()
+    set({ ...vacia(), carga: 'pendiente', error: '', urls: {} })
+  },
   avisar: (error) => set({ error }),
   limpiarError: () => set({ error: '' }),
 
@@ -72,12 +80,16 @@ export const useDatos = create<Estado>()((set, get) => ({
       pistas: mezclar(s.pistas, p.pistas).filter((x) => !p.quitarPistas?.includes(x.id)),
     })),
 
-  urlDe: async (bucket, ruta) => {
+  urlDe: async (bucket, ruta, renovar = false) => {
     const ya = get().urls[ruta]
-    if (ya) return ya
+    const desde = pedidas.get(ruta)
+    if (ya && !renovar && (desde == null || Date.now() - desde < VIGENCIA_MS)) return ya
     try {
       const u = (await repositorio.urls(bucket, [ruta]))[ruta]
-      if (u) set((s) => ({ urls: { ...s.urls, [ruta]: u } }))
+      if (u) {
+        pedidas.set(ruta, Date.now())
+        set((s) => ({ urls: { ...s.urls, [ruta]: u } }))
+      }
       return u ?? null
     } catch {
       return null

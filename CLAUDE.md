@@ -10,7 +10,7 @@ Momentos, Ambientes, Efectos), cada uno con retrato opcional y una o varias pist
 YouTube o archivos propios, con etiqueta, tramo inicio/fin y bucle). Los sonidos se reutilizan sin duplicar.
 Cuentas con Google o email+contraseña (Supabase Auth + RLS; recuperar contraseña con enlace al correo). Spotify Connect opcional. PWA con «compartir» en Android.
 Sin variables de Supabase ⇒ «modo local» (localStorage + IndexedDB). El usuario tiene Spotify Premium.
-Roadmap (NO empezar sin pedirlo): F2 mezclador · F3 modo sesión/escenas · F4 biblioteca de solo lectura para jugadores
+Roadmap (NO empezar sin pedirlo): F2 mezclador (1.er incremento hecho) · F3 modo sesión/escenas · F4 biblioteca de solo lectura para jugadores
 (solo lo publicado expresamente; la cuenta del usuario será la única administradora).
 
 ## Usuario y forma de trabajar
@@ -39,15 +39,16 @@ Variables públicas (Vercel y `.env.local`): `VITE_SUPABASE_URL`, `VITE_SUPABASE
 src/data/  types (Elemento/Recurso/Pista, CARPETAS) · repositorio (Supabase|local+IndexedDB, errores traducidos)
            store (biblioteca, borrados optimistas, URLs) · guardar (elemento+pistas, subidas, reutilizar, importar)
            convertir (v2/v3→v4, copias v4, claveEnlace) · reproduccion (pistaId, repetir) · sesion
+           mezcla (F2: canales, enrutado `tocar`, política externa) · volumen (local, maestro, Spotify)
 src/lib/   enlaces · archivos (validación, SHA-256, retrato 512 WebP, IndexedDB) · tiempo (m:ss) · apis
            spotifyAuth/spotifyApi (Connect) · compartir · titulo (oEmbed) · pwa · supabase
 src/components/  Tarjeta (retrato + chips) · Seccion · editor/(EditorElemento, FilaPista, AnadirPista)
-           BibliotecaSonidos · Compartido · Copias · Migracion · ConexionSpotify · reproductor/
-src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
+           BibliotecaSonidos · Compartido · Copias · Migracion · ConexionSpotify · reproductor/ (+ Mezclador, motorMezcla)
+src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, dialogos, editor, entrada · pruebas/ (Playwright + simuladores)
 ```
 
 ## Reproductor (no romper)
-- Suena UNA pista cada vez (mezcla = fase 2; nunca superponer Spotify con otras fuentes).
+- Canal principal: UNA pista cada vez (el reproductor de siempre). Nunca superponer Spotify/YouTube con otras fuentes.
 - **Pulsar tarjeta/chip = reproducir esa pista** (`reproducir`/`reproducirElemento`), nunca pausar. Si es la misma y suena de
   verdad, no se reinicia; si está en pausa, se reanuda; si Spotify cambió a otra, se vuelve a poner. Pausar/Reanudar/Detener
   solo en la barra. Las órdenes de la barra se atienden UNA vez (`ordenAtendida`), no al cambiar de fuente.
@@ -55,9 +56,8 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
   (estado `parado`); ▶ la vuelve a poner desde el inicio del tramo. `olvidar()` (borrar/cerrar sesión) la olvida.
   Mientras `cargando`, ▶ desactivado. Connect: alternar ignora duplicados; Detener solo pausa si suena lo de DFY.
 - Tarjeta: toda la superficie es un botón (pista principal = primera); chips solo si hay varias pistas; Editar aparte.
-- Turnos («generacion») en todos los motores: lo que llega tarde de una orden anterior se descarta.
-- Motor detenido (`parado`) ignora sus eventos tardíos (YouTube avisa de pausa/fin tras `stopVideo`: antes
-  relanzaba el vídeo bajo el MP3). Y el reproductor solo acepta avisos del motor activo (`activoRef`).
+- Turnos («generacion») en todos los motores; motor `parado` ignora eventos tardíos (YouTube tras `stopVideo` relanzaba
+  el vídeo bajo el MP3); el reproductor solo acepta avisos del motor activo (`activoRef`).
 - Connect: órdenes en cola (solo la última se ejecuta); `estadoActual` lee uri/contexto/dispositivo/progreso/volumen;
   sondeo 4 s detecta cambios externos (estado `otra`); el corte del tramo verifica la canción antes de relanzarla.
 - Volumen (`data/volumen.ts`): «local» (MP3 + YouTube, clave `banda-sonora:volumen`, 70 % por defecto) y «spotify»
@@ -67,20 +67,33 @@ src/styles/ tokens, base, app, tarjetas, reproductor, dialogos, editor, entrada
   setVolume/mute. Spotify integrado: seek/pausa por `playback_update` (aprox.). Connect: `position_ms` + temporizador (±1 s).
 - Errores: YouTube 101/150, Spotify ≤30 s (cookies Brave/Safari; en móvil el iframe SIEMPRE da 30 s), API no carga ⇒ respaldo.
 
+## Mezcla (F2, `data/mezcla.ts` + `motorMezcla.ts` + `Mezclador.tsx`)
+- Un HTMLAudioElement por voz reutilizando `MotorArchivo` (NO Web Audio: streaming de archivos largos, URLs firmadas
+  sin CORS, sin AudioContext en móvil). Límite: iPhone ignora el volumen por elemento (el silencio sí va).
+- Enrutado `tocar(pista)`: archivo propio en Ambientes ⇒ canal de ambiente (pulsar activa/detiene; en pausa reanuda;
+  con error reintenta), máx. 3, el 4.º se rechaza con aviso · en Efectos ⇒ voz que suena una vez (máx. 6, se corta la
+  más antigua; antirrebote 80 ms) · resto (y todo Spotify/YouTube) ⇒ canal principal.
+- Política externa: «la última pulsación manda». Empieza/reanuda Spotify o YouTube ⇒ `detenerCapas`; activar una capa con
+  Spotify/YouTube de DFY sonando ⇒ `detener()` (estado `otra` = canción del usuario: no se toca). Avisos en la barra.
+- Cada canal: estado, volumen, silencio, bucle (de la pista). Quitado mientras carga ⇒ no suena. Reproductor desmontado ⇒ para todo.
+- Volumen: maestro × canal (música = `local`; YouTube incluido). Clave nueva `banda-sonora:mezcla` {maestro, ambiente,
+  efecto}; los silencios no se guardan. Al recargar no suena nada. Sin tablas nuevas.
+- Borrar pista/elemento/sonido (suscripción a `pistas`) o cerrar sesión ⇒ se detiene y se suelta el archivo. `urlDe`
+  renueva URLs firmadas pasadas 5 h o con `renovar` (la mezcla reintenta una vez). Pruebas: `window.__mezclaDFY|__mezclaEstado`.
+
 ## Comandos y pruebas
 - `npm run dev|build|preview` (4173) · `build:prueba`+`preview:prueba` (4174, Supabase simulado) ·
   `build:spotify`+`preview:spotify` (4175)
-- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente|transporte` (4173) · `test:supabase|email` (4174) · `test:spotify` (4175)
+- `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente|transporte|mezclador` (4173) ·
+  `test:supabase|email|mezclador-supabase` (4174) · `test:spotify` (4175)
 - Despliegue: Vercel publica cada push a `main`. Las ramas generan vista previa (usa variables de «Preview»).
   Google en vistas previas: Supabase solo vuelve a URLs de su lista ⇒ usar email o añadir `https://*.vercel.app/**`.
 
 ## Git
-Trabajo en `ccr-4e49e839-kg8cvn` (se conserva). Pasar a `main` SOLO con permiso. Punto de recuperación anterior a F1: `fa42f32`.
+F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador` (se conservan). A `main` SOLO con permiso. Recuperación: pre-F1 `fa42f32`, pre-F2 `38ad9ec`.
 
 ## Estado
 | Fase | Estado |
 |------|--------|
-| Banda sonora, Vercel, Supabase+Google, PWA, Spotify Connect, email+contraseña | Hechas (v3 publicada en `main`) |
-| Identidad DFY (nombre, icono, PWA, metadatos) | Hecha en la rama y en `main` |
-| F1 Biblioteca (v4) + controles ■ ▶/❚❚ ⟲ | Publicada en `main` (002 ya ejecutado en Supabase) |
-| F1 Revisión reproductor (volumen, sincronía Spotify, tarjetas rápidas) | Publicada en `main`; falta prueba manual en producción |
+| v3 (Supabase+Google+email, PWA, Connect), identidad DFY, F1 Biblioteca v4 + reproductor + controles | Publicadas en `main` (002 ejecutado) |
+| F2 Mezclador básico (3 ambientes, efectos, maestro, panel) | Hecho en `fase-2-mezclador`, probado con simuladores; falta prueba manual en la vista previa. Sin fundidos ni escenas (F3) |

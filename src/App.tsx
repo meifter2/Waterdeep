@@ -4,6 +4,7 @@ import { Entrada, NuevaContrasena } from './pages/Entrada'
 import { escucharSesion, useSesion } from './data/sesion'
 import { useDatos } from './data/store'
 import { useReproduccion } from './data/reproduccion'
+import { useMezcla } from './data/mezcla'
 import { precargar } from './lib/apis'
 
 // Puerta de entrada: sin sesión → pantalla de Google; con sesión → biblioteca.
@@ -20,6 +21,7 @@ export function App() {
     if (estado === 'dentro') void useDatos.getState().cargar()
     if (estado === 'fuera') {
       useReproduccion.getState().olvidar()
+      useMezcla.getState().vaciar()
       useDatos.getState().vaciar()
     }
   }, [estado, usuarioId])

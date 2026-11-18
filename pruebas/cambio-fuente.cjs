@@ -21,7 +21,8 @@ const { comprobar, fin } = comprobador();
   await p.reload();
 
   await crearElemento(p, { tipo: 'personaje', nombre: 'Nomad', sonidos: [{ enlace: 'https://youtu.be/dQw4w9WgXcQ' }] });
-  await crearElemento(p, { tipo: 'ambiente', nombre: 'Lluvia', sonidos: [{ archivo: { name: 'lluvia.wav', mimeType: 'audio/wav', buffer: wav(8) } }] });
+  // Canal principal: en carpetas normales (desde la fase 2, Ambientes y Efectos con archivo van a la mezcla).
+  await crearElemento(p, { tipo: 'lugar', nombre: 'Lluvia', sonidos: [{ archivo: { name: 'lluvia.wav', mimeType: 'audio/wav', buffer: wav(8) } }] });
   await crearElemento(p, { tipo: 'lugar', nombre: 'Puerto', sonidos: [{ enlace: 'https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT' }] });
 
   const log = () => p.evaluate(() => window.__log || []);

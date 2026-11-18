@@ -184,8 +184,26 @@
   color: var(--muelle-tinta-suave);
 }
 
-.reproductor-aviso {
+.reproductor-avisos {
   grid-area: aviso;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.reproductor-aviso[data-mezcla] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.reproductor-aviso[data-mezcla] .enlace {
+  color: var(--muelle-tinta-suave);
+  font-size: var(--t-xs);
+}
+
+.reproductor-aviso {
   font-size: var(--t-s);
   color: var(--muelle-tinta);
   background: var(--muelle-activo);
@@ -319,7 +337,7 @@
   cursor: default;
 }
 
-.volumen input[type='range'] {
+:is(.volumen, .fader) input[type='range'] {
   grid-area: barra;
   width: 100%;
   margin: 0;
@@ -333,25 +351,25 @@
   cursor: pointer;
 }
 
-.volumen input[type='range']::-webkit-slider-runnable-track {
+:is(.volumen, .fader) input[type='range']::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: 999px;
   background: linear-gradient(to right, var(--oro-sobre-oscuro) var(--relleno, 0%), var(--muelle-activo) var(--relleno, 0%));
 }
 
-.volumen input[type='range']::-moz-range-track {
+:is(.volumen, .fader) input[type='range']::-moz-range-track {
   height: 6px;
   border-radius: 999px;
   background: var(--muelle-activo);
 }
 
-.volumen input[type='range']::-moz-range-progress {
+:is(.volumen, .fader) input[type='range']::-moz-range-progress {
   height: 6px;
   border-radius: 999px;
   background: var(--oro-sobre-oscuro);
 }
 
-.volumen input[type='range']::-webkit-slider-thumb {
+:is(.volumen, .fader) input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
@@ -361,7 +379,7 @@
   border: 3px solid var(--oro-sobre-oscuro);
 }
 
-.volumen input[type='range']::-moz-range-thumb {
+:is(.volumen, .fader) input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -369,18 +387,18 @@
   border: 3px solid var(--oro-sobre-oscuro);
 }
 
-.volumen input[type='range']:focus-visible {
+:is(.volumen, .fader) input[type='range']:focus-visible {
   outline: 2px solid var(--oro-sobre-oscuro);
   outline-offset: 2px;
   border-radius: var(--r-s);
 }
 
-.volumen input[type='range']:disabled {
+:is(.volumen, .fader) input[type='range']:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.volumen[data-silenciado] input[type='range'] {
+:is(.volumen, .fader)[data-silenciado] input[type='range'] {
   opacity: 0.55;
 }
 

@@ -1,0 +1,383 @@
+import { create } from 'zustand'
+import { MAX_AMBIENTES, MAX_EFECTOS, MotorMezcla, type Capa, type EstadoCapa } from '../components/reproductor/motorMezcla'
+import { useReproduccion } from './reproduccion'
+import { pistasDe, useDatos } from './store'
+import type { Pista } from './types'
+import { factorMaestro, useVolumen } from './volumen'
+
+// Mezcla (fase 2): capas de archivos propios que suenan a la vez que la música principal.
+// - Canal principal: el reproductor de siempre (useReproduccion). Las tarjetas normales con archivo van ahí.
+// - Ambientes: tarjetas de la carpeta Ambientes con archivo propio. Pulsar activa / detiene. Máximo 3.
+// - Efectos: tarjetas de Efectos con archivo propio. Cada pulsación lanza el sonido una vez.
+// Spotify y YouTube NUNCA se mezclan: la última pulsación manda.
+// - Si empieza una fuente externa, se detienen ambientes y efectos (lo hace el Reproductor).
+// - Si se activa una capa local mientras suena Spotify/YouTube puesto por DFY, se detiene esa fuente
+//   (si Spotify está con otra canción que el usuario puso desde fuera, DFY no la toca).
+// Nada de esto se guarda: al recargar no suena nada (los volúmenes sí se recuerdan, en volumen.ts).
+
+export type EstadoCanal = 'cargando' | 'sonando' | 'pausa' | 'error'
+
+export interface CanalAmbiente {
+  id: string
+  pistaId: string
+  elementoId: string
+  estado: EstadoCanal
+  volumen: number
+  silenciado: boolean
+  bucle: boolean
+  aviso: string
+  /** Ya se ha probado con una dirección nueva tras un error (enlace caducado). */
+  reintentado: boolean
+}
+
+export interface VozEfecto {
+  id: string
+  pistaId: string
+  elementoId: string
+  estado: 'cargando' | 'sonando'
+  reintentado: boolean
+}
+
+export type Destino = 'principal' | 'ambiente' | 'efecto'
+
+interface Mezcla {
+  ambientes: CanalAmbiente[]
+  efectos: VozEfecto[]
+  efectosSilenciados: boolean
+  aviso: string
+  panel: boolean
+
+  alternarAmbiente: (pistaId: string) => void
+  lanzarEfecto: (pistaId: string) => void
+  /** ⏸/▶ de un canal de ambiente (si falló, lo vuelve a intentar). */
+  pausarReanudar: (id: string) => void
+  detenerAmbiente: (id: string) => void
+  volumenAmbiente: (id: string, v: number) => void
+  silenciarAmbiente: (id: string) => void
+  bucleAmbiente: (id: string) => void
+  volumenEfectos: (v: number) => void
+  silenciarEfectos: () => void
+  detenerEfectos: () => void
+  /** Detiene ambientes y efectos (no el canal principal). */
+  detenerCapas: (aviso?: string) => void
+  /** «Detener todo»: capas + canal principal (Spotify solo se pausa si suena lo de DFY). */
+  detenerTodo: () => void
+  /** Al cerrar sesión: detiene y suelta todo. */
+  vaciar: () => void
+  limpiarAviso: () => void
+  abrirPanel: (abierto?: boolean) => void
+  informar: (capa: Capa, id: string, estado: EstadoCapa, aviso?: string) => void
+}
+
+const ERROR_ABRIR = 'No se ha podido abrir el archivo. Puede que ya no exista: revisa el sonido en la biblioteca.'
+const ANTIRREBOTE_MS = 80
+
+let motor: MotorMezcla | null = null
+const m = () => {
+  if (!motor) {
+    motor = new MotorMezcla((capa, id, estado, aviso) => useMezcla.getState().informar(capa, id, estado, aviso))
+    ;(window as unknown as { __mezclaDFY?: MotorMezcla }).__mezclaDFY = motor
+  }
+  return motor
+}
+
+let contador = 0
+const nuevoId = (p: string) => `${p}${++contador}`
+let ultimoEfecto = { pistaId: '', t: 0 }
+
+const datosDe = (pistaId: string) => {
+  const d = useDatos.getState()
+  const pista = d.pistas.find((p) => p.id === pistaId)
+  const recurso = pista && d.recursos.find((r) => r.id === pista.recurso_id)
+  const elemento = pista && d.elementos.find((e) => e.id === pista.elemento_id)
+  return { pista, recurso, elemento }
+}
+
+/** ¿Dónde suena esta pista? Solo los archivos propios de Ambientes y Efectos van a la mezcla. */
+export function destinoDe(pistaId: string): Destino {
+  const { recurso, elemento } = datosDe(pistaId)
+  if (recurso?.origen !== 'archivo' || !elemento) return 'principal'
+  return elemento.tipo === 'ambiente' ? 'ambiente' : elemento.tipo === 'efecto' ? 'efecto' : 'principal'
+}
+
+const volAmbiente = (c: Pick<CanalAmbiente, 'volumen' | 'silenciado'>) => {
+  const v = useVolumen.getState()
+  return { volumen: (c.volumen / 100) * factorMaestro(v), silenciado: c.silenciado || v.maestroSilenciado }
+}
+const volEfectos = () => {
+  const v = useVolumen.getState()
+  return { volumen: (v.efecto / 100) * factorMaestro(v), silenciado: useMezcla.getState().efectosSilenciados || v.maestroSilenciado }
+}
+
+/** Antes de sonar una capa local: si suena Spotify/YouTube puesto por DFY, se detiene (no se superponen). */
+function apartarExterna() {
+  const r = useReproduccion.getState()
+  if (!r.pistaId || (r.estado !== 'sonando' && r.estado !== 'cargando')) return
+  const { recurso } = datosDe(r.pistaId)
+  if (!recurso || recurso.origen === 'archivo') return
+  r.detener()
+  useMezcla.setState({ aviso: `${recurso.origen === 'spotify' ? 'Spotify' : 'YouTube'} se ha detenido: no se mezcla con ambientes ni efectos.` })
+}
+
+const segDe = (p: Pista) => ({ inicio: p.inicio_ms, fin: p.fin_ms })
+
+export const useMezcla = create<Mezcla>()((set, get) => {
+  const cambiarCanal = (id: string, cambios: Partial<CanalAmbiente>) =>
+    set((s) => ({ ambientes: s.ambientes.map((c) => (c.id === id ? { ...c, ...cambios } : c)) }))
+  const canal = (id: string) => get().ambientes.find((c) => c.id === id)
+
+  /** Pide la dirección del archivo y lo pone en el canal, salvo que el canal se haya quitado mientras tanto. */
+  const iniciarAmbiente = async (id: string, renovar = false) => {
+    const c = canal(id)
+    const { pista, recurso } = datosDe(c?.pistaId ?? '')
+    if (!c || !pista || !recurso?.archivo_ruta) return
+    const url = await useDatos.getState().urlDe('audio', recurso.archivo_ruta, renovar)
+    const ahora = canal(id)
+    if (!ahora) return // se detuvo mientras cargaba: no suena nada
+    if (!url) return cambiarCanal(id, { estado: 'error', aviso: ERROR_ABRIR })
+    const v = volAmbiente(ahora)
+    m().ambiente(id, url, segDe(pista), ahora.bucle, v.volumen, v.silenciado)
+  }
+
+  const iniciarEfecto = async (id: string, renovar = false) => {
+    const voz = get().efectos.find((x) => x.id === id)
+    const { pista, recurso } = datosDe(voz?.pistaId ?? '')
+    if (!voz || !pista || !recurso?.archivo_ruta) return
+    const url = await useDatos.getState().urlDe('audio', recurso.archivo_ruta, renovar)
+    if (!get().efectos.some((x) => x.id === id)) return // cortado mientras cargaba
+    if (!url) {
+      set((s) => ({ efectos: s.efectos.filter((x) => x.id !== id), aviso: ERROR_ABRIR }))
+      return
+    }
+    const v = volEfectos()
+    m().efecto(id, url, segDe(pista), v.volumen, v.silenciado)
+  }
+
+  return {
+    ambientes: [],
+    efectos: [],
+    efectosSilenciados: false,
+    aviso: '',
+    panel: false,
+
+    alternarAmbiente: (pistaId) => {
+      const ya = get().ambientes.find((c) => c.pistaId === pistaId)
+      if (ya) {
+        // Sonando o cargando: pulsar otra vez lo detiene. En pausa: sigue. Con error: se vuelve a intentar.
+        if (ya.estado === 'pausa' || ya.estado === 'error') return get().pausarReanudar(ya.id)
+        return get().detenerAmbiente(ya.id)
+      }
+      const { pista } = datosDe(pistaId)
+      if (!pista) return
+      if (get().ambientes.length >= MAX_AMBIENTES) {
+        set({ aviso: `Ya suenan ${MAX_AMBIENTES} ambientes. Detén uno para añadir otro.` })
+        return
+      }
+      apartarExterna()
+      const nuevo: CanalAmbiente = {
+        id: nuevoId('a'),
+        pistaId,
+        elementoId: pista.elemento_id,
+        estado: 'cargando',
+        volumen: useVolumen.getState().ambiente,
+        silenciado: false,
+        bucle: pista.bucle,
+        aviso: '',
+        reintentado: false,
+      }
+      set((s) => ({ ambientes: [...s.ambientes, nuevo], aviso: s.aviso.startsWith('Ya suenan') ? '' : s.aviso }))
+      void iniciarAmbiente(nuevo.id)
+    },
+
+    lanzarEfecto: (pistaId) => {
+      const ahora = performance.now()
+      // Un mismo toque que llega dos veces (táctil + clic) no lanza dos copias; repetir a mano sí.
+      if (ultimoEfecto.pistaId === pistaId && ahora - ultimoEfecto.t < ANTIRREBOTE_MS) return
+      ultimoEfecto = { pistaId, t: ahora }
+      const { pista } = datosDe(pistaId)
+      if (!pista) return
+      apartarExterna()
+      let efectos = get().efectos
+      if (efectos.length >= MAX_EFECTOS) {
+        // Demasiadas voces: se corta la más antigua.
+        m().cortarEfecto(efectos[0].id)
+        efectos = efectos.slice(1)
+      }
+      const voz: VozEfecto = { id: nuevoId('e'), pistaId, elementoId: pista.elemento_id, estado: 'cargando', reintentado: false }
+      set({ efectos: [...efectos, voz] })
+      void iniciarEfecto(voz.id)
+    },
+
+    pausarReanudar: (id) => {
+      const c = canal(id)
+      if (!c) return
+      if (c.estado === 'error') {
+        cambiarCanal(id, { estado: 'cargando', aviso: '', reintentado: false })
+        void iniciarAmbiente(id, true)
+        return
+      }
+      if (c.estado === 'pausa') apartarExterna()
+      if (c.estado === 'cargando') return // sin órdenes cruzadas mientras carga
+      m().alternarAmbiente(id)
+    },
+
+    detenerAmbiente: (id) => {
+      m().quitarAmbiente(id)
+      set((s) => ({ ambientes: s.ambientes.filter((c) => c.id !== id) }))
+    },
+
+    volumenAmbiente: (id, valor) => {
+      const volumen = Math.min(100, Math.max(0, Math.round(valor)))
+      const c = canal(id)
+      if (!c) return
+      const silenciado = volumen === 0 ? c.silenciado : false
+      cambiarCanal(id, { volumen, silenciado })
+      useVolumen.getState().fijarPreferencia('ambiente', volumen)
+      const v = volAmbiente({ volumen, silenciado })
+      m().volumenAmbiente(id, v.volumen, v.silenciado)
+    },
+
+    silenciarAmbiente: (id) => {
+      const c = canal(id)
+      if (!c) return
+      cambiarCanal(id, { silenciado: !c.silenciado })
+      const v = volAmbiente({ volumen: c.volumen, silenciado: !c.silenciado })
+      m().volumenAmbiente(id, v.volumen, v.silenciado)
+    },
+
+    bucleAmbiente: (id) => {
+      const c = canal(id)
+      if (!c) return
+      cambiarCanal(id, { bucle: !c.bucle })
+      m().bucleAmbiente(id, !c.bucle)
+    },
+
+    volumenEfectos: (valor) => {
+      const v = Math.min(100, Math.max(0, Math.round(valor)))
+      if (v > 0) set({ efectosSilenciados: false })
+      useVolumen.getState().fijarPreferencia('efecto', v)
+      aplicarVolumenes()
+    },
+
+    silenciarEfectos: () => {
+      set((s) => ({ efectosSilenciados: !s.efectosSilenciados }))
+      aplicarVolumenes()
+    },
+
+    detenerEfectos: () => {
+      if (motor) motor.liberarEfectos()
+      set({ efectos: [] })
+    },
+
+    detenerCapas: (aviso) => {
+      const habia = get().ambientes.length + get().efectos.length > 0
+      if (motor) motor.liberarTodo()
+      set({ ambientes: [], efectos: [], ...(aviso && habia ? { aviso } : {}) })
+    },
+
+    detenerTodo: () => {
+      get().detenerCapas()
+      useReproduccion.getState().detener()
+      set({ aviso: '' })
+    },
+
+    vaciar: () => {
+      if (motor) motor.liberarTodo()
+      set({ ambientes: [], efectos: [], efectosSilenciados: false, aviso: '', panel: false })
+    },
+
+    limpiarAviso: () => set({ aviso: '' }),
+    abrirPanel: (abierto) => set((s) => ({ panel: abierto ?? !s.panel })),
+
+    informar: (capa, id, estado, aviso) => {
+      if (capa === 'efecto') {
+        const voz = get().efectos.find((x) => x.id === id)
+        if (!voz) return
+        if (estado === 'fin') set((s) => ({ efectos: s.efectos.filter((x) => x.id !== id) }))
+        else if (estado === 'sonando') set((s) => ({ efectos: s.efectos.map((x) => (x.id === id ? { ...x, estado: 'sonando' } : x)) }))
+        else if (estado === 'error') {
+          if (!voz.reintentado) {
+            // Puede que el enlace privado haya caducado: se pide uno nuevo una vez.
+            set((s) => ({ efectos: s.efectos.map((x) => (x.id === id ? { ...x, reintentado: true } : x)) }))
+            void iniciarEfecto(id, true)
+          } else {
+            m().cortarEfecto(id)
+            set((s) => ({ efectos: s.efectos.filter((x) => x.id !== id), aviso: aviso || ERROR_ABRIR }))
+          }
+        }
+        return
+      }
+      const c = canal(id)
+      if (!c) return
+      if (estado === 'fin') return get().detenerAmbiente(id) // terminó sin bucle: deja libre el canal
+      if (estado === 'error') {
+        if (!c.reintentado) {
+          cambiarCanal(id, { reintentado: true, estado: 'cargando' })
+          void iniciarAmbiente(id, true)
+        } else cambiarCanal(id, { estado: 'error', aviso: aviso || ERROR_ABRIR })
+        return
+      }
+      if (estado === 'sonando' || estado === 'pausa' || estado === 'cargando') cambiarCanal(id, { estado, ...(estado === 'sonando' ? { aviso: '' } : {}) })
+    },
+  }
+})
+
+/** Aplica el maestro y los volúmenes de cada capa a los elementos de audio. */
+function aplicarVolumenes() {
+  if (!motor) return
+  for (const c of useMezcla.getState().ambientes) {
+    const v = volAmbiente(c)
+    motor.volumenAmbiente(c.id, v.volumen, v.silenciado)
+  }
+  const e = volEfectos()
+  motor.volumenEfectos(e.volumen, e.silenciado)
+}
+
+useVolumen.subscribe((s, antes) => {
+  if (s.maestro !== antes.maestro || s.maestroSilenciado !== antes.maestroSilenciado || s.efecto !== antes.efecto) aplicarVolumenes()
+})
+
+// Si se borra una pista, un elemento o un sonido (o se cierra sesión), sus capas dejan de sonar.
+useDatos.subscribe((s, antes) => {
+  if (s.pistas === antes.pistas) return
+  const vivas = new Set(s.pistas.map((p) => p.id))
+  const mz = useMezcla.getState()
+  for (const c of mz.ambientes) if (!vivas.has(c.pistaId)) mz.detenerAmbiente(c.id)
+  const muertas = mz.efectos.filter((v) => !vivas.has(v.pistaId))
+  if (muertas.length) {
+    for (const v of muertas) motor?.cortarEfecto(v.id)
+    useMezcla.setState((x) => ({ efectos: x.efectos.filter((v) => vivas.has(v.pistaId)) }))
+  }
+})
+
+// Para las pruebas: estado de la mezcla con los nombres de los elementos (solo lectura).
+;(window as unknown as { __mezclaEstado?: () => unknown }).__mezclaEstado = () => {
+  const d = useDatos.getState()
+  const nombre = (id: string) => d.elementos.find((e) => e.id === id)?.nombre ?? ''
+  const s = useMezcla.getState()
+  return {
+    ambientes: s.ambientes.map((c) => ({ ...c, nombre: nombre(c.elementoId) })),
+    efectos: s.efectos.map((v) => ({ ...v, nombre: nombre(v.elementoId) })),
+    aviso: s.aviso,
+  }
+}
+
+// ── Lo que hace una tarjeta al pulsarla ──
+
+/** Reproduce una pista donde le corresponde: canal principal, ambiente (activar/detener) o efecto. */
+export function tocar(pistaId: string) {
+  const destino = destinoDe(pistaId)
+  if (destino === 'ambiente') useMezcla.getState().alternarAmbiente(pistaId)
+  else if (destino === 'efecto') useMezcla.getState().lanzarEfecto(pistaId)
+  else useReproduccion.getState().reproducir(pistaId)
+}
+
+/** Igual, con la pista principal (la primera) de un elemento. Devuelve false si no tiene. */
+export function tocarElemento(elementoId: string) {
+  const principal = pistasDe(useDatos.getState().pistas, elementoId)[0]
+  if (!principal) return false
+  tocar(principal.id)
+  return true
+}
+
+export { MAX_AMBIENTES, MAX_EFECTOS }

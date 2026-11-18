@@ -5,7 +5,7 @@ export type FuenteVolumen = 'local' | 'spotify' | 'spotify-integrado'
 
 /**
  * Control de volumen permanente de la barra inferior.
- * - local: volumen de DFY (MP3/archivos y YouTube), guardado en el navegador.
+ * - local: volumen de la música de DFY (MP3/archivos y YouTube), guardado en el navegador. El maestro de la mezcla lo multiplica.
  * - spotify: volumen real del dispositivo de Spotify conectado (leído de Spotify).
  * - spotify-integrado: el reproductor integrado de Spotify no permite controlarlo desde fuera.
  */
@@ -37,7 +37,7 @@ export function ControlVolumen({ fuente }: { fuente: FuenteVolumen }) {
   } else {
     valor = v.local
     silenciado = v.silenciado
-    nota = 'Volumen de DFY'
+    nota = 'Volumen de la música'
     cambiar = v.fijarLocal
     silenciar = v.alternarSilencioLocal
   }

@@ -8,6 +8,8 @@ const MARGEN_MS = 12
 
 export class MotorArchivo {
   repetir = false
+  /** Aviso opcional al terminar la pista sin repetir (lo usan los efectos de la mezcla). */
+  alFin?: () => void
   private audio: HTMLAudioElement
   private seg: Segmento = { inicio: null, fin: null }
   private temporizador = 0
@@ -107,6 +109,13 @@ export class MotorArchivo {
     this.audio.pause()
   }
 
+  /** Detiene y suelta el archivo (libera memoria y conexión). */
+  liberar() {
+    this.detener()
+    this.audio.removeAttribute('src')
+    this.audio.load()
+  }
+
   fijarRepetir(valor: boolean) {
     this.repetir = valor
     this.audio.loop = valor && this.seg.fin == null && !this.seg.inicio
@@ -135,5 +144,6 @@ export class MotorArchivo {
     this.audio.pause()
     this.audio.currentTime = (this.seg.inicio ?? 0) / 1000
     this.informar('pausa')
+    this.alFin?.()
   }
 }

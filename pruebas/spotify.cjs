@@ -85,7 +85,8 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   await crearElemento(p, { tipo: 'personaje', nombre: 'Ending Waterdeep', sonidos: [{ enlace: web(B) }] });
   await crearElemento(p, { tipo: 'personaje', nombre: 'Persecución', sonidos: [{ enlace: web(C) }] });
   await crearElemento(p, { tipo: 'personaje', nombre: 'Huida', sonidos: [{ enlace: web(D), inicio: '0:10', fin: '0:11' }] });
-  await crearElemento(p, { tipo: 'ambiente', nombre: 'Lluvia MP3', sonidos: [{ archivo: { name: 'lluvia.wav', mimeType: 'audio/wav', buffer: wav(6) } }] });
+  // Canal principal: en carpetas normales (desde la fase 2, Ambientes y Efectos con archivo van a la mezcla).
+  await crearElemento(p, { tipo: 'lugar', nombre: 'Lluvia MP3', sonidos: [{ archivo: { name: 'lluvia.wav', mimeType: 'audio/wav', buffer: wav(6) } }] });
   const estado = () => p.locator('.reproductor-estado').innerText();
   const plays = () => api.filter((x) => x.startsWith('PUT /me/player/play'));
 
