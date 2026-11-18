@@ -2,6 +2,51 @@
 
 .buscar-sonidos {
   width: min(46rem, calc(100vw - 1rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Cabecera fija: el título y la X siguen a la vista al desplazar los resultados (la ventana es la que se desplaza). */
+.buscar-sonidos .copias {
+  padding-top: 0;
+}
+
+.buscar-cabecera {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 -1.5rem;
+  padding: 1rem 1rem 0.75rem 1.5rem;
+  background: var(--superficie-alta);
+  border-bottom: 1px solid var(--linea);
+}
+
+.dialogo-cerrar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--linea);
+  background: var(--superficie-alta);
+  color: var(--tinta);
+  cursor: pointer;
+}
+
+.dialogo-cerrar:hover {
+  border-color: var(--verdin);
+  color: var(--verdin);
+}
+
+.dialogo-cerrar:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
 }
 
 .buscar-fila {

@@ -48,11 +48,21 @@ export function BuscarSonidos({ alCerrar, alGuardar }: { alCerrar: () => void; a
   const turno = useRef(0)
   const ultimaVez = useRef(0)
 
+  const campo = useRef<HTMLInputElement>(null)
   useEffect(() => {
     const d = dialogo.current
     if (d && !d.open) d.showModal()
+    campo.current?.focus() // se abre para buscar: el cursor va al buscador
+    // Al cerrar (X, Esc o «Cerrar») se para SOLO la muestra de Freesound; la música y los ambientes de DFY siguen.
     return () => pararPrevia()
   }, [])
+
+  /** Cierre nativo de la ventana (como Esc): el foco vuelve al botón que la abrió. */
+  const cerrar = () => {
+    pararPrevia()
+    if (dialogo.current?.open) dialogo.current.close()
+    else alCerrar()
+  }
 
   const pararPrevia = () => {
     const a = previa.current
@@ -156,7 +166,14 @@ export function BuscarSonidos({ alCerrar, alGuardar }: { alCerrar: () => void; a
   return (
     <dialog ref={dialogo} className="dialogo dialogo-ancho buscar-sonidos" onClose={alCerrar} aria-labelledby="buscar-titulo">
       <div className="copias">
-        <h2 id="buscar-titulo">Buscar sonidos</h2>
+        <header className="buscar-cabecera">
+          <h2 id="buscar-titulo">Buscar sonidos</h2>
+          <button type="button" className="dialogo-cerrar" onClick={cerrar} aria-label="Cerrar Buscar sonidos" title="Cerrar (Esc)">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </header>
         <p className="ayuda-normal">
           Sonidos libres de Freesound. Suenan desde Freesound: no se descargan ni se suben a tu cuenta, y sus créditos quedan guardados.
         </p>
@@ -173,7 +190,7 @@ export function BuscarSonidos({ alCerrar, alGuardar }: { alCerrar: () => void; a
         <form className="buscar-fila" onSubmit={enviar} role="search">
           <div className="campo">
             <label htmlFor="buscar-texto">Qué sonido (en español o en inglés)</label>
-            <input id="buscar-texto" type="search" value={texto} autoComplete="off" maxLength={100} placeholder={tipo === 'ambiente' ? 'lluvia, tavern, forest…' : 'puerta, sword, explosion…'} onChange={(e) => setTexto(e.target.value)} />
+            <input id="buscar-texto" ref={campo} type="search" value={texto} autoComplete="off" maxLength={100} placeholder={tipo === 'ambiente' ? 'lluvia, tavern, forest…' : 'puerta, sword, explosion…'} onChange={(e) => setTexto(e.target.value)} />
           </div>
           <button type="submit" className="boton boton-principal" disabled={!texto.trim() || estado === 'buscando'}>
             Buscar
@@ -325,7 +342,7 @@ export function BuscarSonidos({ alCerrar, alGuardar }: { alCerrar: () => void; a
           CC BY-NC además prohíbe el uso comercial.
         </p>
         <div className="editor-acciones">
-          <button type="button" className="boton" onClick={alCerrar}>
+          <button type="button" className="boton" onClick={cerrar}>
             Cerrar
           </button>
         </div>

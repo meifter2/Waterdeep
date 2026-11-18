@@ -187,6 +187,42 @@ globalThis.fetch = async (entrada, init) => {
   await p.waitForTimeout(500);
   await p.screenshot({ path: CAPTURAS + 'buscar-sonidos.png' });
 
+  // ══ Botón X, cabecera fija, Esc y foco ══
+  const caja = async (loc) => loc.boundingBox();
+  const x = () => dlg().getByRole('button', { name: 'Cerrar Buscar sonidos' });
+  let d = await caja(dlg());
+  let bx = await caja(x());
+  comprobar('X visible arriba a la derecha de la ventana', bx && d.x + d.width - (bx.x + bx.width) < 40 && bx.y - d.y < 30 && bx.width >= 44, JSON.stringify({ d, bx }));
+  await dlg().getByRole('button', { name: 'Escuchar Rain on roof.wav' }).click();
+  await p.waitForFunction(() => window.__previaDFY && !window.__previaDFY.paused, null, { timeout: 8000 });
+  await p.setViewportSize({ width: 1280, height: 520 });
+  await dlg().evaluate((el) => { el.scrollTop = el.scrollHeight; });
+  await p.waitForTimeout(150);
+  d = await caja(dlg());
+  const cab = await caja(dlg().locator('.buscar-cabecera'));
+  comprobar('Al desplazar los resultados, la cabecera con la X sigue fija arriba', (await dlg().evaluate((el) => el.scrollTop)) > 0 && Math.abs(cab.y - d.y) < 2 && (await x().isVisible()), JSON.stringify({ d, cab }));
+  await p.keyboard.press('Escape');
+  await p.waitForTimeout(300);
+  m = await mezcla();
+  comprobar('Esc cierra la ventana', (await dlg().count()) === 0);
+  comprobar('…para la muestra de Freesound pero no los ambientes de DFY', (await p.evaluate(() => window.__previaDFY.paused)) && m.ambientes.some((c) => c.estado === 'sonando') && m.voces.some((v) => v.capa === 'ambiente' && !v.pausado));
+  comprobar('…y el foco vuelve al botón «Buscar sonidos»', (await p.evaluate(() => document.activeElement?.textContent?.trim())) === 'Buscar sonidos');
+  await btn('Buscar sonidos').click();
+  await dlg().waitFor();
+  comprobar('Al abrir, el cursor va al buscador', (await p.evaluate(() => document.activeElement?.id)) === 'buscar-texto');
+  await x().click();
+  await p.waitForTimeout(300);
+  comprobar('La X cierra la ventana', (await dlg().count()) === 0);
+  await p.setViewportSize({ width: 390, height: 700 });
+  await btn('Buscar sonidos').click();
+  await dlg().waitFor();
+  bx = await caja(x());
+  comprobar('Móvil: la X se ve entera y es cómoda (≥ 44 px)', bx.x + bx.width <= 390 && bx.y >= 0 && bx.width >= 44 && bx.height >= 44, JSON.stringify(bx));
+  await x().click();
+  await p.setViewportSize({ width: 1280, height: 860 });
+  await btn('Buscar sonidos').click();
+  await dlg().waitFor();
+
   // Efectos
   await dlg().getByRole('button', { name: 'Efectos', exact: true }).click();
   await buscar('door');
