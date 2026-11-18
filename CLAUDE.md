@@ -89,7 +89,7 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, buscar, dialogo
 
 ## Git
 Vercel publica cada push a `main`; ramas ⇒ vista previa (variables «Preview»; Google no vuelve a ellas ⇒ usar email).
-Ramas: F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador`, F2B `fase-2-fundidos`. A `main` SOLO con permiso. Vuelta atrás: pre-F2 `38ad9ec`, pre-F2B `7c51514`.
+Ramas: F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador`, F2B `fase-2-fundidos`. A `main` SOLO con permiso. Vuelta atrás: pre-F2B `7c51514`, pre-Spotify-inicio `433155b`.
 
 ## Estado
 | Fase | Estado |
@@ -97,4 +97,4 @@ Ramas: F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador`, F2B `fase-2-fundidos`. A
 | v3 (Supabase+Google+email, PWA, Connect), identidad DFY, F1 Biblioteca v4 + reproductor + controles | Publicadas en `main` (002 ejecutado) |
 | F2 Mezclador + ambientes por enlace + «Buscar sonidos» (Freesound) | Publicada en `main` (7c51514); Freesound real sin verificar (falta clave) |
 | F2B Fundidos + X en «Buscar sonidos» + reordenar tarjetas | Publicada en `main` (433155b); falta prueba manual en producción |
-| Corrección: inicio/tramo de Spotify (Connect, integrado, externo) | En `fase-2-fundidos`, sin integrar en `main` |
+| Corrección: inicio/tramo de Spotify (Connect, integrado, externo) | Publicada en `main`; falta prueba manual en producción |
