@@ -9,10 +9,10 @@ import { factorMaestro, useVolumen } from './volumen'
 // - Canal principal: el reproductor de siempre (useReproduccion). Las tarjetas normales con archivo van ahí.
 // - Ambientes: tarjetas de la carpeta Ambientes con archivo propio. Pulsar activa / detiene. Máximo 3.
 // - Efectos: tarjetas de Efectos con archivo propio. Cada pulsación lanza el sonido una vez.
-// Spotify y YouTube NUNCA se mezclan: la última pulsación manda.
-// - Si empieza una fuente externa, se detienen ambientes y efectos (lo hace el Reproductor).
-// - Si se activa una capa local mientras suena Spotify/YouTube puesto por DFY, se detiene esa fuente
-//   (si Spotify está con otra canción que el usuario puso desde fuera, DFY no la toca).
+// Spotify y YouTube NUNCA se mezclan:
+// - Elegir expresamente una música de Spotify/YouTube (o reanudarla) la pone y detiene ambientes y efectos (Reproductor).
+// - Pulsar un ambiente o efecto mientras suena (o carga) Spotify/YouTube NO corta esa música: la capa no se lanza
+//   y se avisa. Lo mismo si Spotify está con otra canción que el usuario puso desde fuera (estado `otra`).
 // Nada de esto se guarda: al recargar no suena nada (los volúmenes sí se recuerdan, en volumen.ts).
 
 export type EstadoCanal = 'cargando' | 'sonando' | 'pausa' | 'error'
@@ -109,14 +109,20 @@ const volEfectos = () => {
   return { volumen: (v.efecto / 100) * factorMaestro(v), silenciado: useMezcla.getState().efectosSilenciados || v.maestroSilenciado }
 }
 
-/** Antes de sonar una capa local: si suena Spotify/YouTube puesto por DFY, se detiene (no se superponen). */
-function apartarExterna() {
+export const AVISO_EXTERNA = 'Para combinar ambientes y efectos, utiliza música en archivo propio.'
+
+/**
+ * ¿Hay música externa sonando que impide lanzar una capa local? Sonando o cargando Spotify/YouTube, o Spotify
+ * con otra canción puesta desde fuera (`otra`, puede estar sonando). Si es así, avisa y devuelve true: la capa
+ * no se lanza y la música externa NO se toca. En pausa o detenida no molesta.
+ */
+function externaSonando() {
   const r = useReproduccion.getState()
-  if (!r.pistaId || (r.estado !== 'sonando' && r.estado !== 'cargando')) return
+  if (!r.pistaId || (r.estado !== 'sonando' && r.estado !== 'cargando' && r.estado !== 'otra')) return false
   const { recurso } = datosDe(r.pistaId)
-  if (!recurso || recurso.origen === 'archivo') return
-  r.detener()
-  useMezcla.setState({ aviso: `${recurso.origen === 'spotify' ? 'Spotify' : 'YouTube'} se ha detenido: no se mezcla con ambientes ni efectos.` })
+  if (!recurso || recurso.origen === 'archivo') return false
+  useMezcla.setState({ aviso: AVISO_EXTERNA })
+  return true
 }
 
 const segDe = (p: Pista) => ({ inicio: p.inicio_ms, fin: p.fin_ms })
@@ -173,7 +179,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
         set({ aviso: `Ya suenan ${MAX_AMBIENTES} ambientes. Detén uno para añadir otro.` })
         return
       }
-      apartarExterna()
+      if (externaSonando()) return
       const nuevo: CanalAmbiente = {
         id: nuevoId('a'),
         pistaId,
@@ -185,7 +191,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
         aviso: '',
         reintentado: false,
       }
-      set((s) => ({ ambientes: [...s.ambientes, nuevo], aviso: s.aviso.startsWith('Ya suenan') ? '' : s.aviso }))
+      set((s) => ({ ambientes: [...s.ambientes, nuevo], aviso: s.aviso.startsWith('Ya suenan') || s.aviso === AVISO_EXTERNA ? '' : s.aviso }))
       void iniciarAmbiente(nuevo.id)
     },
 
@@ -196,7 +202,7 @@ export const useMezcla = create<Mezcla>()((set, get) => {
       ultimoEfecto = { pistaId, t: ahora }
       const { pista } = datosDe(pistaId)
       if (!pista) return
-      apartarExterna()
+      if (externaSonando()) return
       let efectos = get().efectos
       if (efectos.length >= MAX_EFECTOS) {
         // Demasiadas voces: se corta la más antigua.
@@ -211,12 +217,12 @@ export const useMezcla = create<Mezcla>()((set, get) => {
     pausarReanudar: (id) => {
       const c = canal(id)
       if (!c) return
+      if ((c.estado === 'error' || c.estado === 'pausa') && externaSonando()) return // volver a sonar: misma regla
       if (c.estado === 'error') {
         cambiarCanal(id, { estado: 'cargando', aviso: '', reintentado: false })
         void iniciarAmbiente(id, true)
         return
       }
-      if (c.estado === 'pausa') apartarExterna()
       if (c.estado === 'cargando') return // sin órdenes cruzadas mientras carga
       m().alternarAmbiente(id)
     },

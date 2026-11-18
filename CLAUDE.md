@@ -73,8 +73,9 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, dialogos, edito
 - Enrutado `tocar(pista)`: archivo propio en Ambientes ⇒ canal de ambiente (pulsar activa/detiene; en pausa reanuda;
   con error reintenta), máx. 3, el 4.º se rechaza con aviso · en Efectos ⇒ voz que suena una vez (máx. 6, se corta la
   más antigua; antirrebote 80 ms) · resto (y todo Spotify/YouTube) ⇒ canal principal.
-- Política externa: «la última pulsación manda». Empieza/reanuda Spotify o YouTube ⇒ `detenerCapas`; activar una capa con
-  Spotify/YouTube de DFY sonando ⇒ `detener()` (estado `otra` = canción del usuario: no se toca). Avisos en la barra.
+- Política externa: elegir/reanudar Spotify o YouTube como música ⇒ `detenerCapas`. Ambiente/efecto con Spotify/YouTube
+  `sonando|cargando|otra` ⇒ NO se corta la música ni se lanza la capa; aviso «Para combinar ambientes y efectos, utiliza música
+  en archivo propio.» (`externaSonando`). En pausa/detenida sí se lanza. Elegir música en archivo sustituye a la externa.
 - Cada canal: estado, volumen, silencio, bucle (de la pista). Quitado mientras carga ⇒ no suena. Reproductor desmontado ⇒ para todo.
 - Volumen: maestro × canal (música = `local`; YouTube incluido). Clave nueva `banda-sonora:mezcla` {maestro, ambiente,
   efecto}; los silencios no se guardan. Al recargar no suena nada. Sin tablas nuevas.

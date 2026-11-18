@@ -87,6 +87,9 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   await crearElemento(p, { tipo: 'personaje', nombre: 'Huida', sonidos: [{ enlace: web(D), inicio: '0:10', fin: '0:11' }] });
   // Canal principal: en carpetas normales (desde la fase 2, Ambientes y Efectos con archivo van a la mezcla).
   await crearElemento(p, { tipo: 'lugar', nombre: 'Lluvia MP3', sonidos: [{ archivo: { name: 'lluvia.wav', mimeType: 'audio/wav', buffer: wav(6) } }] });
+  // Capas de la mezcla (fase 2): nunca deben cortar ni superponerse a Spotify.
+  await crearElemento(p, { tipo: 'ambiente', nombre: 'Tormenta', sonidos: [{ archivo: { name: 'tormenta.wav', mimeType: 'audio/wav', buffer: wav(5) } }] });
+  await crearElemento(p, { tipo: 'efecto', nombre: 'Golpe', sonidos: [{ archivo: { name: 'golpe.wav', mimeType: 'audio/wav', buffer: wav(2) } }] });
   const estado = () => p.locator('.reproductor-estado').innerText();
   const plays = () => api.filter((x) => x.startsWith('PUT /me/player/play'));
 
@@ -147,9 +150,28 @@ const comprobar = (n, ok, extra = '') => { if (!ok) fallos++; console.log(ok ? '
   Object.assign(sp, { uri: 'spotify:track:otraCancionDeFuera00001', sonando: true });
   await p.waitForFunction(() => document.querySelector('.reproductor-estado')?.textContent.startsWith('Spotify está con otra'), null, { timeout: 7000 }).catch(() => {});
   comprobar('Detecta el cambio hecho en la app de Spotify y no finge que suena lo de DFY', (await estado()).startsWith('Spotify está con otra') && (await p.locator('.tarjeta[data-actual]').count()) === 0, await estado());
+  // Fase 2: con otra canción puesta desde fuera, un ambiente o efecto MP3 ni la para ni se le superpone.
+  const capas = async () => p.evaluate(() => { const e = window.__mezclaEstado(); const d = window.__mezclaDFY ? window.__mezclaDFY.diagnostico() : []; return { amb: e.ambientes.length, ef: e.efectos.length, aviso: e.aviso, suenan: d.filter((v) => !v.pausado).length }; });
+  const pausasApi = () => api.filter((x) => x.startsWith('PUT /me/player/pause')).length;
+  let nPo = pausasApi(), nPl = plays().length;
+  await p.getByRole('button', { name: 'Activar ambiente Tormenta' }).click();
+  await p.waitForTimeout(150);
+  await p.getByRole('button', { name: 'Lanzar efecto Golpe' }).click();
+  await p.waitForTimeout(500);
+  let c = await capas();
+  comprobar('Mezcla con Spotify «con otra canción»: ambiente y efecto no la paran ni la cambian', pausasApi() === nPo && plays().length === nPl && sp.sonando && sp.uri.includes('otraCancionDeFuera'));
+  comprobar('…no suena ninguna capa encima y se avisa', c.amb === 0 && c.ef === 0 && c.suenan === 0 && c.aviso === 'Para combinar ambientes y efectos, utiliza música en archivo propio.', JSON.stringify(c));
   await p.getByRole('button', { name: 'Reproducir Ending Waterdeep' }).click();
   await p.waitForTimeout(600);
   comprobar('…y al pulsar la tarjeta la recupera', sp.uri === B && (await estado()).startsWith('Sonando'));
+  // Con la canción de DFY sonando en Spotify Connect: tampoco se corta.
+  nPo = pausasApi(); nPl = plays().length;
+  await p.getByRole('button', { name: 'Lanzar efecto Golpe' }).click();
+  await p.waitForTimeout(150);
+  await p.getByRole('button', { name: 'Activar ambiente Tormenta' }).click();
+  await p.waitForTimeout(500);
+  c = await capas();
+  comprobar('Mezcla con Spotify Connect sonando: no pausa Spotify y no lanza la capa', pausasApi() === nPo && plays().length === nPl && sp.sonando && sp.uri === B && c.amb === 0 && c.ef === 0 && c.suenan === 0 && (await estado()).startsWith('Sonando'));
   // Misma tarjeta con la canción ya sonando: no la reinicia
   const antesMisma = plays().length;
   await p.getByRole('button', { name: 'Reproducir Ending Waterdeep' }).click();

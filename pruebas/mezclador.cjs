@@ -201,36 +201,74 @@ const cerca = (a, b) => Math.abs(a - b) < 0.011;
   s = await estado();
   comprobar('9. Músicas seguidas: suena la última y el ambiente no se toca', (await p.locator('.reproductor-titulo').innerText()) === 'Taberna' && !s.principal.pausado && ambSonando(s) === 'Lluvia');
 
-  // ══ 11. De la mezcla local a YouTube y Spotify ══
+  // ══ 11. Mezcla local y Spotify/YouTube: no se superponen, y una capa nunca corta la música externa ══
+  const AVISO = 'Para combinar ambientes y efectos, utiliza música en archivo propio.';
+  const avisoBarra = async () => ((await p.locator('.reproductor-aviso[data-mezcla]').count()) ? p.locator('.reproductor-aviso[data-mezcla]').innerText() : '');
+  const logDesde = async (n) => (await p.evaluate(() => window.__log)).slice(n);
+  const nLog = () => p.evaluate(() => window.__log.length);
   await efecto('Puerta').click();
   await p.waitForTimeout(100);
-  await musica('Nomad').click();
+  await musica('Nomad').click(); // elegir expresamente una música externa: sustituye y aparta las capas
   await p.waitForFunction(() => (window.__log || []).some((l) => l.startsWith('yt:play')), null, { timeout: 8000 });
   await p.waitForTimeout(300);
   s = await estado();
-  comprobar('11. Al empezar YouTube se detienen ambientes, efectos y el MP3 (sin audio oculto)', audiblesOcultos(s) === 0 && s.amb.length === 0 && s.ef.length === 0);
-  comprobar('11. …y se explica en la barra', (await p.locator('.reproductor-aviso[data-mezcla]').innerText()).includes('YouTube no se mezcla'));
-  let n = (await p.evaluate(() => window.__log.length));
+  comprobar('11. Elegir YouTube detiene ambientes, efectos y el MP3 (sin audio oculto)', audiblesOcultos(s) === 0 && s.amb.length === 0 && s.ef.length === 0);
+  comprobar('11. …y se explica en la barra', (await avisoBarra()).includes('YouTube no se mezcla'));
+
+  let n = await nLog();
+  await ambiente('Lluvia').click();
+  await p.waitForTimeout(500);
+  s = await estado();
+  let log = await logDesde(n);
+  comprobar('11. Ambiente con YouTube sonando: NO corta YouTube', !log.includes('yt:stop') && !log.includes('yt:pause') && (await p.locator('.reproductor-estado').innerText()).startsWith('Sonando'), log.join(' / '));
+  comprobar('11. …no lanza el ambiente (nada suena por debajo)', s.amb.length === 0 && s.voces.filter((v) => !v.pausado).length === 0 && (await ambiente('Lluvia').getAttribute('aria-pressed')) === 'false');
+  comprobar('11. …y avisa con el mensaje acordado', (await avisoBarra()).includes(AVISO), await avisoBarra());
+  n = await nLog();
+  await efecto('Puerta').click();
+  await p.waitForTimeout(400);
+  s = await estado();
+  log = await logDesde(n);
+  comprobar('11. Efecto con YouTube sonando: no corta YouTube ni suena el efecto', !log.includes('yt:stop') && !log.includes('yt:pause') && s.ef.length === 0 && s.voces.filter((v) => !v.pausado).length === 0, log.join(' / '));
+
+  // Con YouTube en pausa ya no suena nada externo: las capas sí pueden sonar.
+  await btn('Pausar').click();
+  await p.waitForTimeout(200);
+  n = await nLog();
   await ambiente('Lluvia').click();
   await esperarAmb('Lluvia');
-  const log = (await p.evaluate(() => window.__log)).slice(n);
-  comprobar('11. Activar un ambiente con YouTube sonando detiene YouTube (la última pulsación manda)', log.includes('yt:stop') && (await p.locator('.reproductor-estado').innerText()).startsWith('Detenido'), log.join(' / '));
+  comprobar('11. Con YouTube en pausa, el ambiente sí suena y YouTube sigue en pausa', !(await logDesde(n)).some((l) => l.startsWith('yt:play')) && (await p.locator('.reproductor-estado').innerText()).startsWith('En pausa'));
+  // Reanudar YouTube con ▶ es elegirlo expresamente: aparta las capas.
+  await btn('Reproducir').click();
+  await p.waitForTimeout(400);
+  s = await estado();
+  comprobar('11. Reanudar YouTube desde la barra aparta las capas (no se superponen)', s.amb.length === 0 && s.voces.filter((v) => !v.pausado).length === 0 && (await p.locator('.reproductor-estado').innerText()).startsWith('Sonando'));
+
+  // Elegir expresamente una música en archivo sustituye a YouTube; luego los ambientes ya combinan.
+  n = await nLog();
+  await musica('Taberna').click();
+  await esperarPrincipal();
+  comprobar('11. Elegir una música en archivo sustituye a YouTube', (await logDesde(n)).includes('yt:stop') && (await p.locator('.reproductor-titulo').innerText()) === 'Taberna');
+  await ambiente('Lluvia').click();
+  await esperarAmb('Lluvia');
+  comprobar('11. …y entonces el ambiente se combina con ella', !(await estado()).principal.pausado);
+
+  // Spotify integrado: misma regla.
   await musica('Puerto').click();
   await p.waitForFunction(() => (window.__log || []).some((l) => l.startsWith('spotify:play')), null, { timeout: 8000 });
   await p.waitForTimeout(300);
   s = await estado();
-  comprobar('11. Al empezar Spotify se detienen las capas locales', s.amb.length === 0 && audiblesOcultos(s) === 0 && (await p.locator('.reproductor-aviso[data-mezcla]').innerText()).includes('Spotify no se mezcla'));
-  n = (await p.evaluate(() => window.__log.length));
+  comprobar('11. Elegir Spotify aparta las capas locales', s.amb.length === 0 && audiblesOcultos(s) === 0 && (await avisoBarra()).includes('Spotify no se mezcla'));
+  n = await nLog();
   await efecto('Puerta').click();
-  await p.waitForTimeout(300);
-  comprobar('11. Un efecto con Spotify sonando pausa Spotify antes de sonar', (await p.evaluate(() => window.__log)).slice(n).includes('spotify:pause') && (await estado()).ef.length === 1);
-  // Reanudar Spotify desde la barra también aparta las capas.
-  await ambiente('Lluvia').click();
-  await esperarAmb('Lluvia');
-  await musica('Puerto').click();
+  await p.waitForTimeout(200);
+  await ambiente('Conversaciones').click();
   await p.waitForTimeout(400);
-  comprobar('11. Volver a Spotify con un ambiente sonando lo detiene', (await estado()).amb.length === 0);
+  s = await estado();
+  log = await logDesde(n);
+  comprobar('11. Efecto o ambiente con Spotify sonando: Spotify sigue y la capa no suena', !log.includes('spotify:pause') && (await p.locator('.reproductor-estado').innerText()).startsWith('Sonando') && s.ef.length === 0 && s.amb.length === 0 && (await avisoBarra()).includes(AVISO), log.join(' / '));
+  comprobar('11. Los controles de volumen siguen intactos', (await p.locator('.boton-mezcla').isEnabled()) && (await p.locator('#volumen').isVisible()));
   await btn('Detener todo').click();
+  await p.waitForTimeout(200);
 
   // ══ 12. Borrar un sonido que está sonando ══
   await ambiente('Lluvia').click();
