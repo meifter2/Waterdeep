@@ -1,0 +1,235 @@
+/* Carpetas temáticas de Main: grupos desplegables dentro de cada categoría («Xanathar», «Drama»…).
+   Un filete a la izquierda une la carpeta con sus tarjetas; al arrastrar una tarjeta encima, el destino se marca en verdín. */
+
+.seccion-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.carpetas {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.carpeta {
+  border-left: 3px solid var(--linea);
+  border-radius: 0 var(--r-m) var(--r-m) 0;
+  padding: 0 0 0 0.65rem;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.carpeta[data-abierta] {
+  border-left-color: color-mix(in srgb, var(--verdin) 55%, var(--linea));
+}
+
+.carpeta[data-sin] {
+  border-left-style: dashed;
+}
+
+/* Destino al arrastrar una tarjeta desde otra carpeta. */
+.carpeta[data-encima] {
+  border-left-color: var(--verdin);
+  background: var(--verdin-suave);
+  outline: 2px dashed var(--verdin);
+  outline-offset: 2px;
+}
+
+.carpeta-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+}
+
+.carpeta-alternar {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  min-width: 0;
+  padding: 0.3rem 0.5rem 0.3rem 0.2rem;
+  font: inherit;
+  font-family: var(--f-titulo);
+  font-size: var(--t-l);
+  font-weight: 600;
+  color: var(--tinta);
+  background: none;
+  border: 0;
+  border-radius: var(--r-s);
+  cursor: pointer;
+  text-align: left;
+}
+
+.carpeta-alternar:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--verdin) 8%, transparent);
+}
+
+.carpeta-alternar:disabled {
+  cursor: default;
+}
+
+.carpeta-flecha {
+  flex: none;
+  align-self: center;
+  color: var(--tinta-suave);
+  transition: transform 0.15s ease;
+}
+
+.carpeta-alternar[aria-expanded='true'] .carpeta-flecha {
+  transform: rotate(90deg);
+}
+
+.carpeta-nombre {
+  overflow-wrap: anywhere;
+}
+
+.carpeta[data-sin] .carpeta-nombre {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--tinta-suave);
+}
+
+.carpeta-cuenta {
+  font-family: var(--f-texto);
+  font-size: var(--t-s);
+  font-weight: 400;
+  color: var(--tinta-suave);
+}
+
+.carpeta-cuerpo {
+  padding: 0.15rem 0 0.8rem;
+}
+
+.carpeta-vacia {
+  font-size: var(--t-s);
+  color: var(--tinta-suave);
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--linea);
+  border-radius: var(--r-m);
+}
+
+/* Menú de la carpeta (⋯) */
+.carpeta-menu {
+  position: relative;
+  flex: none;
+}
+
+.carpeta-menu > summary {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  list-style: none;
+  color: var(--tinta-suave);
+  border: 1px solid transparent;
+  border-radius: var(--r-s);
+  cursor: pointer;
+}
+
+.carpeta-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.carpeta-menu > summary:hover,
+.carpeta-menu[open] > summary {
+  border-color: var(--linea);
+  color: var(--tinta);
+  background: var(--superficie-alta);
+}
+
+.carpeta-menu-lista {
+  position: absolute;
+  z-index: 15;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  display: grid;
+  min-width: 14rem;
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.3rem;
+  background: var(--superficie-alta);
+  border: 1px solid var(--linea);
+  border-radius: var(--r-m);
+  box-shadow: var(--sombra);
+}
+
+.carpeta-menu-lista > button,
+.carpeta-menu-lista .carpeta-menu-peligro {
+  font: inherit;
+  font-size: var(--t-s);
+  text-align: left;
+  padding: 0.5rem 0.7rem;
+  color: var(--tinta);
+  background: none;
+  border: 0;
+  border-radius: var(--r-s);
+  cursor: pointer;
+  width: 100%;
+}
+
+.carpeta-menu-lista > button:hover:not(:disabled),
+.carpeta-menu-lista .carpeta-menu-peligro:hover {
+  background: color-mix(in srgb, var(--verdin) 10%, transparent);
+}
+
+.carpeta-menu-lista > button:disabled {
+  color: var(--tinta-suave);
+  opacity: 0.6;
+  cursor: default;
+}
+
+.carpeta-menu-lista .carpeta-menu-peligro {
+  color: var(--peligro);
+  border-top: 1px solid var(--linea);
+  border-radius: 0;
+  margin-top: 0.2rem;
+}
+
+.carpeta-menu-lista .confirmar {
+  padding: 0.5rem;
+}
+
+/* Crear o renombrar en línea */
+.carpeta-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+}
+
+.carpeta-cabecera .carpeta-form {
+  margin: 0.2rem 0;
+}
+
+.carpeta-form input {
+  width: auto;
+  flex: 1 1 12rem;
+  max-width: 20rem;
+  font-family: var(--f-titulo);
+}
+
+/* Editor: carpeta de Main */
+.editor-carpeta select {
+  width: auto;
+  min-width: 12rem;
+  max-width: 100%;
+}
+
+@media (pointer: coarse) {
+  .carpeta-menu > summary {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+  .carpeta-alternar {
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carpeta,
+  .carpeta-flecha {
+    transition: none;
+  }
+}

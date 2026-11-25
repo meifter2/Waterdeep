@@ -1,6 +1,7 @@
 import { duracionAudio, extension, huella, tipoAudio, validarAudio } from '../lib/archivos'
 import { interpretarEnlace } from '../lib/enlaces'
 import { claveEnlace, recursoVacio } from './convertir'
+import { crearCarpeta, moverACarpeta } from './carpetas'
 import { repositorio } from './repositorio'
 import { asignar, crearSesion, marcarComun, marcarFinalizada, sesionVigente, useSesionActiva } from './sesiones'
 import { ordenNuevo, useDatos } from './store'
@@ -194,7 +195,7 @@ export async function anadirSonido(o: {
 }
 
 /** Importa una biblioteca (copia o datos antiguos) sin duplicar sonidos. */
-export async function importarBiblioteca(b: Biblioteca): Promise<{ elementos: number; omitidos: number; sesiones: number }> {
+export async function importarBiblioteca(b: Biblioteca): Promise<{ elementos: number; omitidos: number; sesiones: number; carpetas: number }> {
   const mapa = new Map<string, string>()
   let omitidos = 0
   for (const r of b.recursos) {
@@ -221,7 +222,24 @@ export async function importarBiblioteca(b: Biblioteca): Promise<{ elementos: nu
       est().fusionar({ pistas: [creada] })
     }
   }
-  return { elementos, omitidos, sesiones: await importarSesiones(b, nuevosIds) }
+  const sesiones = await importarSesiones(b, nuevosIds)
+  return { elementos, omitidos, sesiones, carpetas: await importarCarpetas(b, nuevosIds) }
+}
+
+/**
+ * Carpetas de Main de una copia (todas, también las vacías): se reutiliza la de igual categoría y nombre o se crea, y se
+ * meten en ella sus tarjetas importadas. Sin bd/005 se omite (las tarjetas quedan en «Sin carpeta»).
+ */
+async function importarCarpetas(b: Biblioteca, ids: Map<string, string>): Promise<number> {
+  if (!b.carpetas.length || est().sinCarpetas) return 0
+  for (const c of [...b.carpetas].sort((x, y) => x.orden - y.orden)) {
+    const misma = est().carpetas.find((x) => x.tipo === c.tipo && x.nombre.trim().toLowerCase() === c.nombre.trim().toLowerCase())
+    const destino = misma ?? (await crearCarpeta(c.tipo, c.nombre))
+    if (!destino) continue
+    const suyas = b.carpeta_elementos.filter((r) => r.carpeta_id === c.id).map((r) => ids.get(r.elemento_id)).filter((x): x is string => !!x)
+    if (suyas.length) await moverACarpeta(suyas, destino.id)
+  }
+  return b.carpetas.length
 }
 
 /**

@@ -32,6 +32,7 @@
     "test:fundidos": "node pruebas/fundidos.cjs",
     "test:ordenar": "node pruebas/ordenar.cjs",
     "test:sesiones": "node pruebas/sesiones.cjs",
+    "test:carpetas": "node pruebas/carpetas.cjs",
     "test:spotify-inicio": "node pruebas/spotify-inicio.cjs"
   },
   "dependencies": {

@@ -19,7 +19,7 @@ const JWT = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: UID, exp, role: '
 const sesion = { access_token: JWT, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'refresco', user: usuario };
 
 // ── Supabase simulado (tablas en memoria) ──
-const tablas = { elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [] };
+const tablas = { elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [], carpetas: [], carpeta_elementos: [] };
 const peticionesSb = [];
 let n = 0;
 async function supabase(r) {

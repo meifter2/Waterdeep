@@ -2,7 +2,7 @@
 > Contexto para Claude Code. Breve (≤100 líneas). Actualizar al cerrar cada fase.
 ## Resumen
 **DFY** = D (D20) + FY (Spotify). «El sonido de tus aventuras». Icono: D20 dorado con ondas (`public/iconos/dfy*`). Antes «Banda sonora».
-Mesa de sonido del máster de D&D: 7 carpetas (Opening, Ending, Personajes, Lugares, Momentos, Ambientes, Efectos); elementos
+Mesa de sonido del máster de D&D: 7 categorías (Opening, Ending, Personajes, Lugares, Momentos, Ambientes, Efectos); elementos
 con retrato y pistas (Spotify, YouTube, archivos propios, enlaces https a audio o Freesound; etiqueta, tramo, bucle), sin duplicar sonidos.
 Cuentas Google o email (Supabase Auth + RLS). Connect opcional (Premium). PWA. Sin variables de Supabase ⇒ «modo local».
 Roadmap (NO empezar sin pedirlo): escenas automáticas · F4 biblioteca de solo lectura para jugadores (solo lo publicado).
@@ -19,22 +19,22 @@ Solo servidor (Vercel, Production+Preview; NUNCA con `VITE_`): `FREESOUND_API_KE
 - `esquema.sql` (v3, ya ejecutado por el usuario): tabla `canciones`. NO borrarla (la usa la versión publicada).
 - `002-biblioteca.sql` (v4, idempotente, solo añade): `elementos`, `recursos`, `pistas` + RLS + buckets privados
   `audio` (50 MB) y `retratos` (5 MB) con políticas por carpeta `<uid>/…` + copia de `canciones` (marca `migrado_de`).
-- `003-enlaces-audio.sql` (F2, idempotente, YA EJECUTADO por el usuario: NO volver a pedirlo): admite `origen = 'url'`
-  (enlace https). Si faltara, guardar un enlace daría el aviso «ejecuta bd/003…» (23514).
-- `004-sesiones.sql` (idempotente, solo añade; PENDIENTE de que el usuario la ejecute): `sesiones`, `sesion_elementos` (N:M,
-  unique sesión+tarjeta), `elementos_comunes` + RLS. Sin ella (o si falla leerla, máx. 8 s) la app carga igual (`sinSesiones`).
+- `003-enlaces-audio.sql` (YA EJECUTADO: NO volver a pedirlo): `origen = 'url'` (enlace https); si faltara, aviso 23514.
+- `004-sesiones.sql` (YA EJECUTADA; el usuario tiene Sesión 1 y 2 con tarjetas: NO alterarlas): `sesiones`, `sesion_elementos`
+  (N:M), `elementos_comunes` + RLS. `005-carpetas-biblioteca.sql` (PENDIENTE de ejecutar): `carpetas` (tipo+nombre único) y
+  `carpeta_elementos` (unique elemento; trigger: misma categoría) + RLS. Sin 004/005 (o si fallan, máx. 8 s) carga igual (`sin…`).
 - FK (id, user_id): mismo dueño. Cliente NUNCA envía `user_id`. Sin red a supabase.co/freesound.org: SQL con PGlite, app con simuladores.
 ## Estructura (`api/sonidos.ts` = función de Vercel)
 ```
-src/data/  types (Elemento/Recurso/Pista/Sesion…, CARPETAS) · sesiones (acciones optimistas, sesión activa) · repositorio (Supabase|local+IndexedDB, errores traducidos)
+src/data/  types (Elemento/Recurso/Pista/Sesion/CarpetaTematica…, CARPETAS) · sesiones · carpetas (optimistas) · repositorio (Supabase|local+IndexedDB, errores traducidos)
            store (biblioteca, borrados optimistas, URLs) · guardar (elemento+pistas, subidas, reutilizar, importar)
            convertir (v2/v3→v4, copias v4, claveEnlace) · reproduccion (pistaId, repetir) · sesion
            mezcla (canales, `tocar`, política externa) · volumen (local, maestro, Spotify, transiciones)
 src/lib/   enlaces · archivos (validación, SHA-256, retrato 512 WebP, IndexedDB) · tiempo (m:ss) · apis
            spotifyAuth/spotifyApi (Connect) · compartir · titulo (oEmbed) · pwa · supabase · freesound · audioRemoto
-src/components/  Tarjeta (retrato + chips) · Seccion · editor/(EditorElemento, FilaPista, AnadirPista)
+src/components/  Tarjeta · ListaTarjetas (orden) · Seccion (sesión) · carpetas/SeccionMain · editor/(EditorElemento, FilaPista, AnadirPista)
            sesiones/(BarraSesiones, BarraSeleccion, GestionSesiones, seleccion) · BibliotecaSonidos · BuscarSonidos · Compartido · Copias · Migracion · ConexionSpotify · reproductor/ (motores, Mezclador)
-src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, buscar, dialogos, editor, entrada · pruebas/ (Playwright)
+src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, buscar, dialogos, editor, entrada, sesiones, carpetas · pruebas/
 ```
 ## Reproductor (no romper)
 - Canal principal: UNA pista cada vez (el reproductor de siempre). Nunca superponer Spotify/YouTube con otras fuentes.
@@ -71,21 +71,23 @@ src/styles/ tokens, base, app, tarjetas, reproductor, mezclador, buscar, dialogo
 - Fundidos (F2B): `MotorArchivo` volumen = volumen × factor (`fundir`/`entrarCon`, por tiempo, igual potencia). Ambientes con
   entrada/salida (`saliendo`, se recuperan al volver a pulsar). Música propia: `MotorMusica` (2 reproductores; la anterior baja
   cuando la nueva SUENA; si falla, sigue la anterior). Instantáneo/Suave (3/3 s, defecto)/Cinematográfico (6/8 s) o a mano
-  (`banda-sonora:mezcla`). Efectos, Detener todo, borrado, salir y Spotify/YouTube: SIEMPRE instantáneos. Pruebas que miden
-  volúmenes fijan «instantaneo».
+  (`banda-sonora:mezcla`). Efectos, Detener todo, borrado, salir y Spotify/YouTube: SIEMPRE instantáneos. Pruebas de volumen: «instantaneo».
 - Volumen: maestro × canal (música = `local`, YouTube incluido); `banda-sonora:mezcla` {maestro, ambiente, efecto}; silencios
   no se guardan; al recargar no suena nada. Borrar pista/sonido o cerrar sesión ⇒ se detiene y se suelta. `urlDe` renueva
   URLs firmadas pasadas 5 h o con `renovar` (la mezcla reintenta una vez). Pruebas: `window.__mezclaDFY|__mezclaEstado`.
-## Sesiones (`data/sesiones.ts`, rama `organizacion-sesiones`)
-- Solo ORGANIZA: relaciones, nunca copia/borra tarjetas, pistas, recursos ni archivos. Nada se asigna solo. Sesión activa por
-  navegador (`banda-sonora:sesion-activa`); elegirla solo filtra (asignadas + comunes), NO toca el reproductor.
+## Organización (rama `organizacion-sesiones`): Main con carpetas + sesiones
+- Solo ORGANIZA: relaciones, nunca copia/borra tarjetas, pistas, recursos ni archivos. Nada se asigna solo. «Main» (antes «Toda
+  la biblioteca») = categorías con carpetas temáticas desplegables (1 nivel, `carpetas.ts`, cerradas en `banda-sonora:carpetas-
+  cerradas`) y «Sin carpeta». Sesión = mesa de sonido SIN carpetas (`Seccion`). Carpeta y sesiones son independientes.
+- Mover: arrastrar el asa a otra carpeta (`data-soltar` en `ordenar.ts`, también cerrada), «Mover a carpeta» (selección) o
+  editor («Carpeta en Main»). Eliminar carpeta ⇒ sus tarjetas a «Sin carpeta». Sesión activa: `banda-sonora:sesion-activa`.
 - Crear tarjeta en una sesión (editor, Compartir, Buscar sonidos) ⇒ queda en ella salvo «Común». Borrar sesión ⇒ solo relaciones.
-- `reordenar` con una parte de la carpeta la recoloca en sus huecos del orden completo. Copias: listas opcionales (JSON
-  antiguos valen); importar junta sesiones por nombre. Modo selección: tocar = marcar (no suena). Estilos: `sesiones.css`.
+- `reordenar` con una parte de la categoría la recoloca en sus huecos del orden completo. Copias: listas opcionales (JSON
+  antiguos valen); importar junta sesiones/carpetas por nombre. Modo selección: tocar = marcar (no suena).
 ## Comandos y pruebas
 - `npm run dev|build|preview` (4173) · `build:prueba` (4174, Supabase simulado) · `build:spotify` (4175) · `npm run test:identidad|sql|enlaces|biblioteca|musica|compartir|reproductor|cambio-fuente|transporte|mezclador|enlaces-audio|fundidos`
   (4173) · `test:supabase|email|mezclador-supabase|buscar-sonidos|ordenar` (4174; la última usa la función real con Freesound
-  simulado) · `test:spotify` (4175) · `test:api-sonidos` (Node, sin servidor). `test:sesiones` (4173+4174). Freesound REAL: sin verificar hasta tener clave.
+  simulado) · `test:spotify` (4175) · `test:api-sonidos` (Node, sin servidor). `test:sesiones|carpetas` (4173+4174). Freesound REAL: sin verificar hasta tener clave.
 ## Git
 Vercel publica cada push a `main`; ramas ⇒ vista previa (variables «Preview»; Google no vuelve a ellas ⇒ usar email).
 Ramas: F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador`, F2B `fase-2-fundidos`, sesiones `organizacion-sesiones`. A `main` SOLO con permiso. Vuelta atrás: pre-F2B `7c51514`, pre-Spotify-inicio `433155b`.
@@ -94,6 +96,5 @@ Ramas: F1 `ccr-4e49e839-kg8cvn`, F2 `fase-2-mezclador`, F2B `fase-2-fundidos`, s
 |------|--------|
 | v3 (Supabase+Google+email, PWA, Connect), identidad DFY, F1 Biblioteca v4 + reproductor + controles | Publicadas en `main` (002 ejecutado) |
 | F2 Mezclador + ambientes por enlace + «Buscar sonidos» (Freesound) | Publicada en `main` (7c51514); Freesound real sin verificar (falta clave) |
-| F2B Fundidos + X en «Buscar sonidos» + reordenar tarjetas | Publicada en `main` (433155b); falta prueba manual en producción |
-| Corrección: inicio/tramo de Spotify (Connect, integrado, externo) | Publicada en `main`; falta prueba manual en producción |
-| Organización por sesiones (004) | Rama `organizacion-sesiones`, SIN merge; falta ejecutar bd/004 y probar en la vista previa |
+| F2B Fundidos + X + reordenar (433155b) · inicio/tramo de Spotify | Publicadas en `main`; falta prueba manual en producción |
+| Organización: sesiones (004 ejecutada) + Main con carpetas (005) | Rama `organizacion-sesiones`, SIN merge; falta ejecutar bd/005 y probar |

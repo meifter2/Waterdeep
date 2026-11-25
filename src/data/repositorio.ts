@@ -3,7 +3,7 @@ import { nuevoId } from '../lib/id'
 import { supabase } from '../lib/supabase'
 import { CLAVE_V4, exportarCopia, leerCopia, leerDelNavegador } from './convertir'
 import { almacenamientoSeguro } from './storage'
-import { TABLAS_SESIONES, vacia, type Biblioteca, type Tabla } from './types'
+import { TABLAS_CARPETAS, TABLAS_SESIONES, vacia, type Biblioteca, type Tabla } from './types'
 
 // Dónde se guarda la biblioteca: Supabase (tablas + Storage privado) o el navegador (modo local).
 // El resto de la app usa esta interfaz y no sabe cuál hay detrás.
@@ -15,8 +15,9 @@ export type Bucket = 'audio' | 'retratos'
  * Biblioteca cargada. `sinSesiones` = por qué no se pueden usar las sesiones (bd/004 sin ejecutar u otro fallo al
  * leerlas): la biblioteca carga y funciona igual; solo la organización por sesiones queda en pausa.
  */
-export type Cargada = Biblioteca & { sinSesiones?: string }
+export type Cargada = Biblioteca & { sinSesiones?: string; sinCarpetas?: string }
 
+export const FALTA_005 = 'Para crear carpetas en Main falta un paso en la base de datos: ejecuta bd/005-carpetas-biblioteca.sql en Supabase (SQL Editor) y recarga.'
 export const FALTA_004 = 'Para organizar por sesiones falta un paso en la base de datos: ejecuta bd/004-sesiones.sql en Supabase (SQL Editor) y recarga.'
 
 export interface Repositorio {
@@ -40,9 +41,12 @@ const COLUMNAS: Record<Tabla, string> = {
   sesiones: 'id, nombre, finalizada, orden',
   sesion_elementos: 'id, sesion_id, elemento_id',
   elementos_comunes: 'id, elemento_id',
+  carpetas: 'id, tipo, nombre, orden',
+  carpeta_elementos: 'id, carpeta_id, elemento_id',
 }
 
 const esSesiones = (t?: Tabla) => !!t && (TABLAS_SESIONES as readonly string[]).includes(t)
+const esCarpetas = (t?: Tabla) => !!t && (TABLAS_CARPETAS as readonly string[]).includes(t)
 const FALTA_TABLA = /PGRST205|42P01|does not exist|schema cache/i
 
 const DURACION_URL = 6 * 60 * 60 // 6 h: una sesión de juego larga
@@ -51,6 +55,9 @@ function traducir(error: { code?: string; message?: string }, tabla?: Tabla): Er
   const m = `${error.code ?? ''} ${error.message ?? ''}`
   if (esSesiones(tabla) && FALTA_TABLA.test(m))
     return new ErrorDatos(FALTA_004)
+  if (esCarpetas(tabla) && FALTA_TABLA.test(m)) return new ErrorDatos(FALTA_005)
+  if (tabla === 'carpetas' && /23505|duplicate key/i.test(m)) return new ErrorDatos('Ya hay una carpeta con ese nombre en esta categoría.')
+  if (tabla === 'carpeta_elementos' && /23514|categor/i.test(m)) return new ErrorDatos('Una tarjeta solo puede ir a una carpeta de su misma categoría.')
   if (esSesiones(tabla) && /23505|duplicate key/i.test(m)) return new ErrorDatos('Esa tarjeta ya estaba en esa sesión.')
   if (FALTA_TABLA.test(m))
     return new ErrorDatos('Falta preparar la base de datos: ejecuta bd/002-biblioteca.sql en Supabase (SQL Editor) y recarga.')
@@ -85,20 +92,21 @@ function repoSupabase(): Repositorio {
       const error = e.error ?? r.error ?? p.error
       if (error) throw traducir(error)
       const b = { ...vacia(), elementos: e.data, recursos: r.data, pistas: p.data } as unknown as Cargada
-      // Sesiones (bd/004): si aún no se ha ejecutado, la biblioteca carga igual y se avisa al usarlas.
-      // Nunca se espera más de 8 s por ellas: la biblioteca no se queda «cargando» por las sesiones.
-      const espera = new Promise<null>((ok) => setTimeout(() => ok(null), 8000))
-      const org = await Promise.race([Promise.all(TABLAS_SESIONES.map((t) => sb.from(t).select(COLUMNAS[t]).order('creado'))), espera])
-      if (!org) return { ...b, sinSesiones: 'No se han podido cargar tus sesiones (tus tarjetas están bien). Recarga la página para organizarlas.' }
-      const fallo = org.find((x) => x.error)?.error
-      if (fallo)
-        return {
-          ...b,
-          sinSesiones: FALTA_TABLA.test(`${fallo.code ?? ''} ${fallo.message ?? ''}`)
-            ? FALTA_004
-            : 'No se han podido cargar tus sesiones (tus tarjetas están bien). Recarga la página para organizarlas.',
-        }
-      TABLAS_SESIONES.forEach((t, i) => ((b as unknown as Record<string, unknown>)[t] = org[i].data))
+      // Sesiones (bd/004) y carpetas de Main (bd/005) son opcionales: si faltan o fallan, la biblioteca carga igual y se
+      // avisa al usarlas. Nunca se espera más de 8 s por ellas.
+      const opcional = async (tablas: readonly Tabla[], falta: string, nombre: string): Promise<string> => {
+        const fallo = `No se han podido cargar tus ${nombre} (tus tarjetas están bien). Recarga la página para organizarlas.`
+        const espera = new Promise<null>((ok) => setTimeout(() => ok(null), 8000))
+        const res = await Promise.race([Promise.all(tablas.map((t) => sb.from(t).select(COLUMNAS[t]).order('creado'))), espera])
+        if (!res) return fallo
+        const error = res.find((x) => x.error)?.error
+        if (error) return FALTA_TABLA.test(`${error.code ?? ''} ${error.message ?? ''}`) ? falta : fallo
+        tablas.forEach((t, i) => ((b as unknown as Record<string, unknown>)[t] = res[i].data))
+        return ''
+      }
+      const [sinSesiones, sinCarpetas] = await Promise.all([opcional(TABLAS_SESIONES, FALTA_004, 'sesiones'), opcional(TABLAS_CARPETAS, FALTA_005, 'carpetas')])
+      if (sinSesiones) b.sinSesiones = sinSesiones
+      if (sinCarpetas) b.sinCarpetas = sinCarpetas
       return b
     },
     async crear(t, d) {
@@ -164,6 +172,10 @@ function repoLocal(): Repositorio {
       if (t === 'sesion_elementos' && b.sesion_elementos.some((r) => r.sesion_id === x.sesion_id && r.elemento_id === x.elemento_id))
         throw new ErrorDatos('Esa tarjeta ya estaba en esa sesión.')
       if (t === 'elementos_comunes' && b.elementos_comunes.some((r) => r.elemento_id === x.elemento_id)) throw new ErrorDatos('Esa tarjeta ya era común.')
+      if (t === 'carpeta_elementos' && b.carpeta_elementos.some((r) => r.elemento_id === x.elemento_id)) throw new ErrorDatos('Esa tarjeta ya está en una carpeta.')
+      const c = d as { tipo?: string; nombre?: string }
+      if (t === 'carpetas' && b.carpetas.some((r) => r.tipo === c.tipo && r.nombre.trim().toLowerCase() === c.nombre?.trim().toLowerCase()))
+        throw new ErrorDatos('Ya hay una carpeta con ese nombre en esta categoría.')
       const fila = { ...d, id: nuevoId() } as Fila<typeof t>
       ;(b[t] as Fila<typeof t>[]).push(fila)
       escribir(b)
@@ -184,7 +196,10 @@ function repoLocal(): Repositorio {
       if (t === 'elementos') {
         b.sesion_elementos = b.sesion_elementos.filter((x) => x.elemento_id !== id)
         b.elementos_comunes = b.elementos_comunes.filter((x) => x.elemento_id !== id)
+        b.carpeta_elementos = b.carpeta_elementos.filter((x) => x.elemento_id !== id)
       }
+      // Borrar una carpeta: sus tarjetas vuelven a «Sin carpeta» (nunca se borran).
+      if (t === 'carpetas') b.carpeta_elementos = b.carpeta_elementos.filter((x) => x.carpeta_id !== id)
       if (t === 'sesiones') b.sesion_elementos = b.sesion_elementos.filter((x) => x.sesion_id !== id)
       escribir(b)
     },

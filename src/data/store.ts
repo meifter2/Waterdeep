@@ -21,6 +21,8 @@ interface Estado extends Biblioteca {
   error: string
   /** Por qué no se pueden usar las sesiones ('' = disponibles). P. ej. bd/004 sin ejecutar en Supabase. */
   sinSesiones: string
+  /** Por qué no se pueden usar las carpetas de Main ('' = disponibles). P. ej. bd/005 sin ejecutar. */
+  sinCarpetas: string
   /** Direcciones temporales de archivos privados (ruta → url). */
   urls: Record<string, string>
   cargar: () => Promise<void>
@@ -58,13 +60,14 @@ export const useDatos = create<Estado>()((set, get) => ({
   carga: 'pendiente',
   error: '',
   sinSesiones: '',
+  sinCarpetas: '',
   urls: {},
 
   cargar: async () => {
     set({ carga: 'cargando', error: '' })
     try {
-      const { sinSesiones = '', ...b } = await repositorio.listar()
-      set({ ...b, sinSesiones, carga: 'lista' })
+      const { sinSesiones = '', sinCarpetas = '', ...b } = await repositorio.listar()
+      set({ ...b, sinSesiones, sinCarpetas, carga: 'lista' })
       const rutas = b.elementos.map((e) => e.retrato_ruta).filter((r): r is string => !!r)
       if (rutas.length) {
         const urls = await repositorio.urls('retratos', rutas).catch(() => ({}))
@@ -77,7 +80,7 @@ export const useDatos = create<Estado>()((set, get) => ({
 
   vaciar: () => {
     pedidas.clear()
-    set({ ...vacia(), carga: 'pendiente', error: '', sinSesiones: '', urls: {} })
+    set({ ...vacia(), carga: 'pendiente', error: '', sinSesiones: '', sinCarpetas: '', urls: {} })
   },
   avisar: (error) => set({ error }),
   limpiarError: () => set({ error: '' }),
@@ -128,7 +131,7 @@ export const useDatos = create<Estado>()((set, get) => ({
 
   eliminarElemento: async (id) => {
     const s0 = get()
-    const antes = { elementos: s0.elementos, pistas: s0.pistas, sesion_elementos: s0.sesion_elementos, elementos_comunes: s0.elementos_comunes }
+    const antes = { elementos: s0.elementos, pistas: s0.pistas, sesion_elementos: s0.sesion_elementos, elementos_comunes: s0.elementos_comunes, carpeta_elementos: s0.carpeta_elementos }
     const el = antes.elementos.find((e) => e.id === id)
     set({
       elementos: antes.elementos.filter((e) => e.id !== id),
@@ -136,6 +139,7 @@ export const useDatos = create<Estado>()((set, get) => ({
       // Sus relaciones con sesiones desaparecen con ella (igual que en la base de datos).
       sesion_elementos: antes.sesion_elementos.filter((x) => x.elemento_id !== id),
       elementos_comunes: antes.elementos_comunes.filter((x) => x.elemento_id !== id),
+      carpeta_elementos: antes.carpeta_elementos.filter((x) => x.elemento_id !== id),
     })
     try {
       await repositorio.eliminar('elementos', id)

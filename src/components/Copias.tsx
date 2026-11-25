@@ -21,8 +21,8 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
   }, [])
 
   const json = () => {
-    const { elementos, recursos, pistas, sesiones, sesion_elementos, elementos_comunes } = useDatos.getState()
-    return exportarCopia({ elementos, recursos, pistas, sesiones, sesion_elementos, elementos_comunes })
+    const { elementos, recursos, pistas, sesiones, sesion_elementos, elementos_comunes, carpetas, carpeta_elementos } = useDatos.getState()
+    return exportarCopia({ elementos, recursos, pistas, sesiones, sesion_elementos, elementos_comunes, carpetas, carpeta_elementos })
   }
 
   const copiar = async () => {
@@ -62,7 +62,7 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
       const r = await importarBiblioteca(pendiente)
       setMensaje({
         ok: true,
-        texto: `${r.elementos} elementos añadidos${r.sesiones ? ` y organizados en ${r.sesiones} ${r.sesiones === 1 ? 'sesión' : 'sesiones'}` : ''}.${r.omitidos ? ` ${r.omitidos} archivos propios no estaban en esta cuenta y se han omitido.` : ''}`,
+        texto: `${r.elementos} elementos añadidos${r.sesiones ? ` y organizados en ${r.sesiones} ${r.sesiones === 1 ? 'sesión' : 'sesiones'}` : ''}${r.carpetas ? `${r.sesiones ? ' y' : ','} ${r.carpetas} ${r.carpetas === 1 ? 'carpeta' : 'carpetas'}` : ''}.${r.omitidos ? ` ${r.omitidos} archivos propios no estaban en esta cuenta y se han omitido.` : ''}`,
       })
       setPegado('')
     } catch (e) {
@@ -80,7 +80,7 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
           {modoLocal
             ? `Tus ${total} elementos se guardan solo en este navegador. Haz una copia para no perderlos.`
             : `Tus ${total} elementos están guardados en tu cuenta. Una copia sirve para tenerlos también fuera.`}{' '}
-          La copia incluye enlaces, tramos, etiquetas y sesiones; los archivos de audio y los retratos se quedan en tu almacenamiento.
+          La copia incluye enlaces, tramos, etiquetas, sesiones y carpetas; los archivos de audio y los retratos se quedan en tu almacenamiento.
         </p>
 
         {mensaje && (
@@ -127,9 +127,10 @@ export function Copias({ alCerrar }: { alCerrar: () => void }) {
           <div className="confirmar" role="alertdialog" aria-label="Confirmar">
             <p>
               La copia tiene {pendiente.elementos.length} elementos y {pendiente.recursos.length} sonidos
-              {pendiente.sesiones.length > 0 && `, organizados en ${pendiente.sesiones.length} ${pendiente.sesiones.length === 1 ? 'sesión' : 'sesiones'}`}. Se
+              {pendiente.sesiones.length > 0 && `, organizados en ${pendiente.sesiones.length} ${pendiente.sesiones.length === 1 ? 'sesión' : 'sesiones'}`}
+              {pendiente.carpetas.length > 0 && ` y ${pendiente.carpetas.length} ${pendiente.carpetas.length === 1 ? 'carpeta' : 'carpetas'}`}. Se
               añadirán a los tuyos; los sonidos repetidos se reutilizan
-              {pendiente.sesiones.length > 0 && ' y las sesiones con el mismo nombre se juntan'}.
+              {(pendiente.sesiones.length > 0 || pendiente.carpetas.length > 0) && ' y las sesiones o carpetas con el mismo nombre se juntan'}.
             </p>
             <div className="confirmar-botones">
               <button type="button" className="boton boton-principal" disabled={importando} onClick={() => void anadir()}>

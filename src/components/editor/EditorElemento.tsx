@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { guardarElemento, type CambioRetrato } from '../../data/guardar'
 import { useReproduccion } from '../../data/reproduccion'
+import { carpetaDe, carpetasDe, fijarCarpeta } from '../../data/carpetas'
 import { compararSesiones, fijarOrganizacion, organizacionDe, sesionVigente, useSesionActiva } from '../../data/sesiones'
 import { almacenamientoSeguro } from '../../data/storage'
 import { pistasDe, useDatos } from '../../data/store'
@@ -50,15 +51,19 @@ function filaDesdeRecurso(r: Recurso, extra: Partial<FilaBorrador> = {}): FilaBo
 export function EditorElemento({
   elemento,
   tipoInicial,
+  carpetaInicial = null,
   alCerrar,
   alGuardar,
 }: {
   elemento: Elemento | null
   tipoInicial: Tipo
+  /** Carpeta temática de Main donde se crea (al añadir desde una carpeta). */
+  carpetaInicial?: string | null
   alCerrar: () => void
   alGuardar: (mensaje: string) => void
 }) {
-  const { recursos, pistas, urls, eliminarElemento, sesiones, sesion_elementos, elementos_comunes, sinSesiones } = useDatos()
+  const { recursos, pistas, urls, eliminarElemento, sesiones, sesion_elementos, elementos_comunes, sinSesiones, carpetas, carpeta_elementos, sinCarpetas } = useDatos()
+  const [carpetaSel, setCarpetaSel] = useState<string | null>(() => (elemento ? carpetaDe(elemento, carpeta_elementos, carpetas) : carpetaInicial))
   const activa = useSesionActiva((s) => s.activa)
   // Sesiones de la tarjeta. Nueva: la sesión elegida arriba (si hay una), para que no «desaparezca» al guardarla.
   const [org, setOrg] = useState(() => {
@@ -95,6 +100,9 @@ export function EditorElemento({
   }, [])
 
   const c = carpeta(tipo)
+  // Carpeta temática de Main: solo las de la categoría elegida (al cambiar de categoría vuelve a «Sin carpeta»).
+  const carpetasTipo = carpetasDe(tipo, carpetas)
+  const carpetaValida = carpetaSel && carpetasTipo.some((x) => x.id === carpetaSel) ? carpetaSel : null
   const errorNombre = intentado && !nombre.trim() ? 'Escribe un nombre.' : ''
   const hayErroresTramo = filas.some((f) => tramoInvalido(f))
   const subeArchivos = filas.some((f) => f.nueva?.tipo === 'archivo')
@@ -151,6 +159,8 @@ export function EditorElemento({
     try {
       const el = await guardarElemento({ id: elemento?.id, tipo, nombre, descripcion, retrato, pistas: filas }, progreso.current)
       // Común en una tarjeta nueva: aparece en todas, sin relaciones. En una existente se conservan sus sesiones.
+      // Carpeta de Main (independiente de las sesiones).
+      if (!sinCarpetas) await fijarCarpeta(el, carpetaValida)
       if (listaSesiones.length && !sinSesiones) await fijarOrganizacion(el.id, org.comun && !elemento ? [] : org.sesiones, org.comun)
       recordarCarpeta(tipo)
       alGuardar(`«${nombre.trim()}» guardado en ${c.titulo}.`)
@@ -174,7 +184,7 @@ export function EditorElemento({
         <h2 id="editor-titulo">{elemento ? `Editar ${elemento.nombre}` : c.nuevo}</h2>
 
         <fieldset className="carpetas-opciones">
-          <legend>Carpeta</legend>
+          <legend>Categoría</legend>
           <div className="chips-carpeta">
             {CARPETAS.map((x) => (
               <label key={x.tipo} className="chip-carpeta">
@@ -184,6 +194,20 @@ export function EditorElemento({
             ))}
           </div>
         </fieldset>
+
+        {!sinCarpetas && carpetasTipo.length > 0 && (
+          <div className="campo editor-carpeta">
+            <label htmlFor="ed-carpeta">Carpeta en Main</label>
+            <select id="ed-carpeta" value={carpetaValida ?? ''} onChange={(e) => setCarpetaSel(e.target.value || null)}>
+              <option value="">Sin carpeta</option>
+              {carpetasTipo.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="editor-identidad">
           <div className="editor-retrato">
@@ -289,7 +313,7 @@ export function EditorElemento({
             <p className="ayuda">
               {org.comun
                 ? 'Aparece en todas las sesiones, también en las que crees después.'
-                : 'Sin marcar ninguna, la tarjeta solo se ve en «Toda la biblioteca». Nunca se duplica.'}
+                : 'Sin marcar ninguna, la tarjeta solo se ve en «Main». Nunca se duplica.'}
             </p>
           </fieldset>
         )}

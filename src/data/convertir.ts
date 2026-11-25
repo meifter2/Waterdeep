@@ -1,7 +1,7 @@
 import { interpretarEnlace } from '../lib/enlaces'
 import { nuevoId } from '../lib/id'
 import { almacenamientoSeguro } from './storage'
-import { TIPOS, carpeta, vacia, type Biblioteca, type Elemento, type Pista, type Recurso, type Sesion, type SesionElemento, type ElementoComun, type Tipo } from './types'
+import { TIPOS, carpeta, vacia, type Biblioteca, type Elemento, type Pista, type Recurso, type Sesion, type SesionElemento, type ElementoComun, type CarpetaTematica, type CarpetaElemento, type Tipo } from './types'
 
 // Conversión de formatos antiguos (v2 y v3: una canción por tarjeta) al modelo v4 y copias de seguridad.
 
@@ -165,5 +165,16 @@ export function leerCopia(contenido: string): Biblioteca | string {
     .filter((x) => typeof x?.id === 'string' && ids.e.has(x.elemento_id as string))
     .map((x) => ({ id: x.id as string, elemento_id: x.elemento_id as string }))
     .filter((x) => !comunes.has(x.elemento_id) && !!comunes.add(x.elemento_id))
-  return { elementos, recursos, pistas, sesiones, sesion_elementos, elementos_comunes }
+  // Carpetas temáticas de Main (opcional): una carpeta por tarjeta y de su misma categoría.
+  const carpetas: CarpetaTematica[] = lista(d.carpetas)
+    .filter((x) => typeof x?.id === 'string' && TIPOS.includes(x.tipo as Tipo) && typeof x.nombre === 'string' && x.nombre.trim())
+    .map((x) => ({ id: x.id as string, tipo: x.tipo as Tipo, nombre: texto((x.nombre as string).trim(), 60), orden: Number(x.orden) || 0 }))
+  const tipoCarpeta = new Map(carpetas.map((x) => [x.id, x.tipo]))
+  const tipoElemento = new Map(elementos.map((x) => [x.id, x.tipo]))
+  const enCarpeta = new Set<string>()
+  const carpeta_elementos: CarpetaElemento[] = lista(d.carpeta_elementos)
+    .filter((x) => typeof x?.id === 'string' && tipoCarpeta.has(x.carpeta_id as string) && tipoCarpeta.get(x.carpeta_id as string) === tipoElemento.get(x.elemento_id as string))
+    .map((x) => ({ id: x.id as string, carpeta_id: x.carpeta_id as string, elemento_id: x.elemento_id as string }))
+    .filter((x) => !enCarpeta.has(x.elemento_id) && !!enCarpeta.add(x.elemento_id))
+  return { elementos, recursos, pistas, sesiones, sesion_elementos, elementos_comunes, carpetas, carpeta_elementos }
 }

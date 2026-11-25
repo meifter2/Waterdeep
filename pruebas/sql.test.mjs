@@ -1,4 +1,4 @@
-// Valida bd/esquema.sql + bd/002-biblioteca.sql + bd/003-enlaces-audio.sql + bd/004-sesiones.sql en Postgres real (PGlite, WASM) con un
+// Valida bd/esquema.sql + 002-biblioteca + 003-enlaces-audio + 004-sesiones + 005-carpetas-biblioteca en Postgres real (PGlite, WASM) con un
 // «Supabase mínimo» simulado: auth.users, auth.uid(), roles anon/authenticated y Storage.
 // No sustituye a probar en Supabase, pero comprueba sintaxis, migración, idempotencia, RLS y claves.
 import { PGlite } from '@electric-sql/pglite'
@@ -157,6 +157,65 @@ comprobar('Sin sesión no se leen sesiones', await falla(`select * from public.s
 await comoAdmin()
 await db.exec(`delete from public.elementos where id = '${t2.id}'`)
 comprobar('Borrar una tarjeta quita también su marca de común', (await cuenta('public.elementos_comunes')) === 0)
+
+// ── 005: carpetas temáticas de Main ──
+await comoAdmin()
+// Escenario real: Sesión 1 y Sesión 2 ya existen con tarjetas (y una común) ANTES de ejecutar la 005.
+await comoUsuario(A)
+const [u1, u2, u3] = (await db.query(`select id, tipo from public.elementos order by nombre`)).rows
+const se1 = await uno(`insert into public.sesiones (nombre) values ('Sesión 1') returning id`)
+const se2 = await uno(`insert into public.sesiones (nombre) values ('Sesión 2') returning id`)
+await db.exec(`insert into public.sesion_elementos (sesion_id, elemento_id) values ('${se1.id}', '${u1.id}'), ('${se2.id}', '${u1.id}'), ('${se2.id}', '${u2.id}');
+  insert into public.elementos_comunes (elemento_id) values ('${u3.id}')`)
+await comoAdmin()
+const foto = async () => JSON.stringify([
+  (await db.query(`select id, tipo, nombre, orden, retrato_ruta from public.elementos order by id`)).rows,
+  (await db.query(`select id, elemento_id, recurso_id, inicio_ms, fin_ms, bucle, orden from public.pistas order by id`)).rows,
+  (await db.query(`select id from public.recursos order by id`)).rows,
+  (await db.query(`select id, nombre, finalizada from public.sesiones order by id`)).rows,
+  (await db.query(`select sesion_id, elemento_id from public.sesion_elementos order by id`)).rows,
+  (await db.query(`select elemento_id from public.elementos_comunes order by id`)).rows,
+])
+const antes005 = await foto()
+await db.exec(sql('bd/005-carpetas-biblioteca.sql'))
+await db.exec(sql('bd/005-carpetas-biblioteca.sql'))
+comprobar('005 se puede repetir y NO cambia tarjetas, pistas, sonidos, sesiones ni sus relaciones', (await foto()) === antes005)
+comprobar('005 no mueve nada: todo empieza «Sin carpeta»', (await cuenta('public.carpetas')) === 0 && (await cuenta('public.carpeta_elementos')) === 0)
+await comoUsuario(B)
+const carB = await uno(`insert into public.carpetas (tipo, nombre) values ('personaje', 'Carpeta de B') returning id`)
+await comoUsuario(A)
+const tipoDe = u1.tipo
+const otroTipo = tipoDe === 'momento' ? 'lugar' : 'momento'
+const c1 = await uno(`insert into public.carpetas (tipo, nombre) values ('${tipoDe}', 'Xanathar') returning id, user_id`)
+const c2 = await uno(`insert into public.carpetas (tipo, nombre, orden) values ('${tipoDe}', 'Zhentarim', 1) returning id`)
+const cOtra = await uno(`insert into public.carpetas (tipo, nombre) values ('${otroTipo}', 'Drama') returning id`)
+comprobar('A crea carpetas sin enviar user_id', c1?.user_id === A)
+comprobar('Nombre de carpeta vacío: rechazado', await falla(`insert into public.carpetas (tipo, nombre) values ('${tipoDe}', '  ')`))
+comprobar('Nombre repetido en la misma categoría: rechazado', await falla(`insert into public.carpetas (tipo, nombre) values ('${tipoDe}', ' xanathar ')`))
+comprobar('El mismo nombre en otra categoría: permitido', !(await falla(`insert into public.carpetas (tipo, nombre) values ('${otroTipo}', 'Xanathar')`)))
+comprobar('Categoría inventada: rechazada', await falla(`insert into public.carpetas (tipo, nombre) values ('octava', 'Nada')`))
+const rel = await uno(`insert into public.carpeta_elementos (carpeta_id, elemento_id) values ('${c1.id}', '${u1.id}') returning id`)
+comprobar('Meter una tarjeta en una carpeta', !!rel?.id)
+comprobar('Una tarjeta solo en UNA carpeta', await falla(`insert into public.carpeta_elementos (carpeta_id, elemento_id) values ('${c2.id}', '${u1.id}')`))
+comprobar('Una tarjeta no entra en una carpeta de otra categoría', await falla(`insert into public.carpeta_elementos (carpeta_id, elemento_id) values ('${cOtra.id}', '${u1.id}')`))
+await db.exec(`update public.carpeta_elementos set carpeta_id = '${c2.id}' where id = '${rel.id}'`)
+comprobar('Mover de carpeta (actualizar la relación)', (await uno(`select carpeta_id from public.carpeta_elementos where id = '${rel.id}'`)).carpeta_id === c2.id)
+comprobar('Mover a otra categoría por actualización: rechazado', await falla(`update public.carpeta_elementos set carpeta_id = '${cOtra.id}' where id = '${rel.id}'`))
+comprobar('A no puede meter su tarjeta en una carpeta de B', await falla(`insert into public.carpeta_elementos (carpeta_id, elemento_id) values ('${carB.id}', '${u2.id}')`))
+comprobar('A no puede meter una tarjeta de B en su carpeta', await falla(`insert into public.carpeta_elementos (carpeta_id, elemento_id) values ('${c1.id}', '${elemB.id}')`))
+comprobar('Mover de carpeta no toca sus sesiones', (await db.query(`select 1 from public.sesion_elementos where elemento_id = '${u1.id}'`)).rows.length === 2)
+const pistas005 = await cuenta('public.pistas')
+await db.exec(`delete from public.carpetas where id = '${c2.id}'`)
+comprobar('Borrar una carpeta: su tarjeta vuelve a «Sin carpeta» sin perder pistas ni sesiones', (await cuenta('public.carpeta_elementos')) === 0 && (await cuenta('public.elementos')) === 3 && (await cuenta('public.pistas')) === pistas005 && (await cuenta('public.sesion_elementos')) === 3)
+await comoUsuario(B)
+comprobar('B no ve las carpetas de A', (await cuenta('public.carpetas')) === 1)
+comprobar('B no puede renombrar ni borrar carpetas de A', (await db.query(`update public.carpetas set nombre = 'Hackeada' where id = '${c1.id}' returning id`)).rows.length === 0 && (await db.query(`delete from public.carpetas where id = '${c1.id}' returning id`)).rows.length === 0)
+await db.exec(`reset role; set role anon;`)
+comprobar('Sin sesión no se leen carpetas', await falla(`select * from public.carpetas`))
+await comoAdmin()
+await db.exec(`insert into public.carpeta_elementos (user_id, carpeta_id, elemento_id) values ('${A}', '${c1.id}', '${u1.id}')`)
+await db.exec(`delete from public.elementos where id = '${u1.id}'`)
+comprobar('Borrar una tarjeta quita su relación con la carpeta (la carpeta sigue)', (await cuenta('public.carpeta_elementos')) === 0 && (await cuenta(`public.carpetas where id = '${c1.id}'`)) === 1)
 
 console.log(fallos ? `\n${fallos} FALLOS` : '\nTodas las comprobaciones correctas')
 process.exit(fallos ? 1 : 0)

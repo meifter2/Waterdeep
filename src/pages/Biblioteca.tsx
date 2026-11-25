@@ -10,11 +10,13 @@ import { Instalar } from '../components/Instalar'
 import { Migracion } from '../components/Migracion'
 import { Reproductor } from '../components/reproductor/Reproductor'
 import { Seccion } from '../components/Seccion'
+import { SeccionMain } from '../components/carpetas/SeccionMain'
 import { BarraSeleccion } from '../components/sesiones/BarraSeleccion'
 import { BarraSesiones } from '../components/sesiones/BarraSesiones'
 import { GestionSesiones } from '../components/sesiones/GestionSesiones'
 import { useSeleccion } from '../components/sesiones/seleccion'
 import { sesionVigente, useSesionActiva, visiblesEn } from '../data/sesiones'
+import { carpetaDe, sinCarpeta, useCarpetasCerradas } from '../data/carpetas'
 import { tocarElemento } from '../data/mezcla'
 import { almacenamientoDisponible } from '../data/storage'
 import { compararElementos, useDatos } from '../data/store'
@@ -24,7 +26,7 @@ import { interpretarEnlace } from '../lib/enlaces'
 import { useSpotify } from '../lib/spotifyAuth'
 import { modoLocal } from '../lib/supabase'
 
-type Edicion = { elemento: Elemento | null; tipo: Tipo } | null
+type Edicion = { elemento: Elemento | null; tipo: Tipo; carpeta?: string | null } | null
 
 /** Pantalla principal: carpetas con sus tarjetas y el reproductor abajo. */
 export function Biblioteca() {
@@ -81,7 +83,20 @@ export function Biblioteca() {
     return CARPETAS.map((carpeta) => ({ carpeta, lista: filtrados.filter((e) => e.tipo === carpeta.tipo) }))
   }, [elementos, pistas, recursos, q, sesion, sesion_elementos, elementos_comunes])
 
-  const visiblesIds = useMemo(() => porCarpeta.flatMap((g) => g.lista.map((e) => e.id)), [porCarpeta])
+  // En Main, las tarjetas de carpetas cerradas no están a la vista (salvo al buscar).
+  const { carpetas, carpeta_elementos } = useDatos()
+  const cerradas = useCarpetasCerradas((s) => s.cerradas)
+  const visiblesIds = useMemo(() => {
+    const todas = porCarpeta.flatMap((g) => g.lista)
+    if (sesion || q) return todas.map((e) => e.id)
+    return todas
+      .filter((e) => {
+        const c = carpetaDe(e, carpeta_elementos, carpetas)
+        const hay = carpetas.some((x) => x.tipo === e.tipo)
+        return !hay || !cerradas.includes(c ?? sinCarpeta(e.tipo))
+      })
+      .map((e) => e.id)
+  }, [porCarpeta, sesion, q, carpetas, carpeta_elementos, cerradas])
   const cuentaSesion = useMemo(() => {
     if (!sesion) return { total: 0, comunes: 0 }
     const ids = visiblesEn(sesion.id, sesion_elementos, elementos_comunes)
@@ -109,17 +124,31 @@ export function Biblioteca() {
     if (e.key === 'Escape') setBusqueda('')
   }
 
+  // Main: categorías con sus carpetas temáticas. Una sesión: las tarjetas directas de siempre (sin carpetas).
   const seccion = (i: number) => {
     const { carpeta, lista } = porCarpeta[i]
+    const alEditar = (el: Elemento) => setEdicion({ elemento: el, tipo: el.tipo })
+    if (!sesion)
+      return (
+        <SeccionMain
+          key={carpeta.tipo}
+          carpeta={carpeta}
+          elementos={lista}
+          buscando={!!q}
+          alAnadir={(c) => setEdicion({ elemento: null, tipo: carpeta.tipo, carpeta: c })}
+          alEditar={alEditar}
+          alGuardar={setHecho}
+        />
+      )
     return (
       <Seccion
         key={carpeta.tipo}
         carpeta={carpeta}
         elementos={lista}
         buscando={!!q}
-        sesion={sesion?.nombre ?? null}
+        sesion={sesion.nombre}
         alAnadir={() => setEdicion({ elemento: null, tipo: carpeta.tipo })}
-        alEditar={(el) => setEdicion({ elemento: el, tipo: el.tipo })}
+        alEditar={alEditar}
       />
     )
   }
@@ -240,7 +269,7 @@ export function Biblioteca() {
 
       <Reproductor />
 
-      {edicion && <EditorElemento elemento={edicion.elemento} tipoInicial={edicion.tipo} alCerrar={() => setEdicion(null)} alGuardar={setHecho} />}
+      {edicion && <EditorElemento elemento={edicion.elemento} tipoInicial={edicion.tipo} carpetaInicial={edicion.carpeta ?? null} alCerrar={() => setEdicion(null)} alGuardar={setHecho} />}
       {compartido && (
         <Compartido enlaceInicial={compartido.enlace} textoInicial={compartido.texto} pegado={compartido.pegado} alCerrar={() => setCompartido(null)} alGuardar={setHecho} />
       )}

@@ -65,8 +65,8 @@ const orden = (l) => [...l].sort().join(',');
     await p.waitForSelector('.tarjeta');
 
     // ── Biblioteca antigua sin sesiones ──
-    comprobar('Biblioteca antigua: todo sigue en «Toda la biblioteca»', orden(await visibles()) === orden([...nombres, 'Lluvia']));
-    comprobar('«Toda la biblioteca» elegida y sin sesiones creadas', (await chip('Toda la biblioteca').getAttribute('aria-pressed')) === 'true' && (await p.locator('.sesion-chip').count()) === 2);
+    comprobar('Biblioteca antigua: todo sigue en «Main»', orden(await visibles()) === orden([...nombres, 'Lluvia']));
+    comprobar('«Main» elegida y sin sesiones creadas', (await chip('Main').getAttribute('aria-pressed')) === 'true' && (await p.locator('.sesion-chip').count()) === 2);
     comprobar('No se asigna nada automáticamente', !((await guardado()).sesion_elementos ?? []).length && !((await guardado()).elementos_comunes ?? []).length);
 
     // ── Reproducir y cambiar de sesión no corta el sonido ──
@@ -91,10 +91,10 @@ const orden = (l) => [...l].sort().join(',');
     comprobar('Renombrar sesión', (await chip('Sesión 1: el muelle').count()) === 1 && (await guardado()).sesiones[0].nombre === 'Sesión 1: el muelle');
     comprobar('La siguiente propone «Sesión 2»', (await nuevaSesion()) === 'Sesión 2');
 
-    // ── Traer tarjetas de la biblioteca a una sesión (selección en bloque) ──
+    // ── Traer tarjetas de Main a una sesión (selección en bloque) ──
     await chip('Sesión 1: el muelle').click();
-    await boton('Traer tarjetas de la biblioteca').click();
-    comprobar('«Traer tarjetas» abre toda la biblioteca en modo selección', (await chip('Toda la biblioteca').getAttribute('aria-pressed')) === 'true' && (await p.locator('.seleccion').count()) === 1);
+    await boton('Traer tarjetas de Main').click();
+    comprobar('«Traer tarjetas» abre Main en modo selección', (await chip('Main').getAttribute('aria-pressed')) === 'true' && (await p.locator('.seleccion').count()) === 1);
     comprobar('Destino propuesto: la sesión desde la que se vino', (await p.locator('#seleccion-destino option:checked').innerText()) === 'Sesión 1: el muelle');
     await seleccionar('Alfa', 'Beta', 'Lluvia');
     comprobar('Seleccionar no reproduce', (await audio())?.pausado !== false);
@@ -123,7 +123,7 @@ const orden = (l) => [...l].sort().join(',');
     await boton('Seleccionar todas las visibles').click();
     comprobar('Seleccionar todas las visibles', (await p.locator('.tarjeta[data-seleccionada]').count()) === 2);
     await boton('Terminar selección').click();
-    await chip('Toda la biblioteca').click();
+    await chip('Main').click();
     await boton('Seleccionar tarjetas').click();
     await seleccionar('Delta');
     await boton('Común a todas las sesiones').click();
@@ -155,7 +155,7 @@ const orden = (l) => [...l].sort().join(',');
     await p.waitForTimeout(200);
     const trasOrden = await p.locator('.seccion-lugar .tarjeta-nombre').allInnerTexts();
     comprobar('Reordenar dentro de una sesión', trasOrden[0] === ultimo, `${antesOrden} → ${trasOrden}`);
-    await chip('Toda la biblioteca').click();
+    await chip('Main').click();
     const completo = await p.locator('.seccion-lugar .tarjeta-nombre').allInnerTexts();
     const ordenSesion = completo.filter((x) => trasOrden.includes(x));
     comprobar('… y el orden completo de la carpeta lo respeta sin perder tarjetas', completo.length === 4 && ordenSesion.join() === trasOrden.join(), completo.join());
@@ -216,7 +216,7 @@ const orden = (l) => [...l].sort().join(',');
     const fila = p.locator('.sesion-fila', { has: p.getByLabel('Nombre de Sesión 2') });
     await fila.getByRole('button', { name: 'Eliminar Sesión 2' }).click();
     const pregunta = await fila.locator('.confirmar p').innerText();
-    comprobar('Confirmación clara al eliminar', pregunta.includes('Solo se borra la organización') && pregunta.includes('Toda la biblioteca'));
+    comprobar('Confirmación clara al eliminar', pregunta.includes('Solo se borra la organización') && pregunta.includes('Main'));
     await boton('Eliminar sesión').click();
     await boton('Cerrar').click();
     const g4 = await guardado();
@@ -254,7 +254,7 @@ const orden = (l) => [...l].sort().join(',');
     const usuario = { id: UID, aud: 'authenticated', role: 'authenticated', email: 'dm@example.com', user_metadata: {}, app_metadata: { provider: 'email' } };
     const JWT = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: UID, exp, role: 'authenticated', aud: 'authenticated' })}.firma`;
     const token = JSON.stringify({ access_token: JWT, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'r', user: usuario });
-    const tablas = { elementos: antigua.elementos.map((e) => ({ ...e })), recursos: antigua.recursos.map((r) => ({ ...r })), pistas: antigua.pistas.map((x) => ({ ...x })), sesiones: [], sesion_elementos: [], elementos_comunes: [] };
+    const tablas = { elementos: antigua.elementos.map((e) => ({ ...e })), recursos: antigua.recursos.map((r) => ({ ...r })), pistas: antigua.pistas.map((x) => ({ ...x })), sesiones: [], sesion_elementos: [], elementos_comunes: [], carpetas: [], carpeta_elementos: [] };
     let sin004 = true;
     let n = 0;
     const cuerpos = [];
@@ -315,7 +315,7 @@ const orden = (l) => [...l].sort().join(',');
     await p.reload();
     await p.waitForSelector('.tarjeta');
     await nuevaSesion('Sesión 1');
-    await boton('Traer tarjetas de la biblioteca').click();
+    await boton('Traer tarjetas de Main').click();
     await seleccionar('Alfa', 'Gamma');
     await boton('Añadir a la sesión').click();
     await p.waitForTimeout(300);

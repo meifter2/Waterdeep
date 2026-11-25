@@ -14,6 +14,7 @@ import './styles/buscar.css'
 import './styles/dialogos.css'
 import './styles/editor.css'
 import './styles/sesiones.css'
+import './styles/carpetas.css'
 import './styles/entrada.css'
 
 capturarCompartido()

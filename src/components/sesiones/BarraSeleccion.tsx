@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { asignar, compararSesiones, crearSesion, marcarComun, quitarDeSesion, sesionVigente, siguienteNombre, useSesionActiva } from '../../data/sesiones'
+import { carpetasDe, moverACarpeta } from '../../data/carpetas'
 import { useDatos } from '../../data/store'
+import { CARPETAS } from '../../data/types'
 import { useSeleccion } from './seleccion'
 
 const NUEVA = '__nueva'
+const SIN = '__sin'
 
 /** Acciones en bloque sobre las tarjetas seleccionadas. Nunca borra tarjetas ni sonidos: solo cambia la organización. */
 export function BarraSeleccion({ visibles, alGuardar }: { visibles: string[]; alGuardar: (m: string) => void }) {
@@ -15,6 +18,12 @@ export function BarraSeleccion({ visibles, alGuardar }: { visibles: string[]; al
   const lista = useMemo(() => [...sesiones].sort(compararSesiones), [sesiones])
   const [destino, setDestino] = useState(() => propuesto ?? actual?.id ?? lista.find((s) => !s.finalizada)?.id ?? lista[0]?.id ?? NUEVA)
   const [ocupado, setOcupado] = useState(false)
+  // Carpetas temáticas de Main (solo en Main: las sesiones no muestran carpetas).
+  const carpetas = useDatos((s) => s.carpetas)
+  const sinCarpetas = useDatos((s) => s.sinCarpetas)
+  const [carpetaDestino, setCarpetaDestino] = useState(SIN)
+  const verCarpetas = !actual && !sinCarpetas && carpetas.length > 0
+  const carpetaValida = carpetaDestino === SIN || carpetas.some((c) => c.id === carpetaDestino) ? carpetaDestino : SIN
   const n = ids.length
   const tarjetas = (k: number) => (k === 1 ? '1 tarjeta' : `${k} tarjetas`)
   const todasComunes = n > 0 && ids.every((id) => comunes.some((c) => c.elemento_id === id))
@@ -73,7 +82,7 @@ export function BarraSeleccion({ visibles, alGuardar }: { visibles: string[]; al
               void hacer(async () => {
                 if (!(await quitarDeSesion(ids, actual.id))) return null
                 poner([])
-                return `Quitadas de «${actual.nombre}». Siguen en «Toda la biblioteca».`
+                return `Quitadas de «${actual.nombre}». Siguen en «Main».`
               })
             }
           >
@@ -93,6 +102,45 @@ export function BarraSeleccion({ visibles, alGuardar }: { visibles: string[]; al
         >
           {todasComunes ? 'Quitar «común»' : 'Común a todas las sesiones'}
         </button>
+        {verCarpetas && (
+          <span className="seleccion-anadir">
+            <label className="sr" htmlFor="seleccion-carpeta">
+              Carpeta de destino en Main
+            </label>
+            <select id="seleccion-carpeta" value={carpetaValida} onChange={(e) => setCarpetaDestino(e.target.value)}>
+              <option value={SIN}>Sin carpeta</option>
+              {CARPETAS.map((cat) => {
+                const suyas = carpetasDe(cat.tipo, carpetas)
+                return suyas.length ? (
+                  <optgroup key={cat.tipo} label={cat.titulo}>
+                    {suyas.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null
+              })}
+            </select>
+            <button
+              type="button"
+              className="boton"
+              disabled={!n || ocupado}
+              onClick={() =>
+                void hacer(async () => {
+                  const c = carpetas.find((x) => x.id === carpetaValida)
+                  const r = await moverACarpeta(ids, c?.id ?? null)
+                  if (!r) return null
+                  const donde = c ? `«${c.nombre}»` : '«Sin carpeta»'
+                  const otra = r.omitidas ? ` ${tarjetas(r.omitidas)} de otra categoría no se ${r.omitidas === 1 ? 'ha movido' : 'han movido'}.` : ''
+                  return `${r.movidas ? `${tarjetas(r.movidas)} en ${donde}.` : `Ya estaban en ${donde}.`}${otra} Sus sesiones no cambian.`
+                })
+              }
+            >
+              Mover a carpeta
+            </button>
+          </span>
+        )}
         <button type="button" className="boton boton-sutil" onClick={terminar}>
           Hecho
         </button>

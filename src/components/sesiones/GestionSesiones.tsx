@@ -6,7 +6,7 @@ import { BotonConfirmar } from '../Confirmar'
 
 /**
  * Crear, renombrar, finalizar y eliminar sesiones. `nueva`: se abre para crear una y, al crearla, se elige y se cierra.
- * Eliminar una sesión borra SOLO la organización: tarjetas, sonidos, archivos y retratos siguen en «Toda la biblioteca».
+ * Eliminar una sesión borra SOLO la organización: tarjetas, sonidos, archivos y retratos siguen en «Main».
  */
 export function GestionSesiones({ nueva = false, alCerrar, alGuardar }: { nueva?: boolean; alCerrar: () => void; alGuardar: (m: string) => void }) {
   const sesiones = useDatos((s) => s.sesiones)
@@ -64,7 +64,7 @@ export function GestionSesiones({ nueva = false, alCerrar, alGuardar }: { nueva?
         {!nueva && (
           <p className="ayuda-normal">
             Una tarjeta puede estar en varias sesiones sin duplicarse. Eliminar una sesión solo quita la organización: tus tarjetas, sonidos y archivos
-            siguen en «Toda la biblioteca».
+            siguen en «Main».
           </p>
         )}
         <div className="editor-acciones">
@@ -114,14 +114,14 @@ function FilaSesion({ sesion, tarjetas, alGuardar }: { sesion: Sesion; tarjetas:
       <BotonConfirmar
         className="boton boton-pequeno boton-peligro"
         etiqueta={<>Eliminar<span className="sr"> {sesion.nombre}</span></>}
-        pregunta={`¿Eliminar la sesión «${sesion.nombre}»? Solo se borra la organización: las tarjetas, sus sonidos, archivos y retratos siguen en «Toda la biblioteca».`}
+        pregunta={`¿Eliminar la sesión «${sesion.nombre}»? Solo se borra la organización: las tarjetas, sus sonidos, archivos y retratos siguen en «Main».`}
         opciones={[
           {
             etiqueta: 'Eliminar sesión',
             peligro: true,
             accion: () => {
               void eliminarSesion(sesion.id)
-              alGuardar(`Sesión «${sesion.nombre}» eliminada. Sus tarjetas siguen en «Toda la biblioteca».`)
+              alGuardar(`Sesión «${sesion.nombre}» eliminada. Sus tarjetas siguen en «Main».`)
             },
           },
         ]}

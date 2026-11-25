@@ -4,7 +4,7 @@ import { useDatos } from '../../data/store'
 import { useSeleccion } from './seleccion'
 
 /**
- * Franja de sesiones: «Toda la biblioteca» y cada sesión (la elegida, en oro). Elegir sesión solo filtra las tarjetas:
+ * Franja de sesiones: «Main» y cada sesión (la elegida, en oro). Elegir sesión solo filtra las tarjetas:
  * no reproduce ni detiene nada. Con muchas sesiones, la franja se desplaza en horizontal (móvil).
  */
 export function BarraSesiones({ alNueva, alGestionar, cuenta }: { alNueva: () => void; alGestionar: () => void; cuenta: { total: number; comunes: number } }) {
@@ -20,7 +20,7 @@ export function BarraSesiones({ alNueva, alGestionar, cuenta }: { alNueva: () =>
       <ul className="sesiones-lista">
         <li>
           <button type="button" className="sesion-chip sesion-todo" aria-pressed={!actual} onClick={() => elegir(null)}>
-            Toda la biblioteca
+            Main
           </button>
         </li>
         {lista.map((s) => (
@@ -61,13 +61,13 @@ export function BarraSesiones({ alNueva, alGestionar, cuenta }: { alNueva: () =>
             <button
               type="button"
               className="boton boton-pequeno"
-              title="Abre «Toda la biblioteca» para elegir tarjetas que ya tienes y añadirlas a esta sesión"
+              title="Abre Main para elegir tarjetas que ya tienes y añadirlas a esta sesión"
               onClick={() => {
                 elegir(null)
                 seleccion.empezar(actual.id)
               }}
             >
-              Traer tarjetas de la biblioteca
+              Traer tarjetas de Main
             </button>
           )}
           {lista.length > 0 && (

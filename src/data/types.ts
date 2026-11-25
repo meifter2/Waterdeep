@@ -60,6 +60,21 @@ export interface ElementoComun {
   elemento_id: string
 }
 
+/** Carpeta temática de Main dentro de una categoría («Xanathar» en Personajes, «Drama» en Momentos). Un nivel (bd/005). */
+export interface CarpetaTematica {
+  id: string
+  tipo: Tipo
+  nombre: string
+  orden: number
+}
+
+/** En qué carpeta temática está una tarjeta (como mucho una). Sin fila = «Sin carpeta». */
+export interface CarpetaElemento {
+  id: string
+  carpeta_id: string
+  elemento_id: string
+}
+
 export interface Biblioteca {
   elementos: Elemento[]
   recursos: Recurso[]
@@ -67,6 +82,8 @@ export interface Biblioteca {
   sesiones: Sesion[]
   sesion_elementos: SesionElemento[]
   elementos_comunes: ElementoComun[]
+  carpetas: CarpetaTematica[]
+  carpeta_elementos: CarpetaElemento[]
 }
 
 export type Tabla = keyof Biblioteca
@@ -101,7 +118,10 @@ export const carpeta = (t: Tipo) => CARPETAS.find((c) => c.tipo === t)!
 
 export const ETIQUETAS_SUGERIDAS = ['Tema principal', 'Tensión', 'Combate', 'Calma', 'Misterio', 'Victoria', 'Tristeza', 'Huida']
 
-export const vacia = (): Biblioteca => ({ elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [] })
+export const vacia = (): Biblioteca => ({ elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [], carpetas: [], carpeta_elementos: [] })
 
 /** Tablas de la organización por sesiones (bd/004): opcionales, la app funciona sin ellas. */
 export const TABLAS_SESIONES = ['sesiones', 'sesion_elementos', 'elementos_comunes'] as const
+
+/** Tablas de las carpetas temáticas de Main (bd/005): opcionales, la app funciona sin ellas. */
+export const TABLAS_CARPETAS = ['carpetas', 'carpeta_elementos'] as const

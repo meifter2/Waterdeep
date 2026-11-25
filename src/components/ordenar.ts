@@ -8,7 +8,9 @@ import type { Tipo } from '../data/types'
 // - Mientras se mueve, la tarjeta deja un hueco donde caerá y una copia flotante sigue al puntero.
 // - Teclado (en el asa): espacio/Intro coge, flechas mueven, espacio/Intro suelta, Esc cancela; se anuncia la posición.
 // - Al soltar se guarda el orden (store.reordenar); si falla, se restaura el anterior y se avisa.
-// - Nunca cambia de carpeta: solo se calcula la posición entre las tarjetas de esta misma lista.
+// - Dentro de su lista solo reordena. Con `soltar` (Main con carpetas temáticas), soltarla sobre OTRO grupo de la misma
+//   categoría (cabecera o tarjetas de una carpeta, aunque esté cerrada, o «Sin carpeta») la mueve a ese grupo.
+//   Nunca cambia de categoría.
 
 const UMBRAL_PX = 5
 
@@ -32,6 +34,32 @@ interface Gesto {
   ancho: number
   alto: number
   moviendo: boolean
+  /** Grupo de destino (otra carpeta) bajo el puntero, si lo hay. */
+  zona: string | null
+}
+
+/** Opciones para mover entre grupos (carpetas temáticas). */
+export interface Soltar {
+  /** Grupo de esta lista (valor de `data-soltar` de su contenedor). */
+  grupo: string
+  alSoltar: (id: string, grupo: string) => void
+}
+
+let resaltada: HTMLElement | null = null
+const resaltar = (el: HTMLElement | null) => {
+  if (resaltada === el) return
+  resaltada?.removeAttribute('data-encima')
+  resaltada = el
+  el?.setAttribute('data-encima', 'true')
+}
+
+/** Grupo de destino bajo el puntero: otro contenedor `data-soltar` de la misma categoría. */
+function zonaEn(x: number, y: number, tipo: Tipo, propio: string): HTMLElement | null {
+  for (const el of document.elementsFromPoint(x, y)) {
+    const z = el.closest<HTMLElement>('[data-soltar]')
+    if (z) return z.dataset.soltarTipo === tipo && z.dataset.soltar !== propio ? z : null
+  }
+  return null
 }
 
 const mover = (lista: string[], id: string, destino: number) => {
@@ -40,7 +68,7 @@ const mover = (lista: string[], id: string, destino: number) => {
   return sin
 }
 
-export function useOrdenar(ids: string[], tipo: Tipo, nombres: Record<string, string>) {
+export function useOrdenar(ids: string[], tipo: Tipo, nombres: Record<string, string>, soltar?: Soltar) {
   const [vista, setVista] = useState<string[] | null>(null)
   const [fantasma, setFantasma] = useState<Fantasma | null>(null)
   const [levantada, setLevantada] = useState<string | null>(null)
@@ -63,7 +91,11 @@ export function useOrdenar(ids: string[], tipo: Tipo, nombres: Record<string, st
   const guardarRef = useRef(guardar)
   guardarRef.current = guardar
 
+  const soltarRef = useRef(soltar)
+  soltarRef.current = soltar
+
   const cancelar = useCallback(() => {
+    resaltar(null)
     gesto.current = null
     setFantasma(null)
     setVista(null)
@@ -119,7 +151,7 @@ export function useOrdenar(ids: string[], tipo: Tipo, nombres: Record<string, st
       const li = lista.current?.querySelector<HTMLElement>(`[data-elemento="${id}"]`)
       if (!li) return
       const c = li.getBoundingClientRect()
-      const g: Gesto = { id, nombre: nombres[id] ?? '', pointerId: e.pointerId, inicioX: e.clientX, inicioY: e.clientY, dx: e.clientX - c.left, dy: e.clientY - c.top, ancho: c.width, alto: c.height, moviendo: false }
+      const g: Gesto = { id, nombre: nombres[id] ?? '', pointerId: e.pointerId, inicioX: e.clientX, inicioY: e.clientY, dx: e.clientX - c.left, dy: e.clientY - c.top, ancho: c.width, alto: c.height, moviendo: false, zona: null }
       gesto.current = g
       // El movimiento y el soltar se escuchan en la ventana: al reordenarse la lista, la tarjeta puede moverse en el
       // documento y perder la «captura» del puntero; así el gesto nunca se queda enganchado.
@@ -133,11 +165,23 @@ export function useOrdenar(ids: string[], tipo: Tipo, nombres: Record<string, st
         }
         ev.preventDefault()
         setFantasma({ id: g.id, nombre: g.nombre, x: ev.clientX - g.dx, y: ev.clientY - g.dy, ancho: g.ancho, alto: g.alto })
-        const destino = destinoEn(ev.clientX, ev.clientY, g.id)
-        setVista((v) => {
-          const nueva = mover(v ?? ordenRef.current, g.id, destino)
-          return nueva.join() === (v ?? []).join() ? v : nueva
-        })
+        const s = soltarRef.current
+        const zona = s ? zonaEn(ev.clientX, ev.clientY, tipo, s.grupo) : null
+        if (zona) {
+          // Sobre otra carpeta: la lista propia vuelve a su orden y se resalta el destino.
+          if (g.zona !== zona.dataset.soltar) setAnuncio(`Soltar en ${zona.dataset.soltarNombre ?? 'otra carpeta'}.`)
+          g.zona = zona.dataset.soltar ?? null
+          resaltar(zona)
+          setVista(ids)
+        } else {
+          g.zona = null
+          resaltar(null)
+          const destino = destinoEn(ev.clientX, ev.clientY, g.id)
+          setVista((v) => {
+            const nueva = mover(v ?? ordenRef.current, g.id, destino)
+            return nueva.join() === (v ?? []).join() ? v : nueva
+          })
+        }
         // Cerca del borde de la pantalla, la página se desplaza sola (móvil y listas largas).
         const barra = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--alto-reproductor')) || 0
         if (ev.clientY < 40) window.scrollBy(0, -12)
@@ -150,6 +194,15 @@ export function useOrdenar(ids: string[], tipo: Tipo, nombres: Record<string, st
         gesto.current = null
         setFantasma(null)
         if (!g.moviendo) return // un toque en el asa no hace nada (y no reproduce)
+        if (g.zona && soltarRef.current) {
+          const nombreZona = resaltada?.dataset.soltarNombre ?? 'otra carpeta'
+          resaltar(null)
+          setVista(null)
+          setAnuncio(`${g.nombre} movido a ${nombreZona}.`)
+          soltarRef.current.alSoltar(g.id, g.zona)
+          return
+        }
+        resaltar(null)
         const final = ordenRef.current
         setAnuncio(`${g.nombre} colocado en la posición ${final.indexOf(g.id) + 1} de ${final.length}.`)
         void guardarRef.current(final)

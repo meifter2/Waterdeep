@@ -16,7 +16,7 @@ const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: UID, exp, role: '
 const sesion = { access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'refresco', user: usuario };
 
 // ── Servidor simulado ──
-const tablas = { elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [] };
+const tablas = { elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [], carpetas: [], carpeta_elementos: [] };
 const archivos = new Map(); // "bucket/ruta" → { cuerpo, tipo }
 const peticiones = [];
 let fallar = null; // p. ej. { metodo: 'POST', ruta: '/rest/v1/pistas', modo: 'red' | 500 }

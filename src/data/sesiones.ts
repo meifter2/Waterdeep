@@ -27,7 +27,7 @@ function disponible(): boolean {
 const CLAVE_ACTIVA = 'banda-sonora:sesion-activa'
 
 interface Activa {
-  /** null = «Toda la biblioteca». */
+  /** null = «Main». */
   activa: string | null
   elegir: (id: string | null) => void
 }
@@ -41,7 +41,7 @@ export const useSesionActiva = create<Activa>()((set) => ({
   },
 }))
 
-/** La sesión elegida si existe (una guardada de otra cuenta o ya borrada cuenta como «Toda la biblioteca»). */
+/** La sesión elegida si existe (una guardada de otra cuenta o ya borrada cuenta como «Main»). */
 export function sesionVigente(activa: string | null, sesiones: Sesion[]): Sesion | null {
   return (activa && sesiones.find((s) => s.id === activa)) || null
 }
@@ -97,7 +97,7 @@ export const renombrarSesion = (id: string, nombre: string) => {
 
 export const marcarFinalizada = (id: string, finalizada: boolean) => cambiarSesion(id, { finalizada })
 
-/** Borra la sesión y SOLO sus relaciones. Las tarjetas, sus sonidos y archivos siguen en «Toda la biblioteca». */
+/** Borra la sesión y SOLO sus relaciones. Las tarjetas, sus sonidos y archivos siguen en «Main». */
 export async function eliminarSesion(id: string) {
   if (!disponible()) return
   const { sesiones, sesion_elementos } = est()

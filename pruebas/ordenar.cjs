@@ -14,7 +14,7 @@ const JWT = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: UID, exp, role: '
 const sesion = JSON.stringify({ access_token: JWT, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'r', user: usuario });
 
 // ── Supabase simulado con datos ya guardados ──
-const tablas = { elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [] };
+const tablas = { elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [], carpetas: [], carpeta_elementos: [] };
 let n = 0;
 const crear = (tipo, nombre) => {
   const id = `x${++n}`;
