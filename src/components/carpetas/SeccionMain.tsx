@@ -58,7 +58,10 @@ export function SeccionMain({
         </h2>
         <div className="seccion-botones">
           {!buscando && (
-            <button type="button" className="boton boton-pequeno boton-sutil" onClick={() => setCreando(true)} aria-expanded={creando}>
+            <button type="button" className="boton boton-pequeno boton-sutil boton-carpeta" onClick={() => setCreando(true)} aria-expanded={creando}>
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path d="M3 6a1.5 1.5 0 0 1 1.5-1.5h4.4l2 2h8.6A1.5 1.5 0 0 1 21 8v10.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5ZM12 10.5v6M9 13.5h6" />
+              </svg>
               Nueva carpeta
             </button>
           )}
@@ -217,8 +220,19 @@ function Grupo({
   }, [menuAbierto])
   const cuerpo = `grupo-${clave}`
   const n = tarjetas.length
+  // «Sin carpeta» vacía: una fila compacta (sigue siendo destino al arrastrar), sin cuerpo que desplegar.
+  const filaVacia = !carpeta && n === 0
+  const verCuerpo = abierta && !filaVacia
   return (
-    <div className="carpeta" data-soltar={clave} data-soltar-tipo={tipo.tipo} data-soltar-nombre={nombre} data-abierta={abierta || undefined} data-sin={carpeta ? undefined : true}>
+    <div
+      className="carpeta"
+      data-soltar={clave}
+      data-soltar-tipo={tipo.tipo}
+      data-soltar-nombre={nombre}
+      data-abierta={verCuerpo || undefined}
+      data-sin={carpeta ? undefined : true}
+      data-vacia={n === 0 || undefined}
+    >
       <div className="carpeta-cabecera">
         {renombrando && carpeta ? (
           <NuevaCarpeta
@@ -231,12 +245,29 @@ function Grupo({
             alCancelar={() => setRenombrando(false)}
           />
         ) : (
-          <button type="button" className="carpeta-alternar" aria-expanded={abierta} aria-controls={cuerpo} disabled={buscando} onClick={alAlternar}>
+          <button
+            type="button"
+            className="carpeta-alternar"
+            aria-expanded={filaVacia ? undefined : abierta}
+            aria-controls={filaVacia ? undefined : cuerpo}
+            disabled={buscando || filaVacia}
+            onClick={alAlternar}
+          >
             <svg className="carpeta-flecha" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
               <path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
+            <svg className="carpeta-icono" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              {verCuerpo ? (
+                <path d="M3 7.5V6a1.5 1.5 0 0 1 1.5-1.5h4.4l2 2h8.6A1.5 1.5 0 0 1 21 8v1.5M3.2 19.5l2.3-8.6A1.5 1.5 0 0 1 7 9.8h14.1a1 1 0 0 1 1 1.3l-2.2 7.6a1.5 1.5 0 0 1-1.4 1.1H4.5A1.5 1.5 0 0 1 3 18.3V7.5" />
+              ) : (
+                <path d="M3 6a1.5 1.5 0 0 1 1.5-1.5h4.4l2 2h8.6A1.5 1.5 0 0 1 21 8v10.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z" />
+              )}
+            </svg>
             <span className="carpeta-nombre">{nombre}</span>
-            <span className="carpeta-cuenta">{n}</span>
+            <span className="carpeta-cuenta">
+              {n}
+              <span className="sr">{n === 1 ? ' tarjeta' : ' tarjetas'}</span>
+            </span>
           </button>
         )}
         {carpeta && !renombrando && !buscando && (
@@ -279,22 +310,21 @@ function Grupo({
             </div>
           </details>
         )}
+        {filaVacia && !buscando && <span className="carpeta-pista">Suelta aquí una tarjeta para sacarla de su carpeta</span>}
       </div>
-      {abierta && (
+      {verCuerpo && (
         <div className="carpeta-cuerpo" id={cuerpo}>
           {n > 0 ? (
             <ListaTarjetas tipo={tipo.tipo} elementos={tarjetas} reordenable={!buscando} soltar={soltar} alEditar={alEditar} />
           ) : carpeta ? (
             <p className="carpeta-vacia">
-              Vacía. Arrastra tarjetas aquí por su asa o{' '}
+              Carpeta vacía. Arrastra tarjetas aquí por su asa o{' '}
               <button type="button" className="enlace" onClick={alAnadir}>
                 {tipo.nuevo.toLowerCase()}
               </button>
               .
             </p>
-          ) : (
-            <p className="carpeta-vacia">Todas están en carpetas. Suelta aquí una tarjeta para sacarla de su carpeta.</p>
-          )}
+          ) : null}
         </div>
       )}
     </div>

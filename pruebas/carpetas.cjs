@@ -62,7 +62,8 @@ const ayudas = (p) => {
     const asa = p.getByRole('button', { name: `Mover ${tarjeta}`, exact: true });
     await asa.scrollIntoViewIfNeeded();
     const a = await asa.boundingBox();
-    await grupo(carpeta).locator('.carpeta-cabecera').scrollIntoViewIfNeeded().catch(() => {});
+    // Como haría una persona: el destino a la vista (no debajo de la barra del reproductor) y la tarjeta también.
+    await grupo(carpeta).locator('.carpeta-cabecera').evaluate((el) => el.scrollIntoView({ block: 'center' }));
     await asa.scrollIntoViewIfNeeded();
     const a2 = await asa.boundingBox();
     const d = await grupo(carpeta).locator('.carpeta-cabecera').boundingBox();

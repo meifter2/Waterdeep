@@ -1,5 +1,6 @@
-/* Carpetas temáticas de Main: grupos desplegables dentro de cada categoría («Xanathar», «Drama»…).
-   Un filete a la izquierda une la carpeta con sus tarjetas; al arrastrar una tarjeta encima, el destino se marca en verdín. */
+/* Carpetas temáticas de Main: cada carpeta es un bloque propio (superficie clara, borde sutil, esquinas redondeadas) con
+   una cabecera compacta: flecha, icono de carpeta, nombre, número y menú ⋯ junto al nombre. Abierta, sus tarjetas quedan
+   dentro del mismo bloque. Al arrastrar una tarjeta encima, el destino se marca en verdín (como lo que suena). */
 
 .seccion-botones {
   display: flex;
@@ -8,52 +9,78 @@
   justify-content: flex-end;
 }
 
+.boton-carpeta svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--verdin);
+}
+
 .carpetas {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.5rem;
 }
 
 .carpeta {
-  border-left: 3px solid var(--linea);
-  border-radius: 0 var(--r-m) var(--r-m) 0;
-  padding: 0 0 0 0.65rem;
-  transition: background-color 0.12s ease, border-color 0.12s ease;
+  --carpeta-fondo: color-mix(in srgb, var(--superficie) 70%, var(--piedra));
+  background: var(--carpeta-fondo);
+  border: 1px solid color-mix(in srgb, var(--linea) 75%, transparent);
+  border-radius: var(--r-m);
+  transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.carpeta:hover {
+  border-color: var(--linea);
 }
 
 .carpeta[data-abierta] {
-  border-left-color: color-mix(in srgb, var(--verdin) 55%, var(--linea));
+  --carpeta-fondo: var(--superficie);
+  border-color: var(--linea);
+  box-shadow: 0 1px 0 rgba(27, 42, 46, 0.04);
 }
 
+/* «Sin carpeta»: sin fondo propio, borde punteado (no es una carpeta, es lo que queda fuera). */
 .carpeta[data-sin] {
-  border-left-style: dashed;
+  --carpeta-fondo: transparent;
+  border-style: dashed;
 }
 
-/* Destino al arrastrar una tarjeta desde otra carpeta. */
+/* Destino al arrastrar una tarjeta desde otra carpeta (también cerrada o vacía). */
 .carpeta[data-encima] {
-  border-left-color: var(--verdin);
-  background: var(--verdin-suave);
+  --carpeta-fondo: var(--verdin-suave);
+  border-color: transparent;
   outline: 2px dashed var(--verdin);
-  outline-offset: 2px;
+  outline-offset: -1px;
+  background: var(--verdin-suave);
+  transition: none;
 }
 
 .carpeta-cabecera {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
-  min-height: 2.5rem;
+  gap: 0.15rem 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: var(--r-m);
+}
+
+.carpeta[data-abierta] .carpeta-cabecera {
+  border-bottom: 1px solid color-mix(in srgb, var(--linea) 70%, transparent);
+  border-radius: var(--r-m) var(--r-m) 0 0;
+  background: color-mix(in srgb, var(--verdin) 5%, var(--carpeta-fondo));
 }
 
 .carpeta-alternar {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.45rem;
   min-width: 0;
-  padding: 0.3rem 0.5rem 0.3rem 0.2rem;
+  min-height: 2.25rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.35rem;
   font: inherit;
-  font-family: var(--f-titulo);
-  font-size: var(--t-l);
-  font-weight: 600;
   color: var(--tinta);
   background: none;
   border: 0;
@@ -63,16 +90,20 @@
 }
 
 .carpeta-alternar:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--verdin) 8%, transparent);
+  background: color-mix(in srgb, var(--verdin) 9%, transparent);
 }
 
 .carpeta-alternar:disabled {
   cursor: default;
 }
 
+.carpeta-alternar:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 0;
+}
+
 .carpeta-flecha {
   flex: none;
-  align-self: center;
   color: var(--tinta-suave);
   transition: transform 0.15s ease;
 }
@@ -81,7 +112,35 @@
   transform: rotate(90deg);
 }
 
+/* «Sin carpeta» vacía no se despliega: la flecha deja su hueco para que todo siga alineado. */
+.carpeta[data-sin][data-vacia] .carpeta-flecha {
+  visibility: hidden;
+}
+
+.carpeta-icono {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  color: var(--tinta-suave);
+}
+
+.carpeta[data-abierta] .carpeta-icono {
+  color: var(--verdin);
+  fill: color-mix(in srgb, var(--verdin) 14%, transparent);
+}
+
+.carpeta[data-sin] .carpeta-icono {
+  stroke-dasharray: 3 2.5;
+}
+
 .carpeta-nombre {
+  font-family: var(--f-titulo);
+  font-size: var(--t-l);
+  font-weight: 600;
+  line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
@@ -91,23 +150,41 @@
   color: var(--tinta-suave);
 }
 
+/* Número de tarjetas: pastilla discreta. */
 .carpeta-cuenta {
-  font-family: var(--f-texto);
-  font-size: var(--t-s);
-  font-weight: 400;
+  flex: none;
+  min-width: 1.6rem;
+  padding: 0.05rem 0.45rem;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
   color: var(--tinta-suave);
+  background: color-mix(in srgb, var(--tinta) 7%, transparent);
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.carpeta[data-abierta] .carpeta-cuenta {
+  color: var(--verdin);
+  background: color-mix(in srgb, var(--verdin) 13%, transparent);
+}
+
+.carpeta-pista {
+  font-size: var(--t-s);
+  font-style: italic;
+  color: var(--tinta-suave);
+  padding: 0 0.35rem;
 }
 
 .carpeta-cuerpo {
-  padding: 0.15rem 0 0.8rem;
+  padding: 0.65rem 0.65rem 0.75rem;
 }
 
 .carpeta-vacia {
   font-size: var(--t-s);
   color: var(--tinta-suave);
-  padding: 0.6rem 0.8rem;
-  border: 1px dashed var(--linea);
-  border-radius: var(--r-m);
+  padding: 0.1rem 0.2rem;
 }
 
 /* Menú de la carpeta (⋯) */
@@ -119,13 +196,19 @@
 .carpeta-menu > summary {
   display: grid;
   place-items: center;
-  width: 2.1rem;
-  height: 2.1rem;
+  width: 2.25rem;
+  height: 2.25rem;
   list-style: none;
   color: var(--tinta-suave);
-  border: 1px solid transparent;
+  border: 1px solid color-mix(in srgb, var(--linea) 80%, transparent);
   border-radius: var(--r-s);
+  background: var(--superficie-alta);
   cursor: pointer;
+}
+
+.carpeta-menu > summary:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 1px;
 }
 
 .carpeta-menu > summary::-webkit-details-marker {
@@ -143,7 +226,7 @@
   position: absolute;
   z-index: 15;
   top: calc(100% + 0.25rem);
-  right: 0;
+  left: 0;
   display: grid;
   min-width: 14rem;
   max-width: min(20rem, calc(100vw - 2rem));
@@ -227,8 +310,23 @@
   }
 }
 
+@media (max-width: 640px) {
+  .carpeta-cuerpo {
+    padding: 0.5rem;
+  }
+  .carpeta-nombre {
+    font-size: var(--t-m);
+  }
+  /* En el móvil el menú se abre hacia la izquierda si no cabe a la derecha del nombre. */
+  .carpeta-menu-lista {
+    left: auto;
+    right: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .carpeta,
+  .carpeta-alternar,
   .carpeta-flecha {
     transition: none;
   }
