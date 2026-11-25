@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { guardarElemento, type CambioRetrato } from '../../data/guardar'
 import { useReproduccion } from '../../data/reproduccion'
+import { compararSesiones, fijarOrganizacion, organizacionDe, sesionVigente, useSesionActiva } from '../../data/sesiones'
 import { almacenamientoSeguro } from '../../data/storage'
 import { pistasDe, useDatos } from '../../data/store'
 import { CARPETAS, carpeta, type Elemento, type Recurso, type Tipo } from '../../data/types'
@@ -57,7 +58,15 @@ export function EditorElemento({
   alCerrar: () => void
   alGuardar: (mensaje: string) => void
 }) {
-  const { recursos, pistas, urls, eliminarElemento } = useDatos()
+  const { recursos, pistas, urls, eliminarElemento, sesiones, sesion_elementos, elementos_comunes, sinSesiones } = useDatos()
+  const activa = useSesionActiva((s) => s.activa)
+  // Sesiones de la tarjeta. Nueva: la sesión elegida arriba (si hay una), para que no «desaparezca» al guardarla.
+  const [org, setOrg] = useState(() => {
+    if (elemento) return organizacionDe(elemento, sesion_elementos, elementos_comunes)
+    const s = sesionVigente(activa, sesiones)
+    return { sesiones: s ? [s.id] : [], comun: false }
+  })
+  const listaSesiones = [...sesiones].sort(compararSesiones)
   const { pistaId, olvidar } = useReproduccion()
   const [tipo, setTipo] = useState<Tipo>(elemento?.tipo ?? tipoInicial)
   const [nombre, setNombre] = useState(elemento?.nombre ?? '')
@@ -140,7 +149,9 @@ export function EditorElemento({
     setGuardando(true)
     setError('')
     try {
-      await guardarElemento({ id: elemento?.id, tipo, nombre, descripcion, retrato, pistas: filas }, progreso.current)
+      const el = await guardarElemento({ id: elemento?.id, tipo, nombre, descripcion, retrato, pistas: filas }, progreso.current)
+      // Común en una tarjeta nueva: aparece en todas, sin relaciones. En una existente se conservan sus sesiones.
+      if (listaSesiones.length && !sinSesiones) await fijarOrganizacion(el.id, org.comun && !elemento ? [] : org.sesiones, org.comun)
       recordarCarpeta(tipo)
       alGuardar(`«${nombre.trim()}» guardado en ${c.titulo}.`)
       alCerrar()
@@ -249,6 +260,39 @@ export function EditorElemento({
           <AnadirPista alAnadir={anadir} />
           {filas.some((f) => f.id) && <p className="ayuda">Quitar una pista no borra el sonido: sigue en tu biblioteca.</p>}
         </section>
+
+        {listaSesiones.length > 0 && !sinSesiones && (
+          <fieldset className="editor-sesiones">
+            <legend>Sesiones</legend>
+            <ul className="editor-sesiones-lista">
+              {listaSesiones.map((s) => (
+                <li key={s.id}>
+                  <label className="casilla" data-finalizada={s.finalizada || undefined}>
+                    <input
+                      type="checkbox"
+                      checked={org.comun || org.sesiones.includes(s.id)}
+                      disabled={org.comun}
+                      onChange={(e) =>
+                        setOrg((o) => ({ ...o, sesiones: e.target.checked ? [...o.sesiones, s.id] : o.sesiones.filter((x) => x !== s.id) }))
+                      }
+                    />
+                    {s.nombre}
+                    {s.finalizada && <span className="ayuda"> (finalizada)</span>}
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <label className="casilla editor-comun">
+              <input type="checkbox" checked={org.comun} onChange={(e) => setOrg((o) => ({ ...o, comun: e.target.checked }))} />
+              Común a todas las sesiones
+            </label>
+            <p className="ayuda">
+              {org.comun
+                ? 'Aparece en todas las sesiones, también en las que crees después.'
+                : 'Sin marcar ninguna, la tarjeta solo se ve en «Toda la biblioteca». Nunca se duplica.'}
+            </p>
+          </fieldset>
+        )}
 
         {error && (
           <p className="aviso" role="alert">

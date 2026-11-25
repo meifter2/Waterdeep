@@ -1,7 +1,7 @@
 import { interpretarEnlace } from '../lib/enlaces'
 import { nuevoId } from '../lib/id'
 import { almacenamientoSeguro } from './storage'
-import { TIPOS, carpeta, vacia, type Biblioteca, type Elemento, type Pista, type Recurso, type Tipo } from './types'
+import { TIPOS, carpeta, vacia, type Biblioteca, type Elemento, type Pista, type Recurso, type Sesion, type SesionElemento, type ElementoComun, type Tipo } from './types'
 
 // Conversión de formatos antiguos (v2 y v3: una canción por tarjeta) al modelo v4 y copias de seguridad.
 
@@ -149,5 +149,21 @@ export function leerCopia(contenido: string): Biblioteca | string {
         orden: Number(p.orden) || 0,
       }
     })
-  return { elementos, recursos, pistas }
+  // Organización por sesiones (opcional: las copias anteriores no la tienen y siguen valiendo).
+  const lista = (v: unknown) => (Array.isArray(v) ? (v as Record<string, unknown>[]) : [])
+  const sesiones: Sesion[] = lista(d.sesiones)
+    .filter((x) => typeof x?.id === 'string' && typeof x.nombre === 'string' && x.nombre.trim())
+    .map((x) => ({ id: x.id as string, nombre: texto((x.nombre as string).trim(), 60), finalizada: x.finalizada === true, orden: Number(x.orden) || 0 }))
+  const idsSesion = new Set(sesiones.map((x) => x.id))
+  const vistos = new Set<string>()
+  const sesion_elementos: SesionElemento[] = lista(d.sesion_elementos)
+    .filter((x) => typeof x?.id === 'string' && idsSesion.has(x.sesion_id as string) && ids.e.has(x.elemento_id as string))
+    .map((x) => ({ id: x.id as string, sesion_id: x.sesion_id as string, elemento_id: x.elemento_id as string }))
+    .filter((x) => !vistos.has(`${x.sesion_id}|${x.elemento_id}`) && !!vistos.add(`${x.sesion_id}|${x.elemento_id}`))
+  const comunes = new Set<string>()
+  const elementos_comunes: ElementoComun[] = lista(d.elementos_comunes)
+    .filter((x) => typeof x?.id === 'string' && ids.e.has(x.elemento_id as string))
+    .map((x) => ({ id: x.id as string, elemento_id: x.elemento_id as string }))
+    .filter((x) => !comunes.has(x.elemento_id) && !!comunes.add(x.elemento_id))
+  return { elementos, recursos, pistas, sesiones, sesion_elementos, elementos_comunes }
 }

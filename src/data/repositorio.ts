@@ -3,7 +3,7 @@ import { nuevoId } from '../lib/id'
 import { supabase } from '../lib/supabase'
 import { CLAVE_V4, exportarCopia, leerCopia, leerDelNavegador } from './convertir'
 import { almacenamientoSeguro } from './storage'
-import { vacia, type Biblioteca, type Tabla } from './types'
+import { TABLAS_SESIONES, vacia, type Biblioteca, type Tabla } from './types'
 
 // Dónde se guarda la biblioteca: Supabase (tablas + Storage privado) o el navegador (modo local).
 // El resto de la app usa esta interfaz y no sabe cuál hay detrás.
@@ -11,8 +11,16 @@ import { vacia, type Biblioteca, type Tabla } from './types'
 export type Fila<T extends Tabla> = Biblioteca[T][number]
 export type Bucket = 'audio' | 'retratos'
 
+/**
+ * Biblioteca cargada. `sinSesiones` = por qué no se pueden usar las sesiones (bd/004 sin ejecutar u otro fallo al
+ * leerlas): la biblioteca carga y funciona igual; solo la organización por sesiones queda en pausa.
+ */
+export type Cargada = Biblioteca & { sinSesiones?: string }
+
+export const FALTA_004 = 'Para organizar por sesiones falta un paso en la base de datos: ejecuta bd/004-sesiones.sql en Supabase (SQL Editor) y recarga.'
+
 export interface Repositorio {
-  listar(): Promise<Biblioteca>
+  listar(): Promise<Cargada>
   crear<T extends Tabla>(t: T, d: Omit<Fila<T>, 'id'>): Promise<Fila<T>>
   actualizar<T extends Tabla>(t: T, id: string, cambios: Partial<Fila<T>>): Promise<void>
   eliminar(t: Tabla, id: string): Promise<void>
@@ -29,13 +37,22 @@ const COLUMNAS: Record<Tabla, string> = {
   elementos: 'id, tipo, nombre, descripcion, retrato_ruta, orden',
   recursos: 'id, origen, titulo, descripcion, enlace, archivo_ruta, archivo_nombre, archivo_tipo, archivo_bytes, archivo_hash, duracion_ms',
   pistas: 'id, elemento_id, recurso_id, etiqueta, inicio_ms, fin_ms, bucle, orden',
+  sesiones: 'id, nombre, finalizada, orden',
+  sesion_elementos: 'id, sesion_id, elemento_id',
+  elementos_comunes: 'id, elemento_id',
 }
+
+const esSesiones = (t?: Tabla) => !!t && (TABLAS_SESIONES as readonly string[]).includes(t)
+const FALTA_TABLA = /PGRST205|42P01|does not exist|schema cache/i
 
 const DURACION_URL = 6 * 60 * 60 // 6 h: una sesión de juego larga
 
-function traducir(error: { code?: string; message?: string }): ErrorDatos {
+function traducir(error: { code?: string; message?: string }, tabla?: Tabla): ErrorDatos {
   const m = `${error.code ?? ''} ${error.message ?? ''}`
-  if (/PGRST205|42P01|does not exist|schema cache/i.test(m))
+  if (esSesiones(tabla) && FALTA_TABLA.test(m))
+    return new ErrorDatos(FALTA_004)
+  if (esSesiones(tabla) && /23505|duplicate key/i.test(m)) return new ErrorDatos('Esa tarjeta ya estaba en esa sesión.')
+  if (FALTA_TABLA.test(m))
     return new ErrorDatos('Falta preparar la base de datos: ejecuta bd/002-biblioteca.sql en Supabase (SQL Editor) y recarga.')
   if (/23514|recursos_origen_check|recursos_url_https_check/i.test(m))
     return new ErrorDatos('Para guardar enlaces de audio falta un paso en la base de datos: ejecuta bd/003-enlaces-audio.sql en Supabase (SQL Editor).')
@@ -67,20 +84,35 @@ function repoSupabase(): Repositorio {
       )
       const error = e.error ?? r.error ?? p.error
       if (error) throw traducir(error)
-      return { elementos: e.data, recursos: r.data, pistas: p.data } as unknown as Biblioteca
+      const b = { ...vacia(), elementos: e.data, recursos: r.data, pistas: p.data } as unknown as Cargada
+      // Sesiones (bd/004): si aún no se ha ejecutado, la biblioteca carga igual y se avisa al usarlas.
+      // Nunca se espera más de 8 s por ellas: la biblioteca no se queda «cargando» por las sesiones.
+      const espera = new Promise<null>((ok) => setTimeout(() => ok(null), 8000))
+      const org = await Promise.race([Promise.all(TABLAS_SESIONES.map((t) => sb.from(t).select(COLUMNAS[t]).order('creado'))), espera])
+      if (!org) return { ...b, sinSesiones: 'No se han podido cargar tus sesiones (tus tarjetas están bien). Recarga la página para organizarlas.' }
+      const fallo = org.find((x) => x.error)?.error
+      if (fallo)
+        return {
+          ...b,
+          sinSesiones: FALTA_TABLA.test(`${fallo.code ?? ''} ${fallo.message ?? ''}`)
+            ? FALTA_004
+            : 'No se han podido cargar tus sesiones (tus tarjetas están bien). Recarga la página para organizarlas.',
+        }
+      TABLAS_SESIONES.forEach((t, i) => ((b as unknown as Record<string, unknown>)[t] = org[i].data))
+      return b
     },
     async crear(t, d) {
       const { data, error } = await sb.from(t).insert(d as never).select(COLUMNAS[t]).single()
-      if (error) throw traducir(error)
+      if (error) throw traducir(error, t)
       return data as never
     },
     async actualizar(t, id, cambios) {
       const { error } = await sb.from(t).update(cambios as never).eq('id', id)
-      if (error) throw traducir(error)
+      if (error) throw traducir(error, t)
     },
     async eliminar(t, id) {
       const { error } = await sb.from(t).delete().eq('id', id)
-      if (error) throw traducir(error)
+      if (error) throw traducir(error, t)
     },
     async subir(bucket, archivo, ext) {
       const ruta = `${await uid()}/${nuevoId()}${ext ? `.${ext}` : ''}`
@@ -127,6 +159,11 @@ function repoLocal(): Repositorio {
     },
     async crear(t, d) {
       const b = leer()
+      // Mismas reglas de unicidad que en la base de datos (bd/004).
+      const x = d as { sesion_id?: string; elemento_id?: string }
+      if (t === 'sesion_elementos' && b.sesion_elementos.some((r) => r.sesion_id === x.sesion_id && r.elemento_id === x.elemento_id))
+        throw new ErrorDatos('Esa tarjeta ya estaba en esa sesión.')
+      if (t === 'elementos_comunes' && b.elementos_comunes.some((r) => r.elemento_id === x.elemento_id)) throw new ErrorDatos('Esa tarjeta ya era común.')
       const fila = { ...d, id: nuevoId() } as Fila<typeof t>
       ;(b[t] as Fila<typeof t>[]).push(fila)
       escribir(b)
@@ -143,6 +180,12 @@ function repoLocal(): Repositorio {
       // Mismas cascadas que en la base de datos: las pistas dependen de elemento y recurso.
       if (t === 'elementos') b.pistas = b.pistas.filter((p) => p.elemento_id !== id)
       if (t === 'recursos') b.pistas = b.pistas.filter((p) => p.recurso_id !== id)
+      // Sesiones: borrar una tarjeta o una sesión quita solo sus relaciones (nunca tarjetas ni sonidos).
+      if (t === 'elementos') {
+        b.sesion_elementos = b.sesion_elementos.filter((x) => x.elemento_id !== id)
+        b.elementos_comunes = b.elementos_comunes.filter((x) => x.elemento_id !== id)
+      }
+      if (t === 'sesiones') b.sesion_elementos = b.sesion_elementos.filter((x) => x.sesion_id !== id)
       escribir(b)
     },
     async subir(_bucket, archivo, ext) {

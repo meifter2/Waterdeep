@@ -2,6 +2,7 @@ import { duracionAudio, extension, huella, tipoAudio, validarAudio } from '../li
 import { interpretarEnlace } from '../lib/enlaces'
 import { claveEnlace, recursoVacio } from './convertir'
 import { repositorio } from './repositorio'
+import { asignar, crearSesion, marcarComun, marcarFinalizada, sesionVigente, useSesionActiva } from './sesiones'
 import { ordenNuevo, useDatos } from './store'
 import { carpeta, type Biblioteca, type Elemento, type Pista, type Recurso, type Tipo } from './types'
 
@@ -174,6 +175,9 @@ export async function anadirSonido(o: {
   if (!el) {
     el = await repositorio.crear('elementos', { tipo: o.nuevo!.tipo, nombre: o.nuevo!.nombre.trim().slice(0, 120), descripcion: '', retrato_ruta: null, orden: ordenNuevo(est().elementos, o.nuevo!.tipo) })
     est().fusionar({ elementos: [el] })
+    // Creada dentro de una sesión: queda en esa sesión (si falla, la tarjeta sigue en la biblioteca y se avisa).
+    const activa = sesionVigente(useSesionActiva.getState().activa, est().sesiones)
+    if (activa) await asignar([el.id], activa.id)
   }
   const orden = est().pistas.filter((p) => p.elemento_id === el!.id).length
   const pista = await repositorio.crear('pistas', {
@@ -190,7 +194,7 @@ export async function anadirSonido(o: {
 }
 
 /** Importa una biblioteca (copia o datos antiguos) sin duplicar sonidos. */
-export async function importarBiblioteca(b: Biblioteca): Promise<{ elementos: number; omitidos: number }> {
+export async function importarBiblioteca(b: Biblioteca): Promise<{ elementos: number; omitidos: number; sesiones: number }> {
   const mapa = new Map<string, string>()
   let omitidos = 0
   for (const r of b.recursos) {
@@ -204,9 +208,11 @@ export async function importarBiblioteca(b: Biblioteca): Promise<{ elementos: nu
     else omitidos++
   }
   let elementos = 0
+  const nuevosIds = new Map<string, string>()
   for (const e of b.elementos) {
     const nuevo = await repositorio.crear('elementos', { tipo: e.tipo, nombre: e.nombre, descripcion: e.descripcion, retrato_ruta: null, orden: e.orden })
     est().fusionar({ elementos: [nuevo] })
+    nuevosIds.set(e.id, nuevo.id)
     elementos++
     const suyas: Pista[] = b.pistas.filter((p) => p.elemento_id === e.id && mapa.has(p.recurso_id))
     for (const p of suyas) {
@@ -215,5 +221,25 @@ export async function importarBiblioteca(b: Biblioteca): Promise<{ elementos: nu
       est().fusionar({ pistas: [creada] })
     }
   }
-  return { elementos, omitidos }
+  return { elementos, omitidos, sesiones: await importarSesiones(b, nuevosIds) }
+}
+
+/**
+ * Sesiones de una copia (si las trae): se reutiliza la sesión con el mismo nombre o se crea, y se enlazan las tarjetas
+ * importadas. Sin bd/004 se omite (las tarjetas ya están añadidas). Devuelve cuántas sesiones se han usado.
+ */
+async function importarSesiones(b: Biblioteca, ids: Map<string, string>): Promise<number> {
+  const usadas = b.sesiones.filter((s) => b.sesion_elementos.some((r) => r.sesion_id === s.id && ids.has(r.elemento_id)))
+  const comunes = b.elementos_comunes.map((c) => ids.get(c.elemento_id)).filter((x): x is string => !!x)
+  if ((!usadas.length && !comunes.length) || est().sinSesiones) return 0
+  for (const s of usadas) {
+    const misma = est().sesiones.find((x) => x.nombre.trim().toLowerCase() === s.nombre.trim().toLowerCase())
+    const destino = misma ?? (await crearSesion(s.nombre))
+    if (!destino) continue
+    if (!misma && s.finalizada) await marcarFinalizada(destino.id, true)
+    const suyas = b.sesion_elementos.filter((r) => r.sesion_id === s.id).map((r) => ids.get(r.elemento_id)).filter((x): x is string => !!x)
+    await asignar(suyas, destino.id)
+  }
+  if (comunes.length) await marcarComun(comunes, true)
+  return usadas.length
 }

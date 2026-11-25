@@ -14,7 +14,7 @@ const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: UID, exp, role: '
 const sesion = { access_token: jwt, token_type: 'bearer', expires_in: 3600, expires_at: exp, refresh_token: 'refresco', user: usuario };
 
 // ── Datos ya guardados en la «nube» ──
-const tablas = { elementos: [], recursos: [], pistas: [] };
+const tablas = { elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [] };
 const archivos = new Map();
 let n = 0;
 function crear(tipo, nombre, segundos, { existe = true } = {}) {

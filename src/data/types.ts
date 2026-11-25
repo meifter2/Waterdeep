@@ -39,10 +39,34 @@ export interface Pista {
   orden: number
 }
 
+/** Carpeta de una sesión de juego («Sesión 1»…). Solo organiza: no copia tarjetas ni sonidos (bd/004). */
+export interface Sesion {
+  id: string
+  nombre: string
+  finalizada: boolean
+  orden: number
+}
+
+/** Una tarjeta está en una sesión (muchos a muchos: la misma tarjeta puede estar en varias). */
+export interface SesionElemento {
+  id: string
+  sesion_id: string
+  elemento_id: string
+}
+
+/** Tarjeta común: aparece en todas las sesiones. */
+export interface ElementoComun {
+  id: string
+  elemento_id: string
+}
+
 export interface Biblioteca {
   elementos: Elemento[]
   recursos: Recurso[]
   pistas: Pista[]
+  sesiones: Sesion[]
+  sesion_elementos: SesionElemento[]
+  elementos_comunes: ElementoComun[]
 }
 
 export type Tabla = keyof Biblioteca
@@ -77,4 +101,7 @@ export const carpeta = (t: Tipo) => CARPETAS.find((c) => c.tipo === t)!
 
 export const ETIQUETAS_SUGERIDAS = ['Tema principal', 'Tensión', 'Combate', 'Calma', 'Misterio', 'Victoria', 'Tristeza', 'Huida']
 
-export const vacia = (): Biblioteca => ({ elementos: [], recursos: [], pistas: [] })
+export const vacia = (): Biblioteca => ({ elementos: [], recursos: [], pistas: [], sesiones: [], sesion_elementos: [], elementos_comunes: [] })
+
+/** Tablas de la organización por sesiones (bd/004): opcionales, la app funciona sin ellas. */
+export const TABLAS_SESIONES = ['sesiones', 'sesion_elementos', 'elementos_comunes'] as const

@@ -10,6 +10,11 @@ import { Instalar } from '../components/Instalar'
 import { Migracion } from '../components/Migracion'
 import { Reproductor } from '../components/reproductor/Reproductor'
 import { Seccion } from '../components/Seccion'
+import { BarraSeleccion } from '../components/sesiones/BarraSeleccion'
+import { BarraSesiones } from '../components/sesiones/BarraSesiones'
+import { GestionSesiones } from '../components/sesiones/GestionSesiones'
+import { useSeleccion } from '../components/sesiones/seleccion'
+import { sesionVigente, useSesionActiva, visiblesEn } from '../data/sesiones'
 import { tocarElemento } from '../data/mezcla'
 import { almacenamientoDisponible } from '../data/storage'
 import { compararElementos, useDatos } from '../data/store'
@@ -23,11 +28,14 @@ type Edicion = { elemento: Elemento | null; tipo: Tipo } | null
 
 /** Pantalla principal: carpetas con sus tarjetas y el reproductor abajo. */
 export function Biblioteca() {
-  const { elementos, recursos, pistas, carga, error, limpiarError } = useDatos()
+  const { elementos, recursos, pistas, carga, error, limpiarError, sesiones, sesion_elementos, elementos_comunes } = useDatos()
+  const activa = useSesionActiva((s) => s.activa)
+  const sesion = sesionVigente(activa, sesiones)
+  const seleccionando = useSeleccion((s) => s.activo)
   const errorSpotify = useSpotify((s) => s.error)
   const [busqueda, setBusqueda] = useState('')
   const [edicion, setEdicion] = useState<Edicion>(null)
-  const [dialogo, setDialogo] = useState<'copias' | 'sonidos' | 'buscar' | null>(null)
+  const [dialogo, setDialogo] = useState<'copias' | 'sonidos' | 'buscar' | 'sesiones' | 'nueva-sesion' | null>(null)
   const [compartido, setCompartido] = useState<(DatosCompartidos & { pegado?: boolean }) | null>(null)
   const [hecho, setHecho] = useState('')
   const buscador = useRef<HTMLInputElement>(null)
@@ -67,9 +75,19 @@ export function Biblioteca() {
         if (p.elemento_id === e.id) textos.push(p.etiqueta, recursos.find((r) => r.id === p.recurso_id)?.titulo ?? '')
       return textos.some((v) => v.toLocaleLowerCase('es').includes(q))
     }
-    const filtrados = elementos.filter(coincide).sort(compararElementos)
+    // En una sesión: sus tarjetas y las comunes. Elegir sesión solo filtra; no toca lo que suena.
+    const visibles = sesion ? visiblesEn(sesion.id, sesion_elementos, elementos_comunes) : null
+    const filtrados = elementos.filter((e) => !visibles || visibles.has(e.id)).filter(coincide).sort(compararElementos)
     return CARPETAS.map((carpeta) => ({ carpeta, lista: filtrados.filter((e) => e.tipo === carpeta.tipo) }))
-  }, [elementos, pistas, recursos, q])
+  }, [elementos, pistas, recursos, q, sesion, sesion_elementos, elementos_comunes])
+
+  const visiblesIds = useMemo(() => porCarpeta.flatMap((g) => g.lista.map((e) => e.id)), [porCarpeta])
+  const cuentaSesion = useMemo(() => {
+    if (!sesion) return { total: 0, comunes: 0 }
+    const ids = visiblesEn(sesion.id, sesion_elementos, elementos_comunes)
+    const existentes = elementos.filter((e) => ids.has(e.id))
+    return { total: existentes.length, comunes: existentes.filter((e) => elementos_comunes.some((c) => c.elemento_id === e.id)).length }
+  }, [sesion, sesion_elementos, elementos_comunes, elementos])
 
   // «Pegar enlace»: lee el portapapeles (si el navegador lo permite) y abre la ventana con el enlace ya puesto.
   const pegarEnlace = async () => {
@@ -99,6 +117,7 @@ export function Biblioteca() {
         carpeta={carpeta}
         elementos={lista}
         buscando={!!q}
+        sesion={sesion?.nombre ?? null}
         alAnadir={() => setEdicion({ elemento: null, tipo: carpeta.tipo })}
         alEditar={(el) => setEdicion({ elemento: el, tipo: el.tipo })}
       />
@@ -107,7 +126,7 @@ export function Biblioteca() {
   const sinResultados = q && porCarpeta.every((g) => g.lista.length === 0)
 
   return (
-    <div className="app">
+    <div className="app" data-sesion={sesion ? true : undefined} data-seleccionando={seleccionando || undefined}>
       <header className="cabecera">
         <div className="cabecera-marca">
           <h1 className="marca" title="DFY · El sonido de tus aventuras">
@@ -160,6 +179,10 @@ export function Biblioteca() {
         </div>
       </header>
 
+      {carga === 'lista' && (
+        <BarraSesiones alNueva={() => setDialogo('nueva-sesion')} alGestionar={() => setDialogo('sesiones')} cuenta={cuentaSesion} />
+      )}
+
       <main className="biblioteca" aria-busy={carga === 'cargando'}>
         <p id="ayuda-mover" className="sr">
           Para cambiar el orden, arrastra el asa. Con el teclado: pulsa espacio, mueve con las flechas y pulsa espacio para soltar; Esc cancela.
@@ -193,7 +216,9 @@ export function Biblioteca() {
         {carga === 'cargando' ? (
           <p className="cargando">Cargando tu biblioteca…</p>
         ) : carga === 'error' ? null : sinResultados ? (
-          <p className="vacio-corto">Nada coincide con «{busqueda}». Prueba con otro nombre o pulsa Esc para ver todo.</p>
+          <p className="vacio-corto">
+            Nada coincide con «{busqueda}»{sesion ? ` en «${sesion.nombre}»` : ''}. Prueba con otro nombre o pulsa Esc para ver todo.
+          </p>
         ) : (
           <>
             <div className="bordes-sesion">
@@ -211,11 +236,16 @@ export function Biblioteca() {
         )}
       </main>
 
+      {seleccionando && carga === 'lista' && <BarraSeleccion visibles={visiblesIds} alGuardar={setHecho} />}
+
       <Reproductor />
 
       {edicion && <EditorElemento elemento={edicion.elemento} tipoInicial={edicion.tipo} alCerrar={() => setEdicion(null)} alGuardar={setHecho} />}
       {compartido && (
         <Compartido enlaceInicial={compartido.enlace} textoInicial={compartido.texto} pegado={compartido.pegado} alCerrar={() => setCompartido(null)} alGuardar={setHecho} />
+      )}
+      {(dialogo === 'sesiones' || dialogo === 'nueva-sesion') && (
+        <GestionSesiones nueva={dialogo === 'nueva-sesion'} alCerrar={() => setDialogo(null)} alGuardar={setHecho} />
       )}
       {dialogo === 'copias' && <Copias alCerrar={() => setDialogo(null)} />}
       {dialogo === 'sonidos' && <BibliotecaSonidos alCerrar={() => setDialogo(null)} />}

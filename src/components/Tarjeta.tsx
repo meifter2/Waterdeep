@@ -3,6 +3,7 @@ import { abririaEnSpotify, avisoTramoExterno, tocar, tocarElemento, useMezcla } 
 import { useReproduccion } from '../data/reproduccion'
 import { esLocal, pistasDe, useDatos } from '../data/store'
 import type { Elemento, Pista, Recurso } from '../data/types'
+import { useSeleccion } from './sesiones/seleccion'
 
 /** Nombre corto de una pista para su botón. */
 export function nombrePista(p: Pista, r: Recurso | undefined, i: number): string {
@@ -22,6 +23,7 @@ export function Tarjeta({
   alEditar,
   asa,
   moviendo = false,
+  verComun = false,
 }: {
   elemento: Elemento
   alEditar: () => void
@@ -29,6 +31,8 @@ export function Tarjeta({
   asa?: Record<string, unknown>
   /** La tarjeta que se está moviendo: se dibuja como hueco donde caerá. */
   moviendo?: boolean
+  /** Vista de una sesión: se marca si la tarjeta es común (aparece en todas). */
+  verComun?: boolean
 }) {
   // Ojo: un selector que devuelve una lista nueva provoca un bucle; se calcula aparte.
   const todas = useDatos((s) => s.pistas)
@@ -39,6 +43,20 @@ export function Tarjeta({
   const estado = useReproduccion((s) => s.estado)
   const ambientes = useMezcla((s) => s.ambientes)
   const efectos = useMezcla((s) => s.efectos)
+  const seleccionando = useSeleccion((s) => s.activo)
+  const seleccionada = useSeleccion((s) => s.ids.includes(elemento.id))
+  const alternar = useSeleccion((s) => s.alternar)
+  const comun = useDatos((s) => s.elementos_comunes.some((c) => c.elemento_id === elemento.id))
+  // En modo selección se ve dónde está cada tarjeta (para organizar sin abrirlas).
+  const relaciones = useDatos((s) => s.sesion_elementos)
+  const sesiones = useDatos((s) => s.sesiones)
+  const dondeEsta = useMemo(() => {
+    if (!seleccionando) return ''
+    const nombres = relaciones.filter((r) => r.elemento_id === elemento.id).flatMap((r) => sesiones.find((x) => x.id === r.sesion_id)?.nombre ?? [])
+    nombres.sort((a, b) => a.localeCompare(b, 'es', { numeric: true }))
+    const partes = [...(comun ? ['Común'] : []), ...nombres]
+    return partes.length ? partes.join(', ') : 'Sin sesión'
+  }, [seleccionando, relaciones, sesiones, elemento.id, comun])
 
   const capa = elemento.tipo === 'ambiente' || elemento.tipo === 'efecto' ? elemento.tipo : null
   /** ¿Esta pista va a la mezcla? (archivo propio en Ambientes o Efectos) */
@@ -101,9 +119,19 @@ export function Tarjeta({
       data-sonando={sonando || undefined}
       data-retrato={conRetrato || undefined}
       data-varias={varias || undefined}
+      data-seleccionando={seleccionando || undefined}
+      data-seleccionada={seleccionada || undefined}
     >
+      {seleccionando && (
+        <button type="button" className="tarjeta-seleccionar" aria-pressed={seleccionada} onClick={() => alternar(elemento.id)}>
+          <span className="tarjeta-casilla" aria-hidden="true" />
+          <span className="sr">Seleccionar {elemento.nombre}</span>
+          <span className="tarjeta-donde">{dondeEsta}</span>
+        </button>
+      )}
       <button
         type="button"
+        inert={seleccionando || undefined}
         className="tarjeta-tocar"
         onClick={() => (pistas.length ? tocarElemento(elemento.id) : alEditar())}
         aria-pressed={capa === 'ambiente' && principalEnMezcla ? !!canalPrincipal : undefined}
@@ -118,13 +146,14 @@ export function Tarjeta({
         {conRetrato && <span className="tarjeta-retrato">{retrato && <img src={retrato} alt="" loading="lazy" />}</span>}
         <span className="tarjeta-textos">
           <span className="tarjeta-nombre">{elemento.nombre}</span>
+          {verComun && comun && <span className="tarjeta-comun">Común</span>}
           {elemento.descripcion && <span className="tarjeta-nota">{elemento.descripcion}</span>}
           {estadoTexto && <span className="tarjeta-fuente">{estadoTexto}</span>}
         </span>
       </button>
 
       {varias && (
-        <ul className="tarjeta-pistas" aria-label={`Pistas de ${elemento.nombre}`}>
+        <ul className="tarjeta-pistas" inert={seleccionando || undefined} aria-label={`Pistas de ${elemento.nombre}`}>
           {pistas.map((p, i) => {
             const r = recursos.find((x) => x.id === p.recurso_id)
             const c = canalDe(p)
@@ -153,7 +182,7 @@ export function Tarjeta({
         </ul>
       )}
 
-      <div className="tarjeta-acciones">
+      <div className="tarjeta-acciones" inert={seleccionando || undefined}>
         {asa && (
           <button
             type="button"

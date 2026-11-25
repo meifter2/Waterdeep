@@ -1,4 +1,4 @@
-// Valida bd/esquema.sql + bd/002-biblioteca.sql + bd/003-enlaces-audio.sql en Postgres real (PGlite, WASM) con un
+// Valida bd/esquema.sql + bd/002-biblioteca.sql + bd/003-enlaces-audio.sql + bd/004-sesiones.sql en Postgres real (PGlite, WASM) con un
 // «Supabase mínimo» simulado: auth.users, auth.uid(), roles anon/authenticated y Storage.
 // No sustituye a probar en Supabase, pero comprueba sintaxis, migración, idempotencia, RLS y claves.
 import { PGlite } from '@electric-sql/pglite'
@@ -119,6 +119,44 @@ comprobar('Sin sesión no se lee nada', await falla(`select * from public.elemen
 await comoAdmin()
 const cubo = await uno(`select public, file_size_limit from storage.buckets where id = 'audio'`)
 comprobar('Bucket de audio privado y con límite de 50 MB', cubo?.public === false && Number(cubo.file_size_limit) === 52428800)
+
+// ── 004: sesiones (muchos a muchos) ──
+await comoAdmin()
+const nucleo = async () => [await cuenta('public.elementos'), await cuenta('public.recursos'), await cuenta('public.pistas')].join()
+const antes004 = await nucleo()
+await db.exec(sql('bd/004-sesiones.sql'))
+await db.exec(sql('bd/004-sesiones.sql'))
+comprobar('004 se puede repetir y no toca elementos, recursos ni pistas', (await nucleo()) === antes004)
+comprobar('004 no asigna nada automáticamente', (await cuenta('public.sesiones')) === 0 && (await cuenta('public.sesion_elementos')) === 0 && (await cuenta('public.elementos_comunes')) === 0)
+const elemB = await uno(`select id from public.elementos where user_id = '${B}' limit 1`)
+await comoUsuario(B)
+const sesB = await uno(`insert into public.sesiones (nombre) values ('Sesión de B') returning id`)
+await comoUsuario(A)
+const [t1, t2] = (await db.query(`select id from public.elementos order by nombre limit 2`)).rows
+const s1 = await uno(`insert into public.sesiones (nombre) values ('Sesión 1') returning id, user_id`)
+const s2 = await uno(`insert into public.sesiones (nombre) values ('Sesión 2') returning id`)
+comprobar('A crea sesiones sin enviar user_id', s1?.user_id === A)
+comprobar('Nombre de sesión vacío: rechazado', await falla(`insert into public.sesiones (nombre) values ('   ')`))
+await db.exec(`insert into public.sesion_elementos (sesion_id, elemento_id) values ('${s1.id}', '${t1.id}'), ('${s2.id}', '${t1.id}'), ('${s1.id}', '${t2.id}')`)
+comprobar('Una tarjeta en varias sesiones sin duplicarse', (await cuenta('public.sesion_elementos')) === 3 && (await cuenta('public.elementos')) === 4)
+comprobar('La misma tarjeta dos veces en la misma sesión: rechazado', await falla(`insert into public.sesion_elementos (sesion_id, elemento_id) values ('${s1.id}', '${t1.id}')`))
+comprobar('A no ve las sesiones de B', (await cuenta('public.sesiones')) === 2)
+comprobar('A no puede meter una tarjeta de B en su sesión', await falla(`insert into public.sesion_elementos (sesion_id, elemento_id) values ('${s1.id}', '${elemB.id}')`))
+comprobar('A no puede meter su tarjeta en una sesión de B', await falla(`insert into public.sesion_elementos (sesion_id, elemento_id) values ('${sesB.id}', '${t1.id}')`))
+comprobar('A marca una tarjeta como común', !(await falla(`insert into public.elementos_comunes (elemento_id) values ('${t2.id}')`)))
+comprobar('A no puede marcar como común una tarjeta de B', await falla(`insert into public.elementos_comunes (elemento_id) values ('${elemB.id}')`))
+await db.exec(`delete from public.sesion_elementos where sesion_id = '${s2.id}' and elemento_id = '${t1.id}'`)
+comprobar('Quitar una tarjeta de una sesión no borra la tarjeta ni sus pistas', (await cuenta('public.elementos')) === 4 && (await cuenta('public.sesion_elementos')) === 2)
+const pistasA = await cuenta('public.pistas')
+await db.exec(`delete from public.sesiones where id = '${s1.id}'`)
+comprobar('Borrar una sesión: se van sus relaciones, NO las tarjetas, pistas ni recursos', (await cuenta('public.sesion_elementos')) === 0 && (await cuenta('public.elementos')) === 4 && (await cuenta('public.pistas')) === pistasA)
+await comoUsuario(B)
+comprobar('B no ve las sesiones, relaciones ni comunes de A', (await cuenta('public.sesiones')) === 1 && (await cuenta('public.elementos_comunes')) === 0)
+await db.exec(`reset role; set role anon;`)
+comprobar('Sin sesión no se leen sesiones', await falla(`select * from public.sesiones`))
+await comoAdmin()
+await db.exec(`delete from public.elementos where id = '${t2.id}'`)
+comprobar('Borrar una tarjeta quita también su marca de común', (await cuenta('public.elementos_comunes')) === 0)
 
 console.log(fallos ? `\n${fallos} FALLOS` : '\nTodas las comprobaciones correctas')
 process.exit(fallos ? 1 : 0)

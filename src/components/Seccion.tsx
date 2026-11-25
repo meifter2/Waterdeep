@@ -8,12 +8,15 @@ export function Seccion({
   carpeta,
   elementos,
   buscando,
+  sesion,
   alAnadir,
   alEditar,
 }: {
   carpeta: Carpeta
   elementos: Elemento[]
   buscando: boolean
+  /** Nombre de la sesión elegida (null = «Toda la biblioteca»). */
+  sesion?: string | null
   alAnadir: () => void
   alEditar: (e: Elemento) => void
 }) {
@@ -41,7 +44,9 @@ export function Seccion({
       {elementos.length === 0 ? (
         <button type="button" className="seccion-vacia" onClick={alAnadir}>
           <span className="seccion-vacia-accion">{carpeta.nuevo}</span>
-          <span className="seccion-vacia-texto">{carpeta.vacio}</span>
+          <span className="seccion-vacia-texto">
+            {sesion ? `Nada de esta carpeta en «${sesion}». Lo que crees aquí se guarda en esta sesión.` : carpeta.vacio}
+          </span>
         </button>
       ) : (
         <ul className="tarjetas" ref={ord.lista} data-ordenando={ord.fantasma || ord.levantada ? true : undefined}>
@@ -55,6 +60,7 @@ export function Seccion({
                   alEditar={() => alEditar(e)}
                   asa={reordenable ? ord.asa(e.id) : undefined}
                   moviendo={ord.fantasma?.id === e.id || ord.levantada === e.id}
+                  verComun={!!sesion}
                 />
               )
             )
